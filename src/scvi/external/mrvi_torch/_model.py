@@ -224,6 +224,7 @@ class TorchMRVI(
         batch_size: int = 128,
         early_stopping: bool = False,
         plan_kwargs: dict | None = None,
+        datamodule=None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -248,6 +249,9 @@ class TorchMRVI(
             See :class:`~scvi.train.Trainer` for further options.
         plan_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.TrainingPlan`.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`.
         **trainer_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
@@ -261,6 +265,7 @@ class TorchMRVI(
             "validation_size": validation_size,
             "batch_size": batch_size,
             "early_stopping": early_stopping,
+            "datamodule": datamodule,
             **trainer_kwargs,
         }
         train_kwargs = dict(deepcopy(DEFAULT_TRAIN_KWARGS), **train_kwargs)
@@ -270,6 +275,11 @@ class TorchMRVI(
         )
 
         super().train(**train_kwargs)
+
+        if datamodule is not None and not hasattr(self, "sample_info"):
+            inference_dataloader = getattr(datamodule, "inference_dataloader", None)
+            if inference_dataloader is not None:
+                self.update_sample_info(dataloader=inference_dataloader())
 
     @torch.inference_mode()
     def get_latent_representation(
@@ -347,6 +357,7 @@ class TorchMRVI(
         use_vmap: Literal["auto", True, False] = "auto",
         norm: str = "l2",
         mc_samples: int = 10,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> xr.Dataset:
         """Compute local statistics from counterfactual sample representations.
 
@@ -382,15 +393,24 @@ class TorchMRVI(
         if not reductions or len(reductions) == 0:
             raise ValueError("At least one reduction must be provided.")
 
-        adata = self.adata if adata is None else adata
         self._check_if_trained(warn=False)
-        # Hack to ensure new AnnDatas have indices.
-        adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
+        if dataloader is None:
+            adata = self.adata if adata is None else adata
+            # Hack to ensure new AnnDatas have indices.
+            adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
 
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
-        )
+            adata = self._validate_anndata(adata)
+            scdl = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
+            )
+        else:
+            if adata is None and self.adata is None:
+                raise ValueError("Pass `adata` or an inference dataloader.")
+            adata = self.adata if adata is None else adata
+            if not hasattr(adata, "obs"):
+                raise ValueError("Loader-based local statistics require an object with `obs`.")
+            adata.obs["_indices"] = np.arange(len(adata.obs)).astype(int)
+            scdl = dataloader
         n_sample = self.summary_stats.n_sample
 
         reqs = _parse_local_statistics_requirements(reductions)
@@ -431,14 +451,20 @@ class TorchMRVI(
         for gr in reqs.grouped_reductions:
             grouped_data_arrs[gr.name] = {}  # Will map group category to running the group sum.
 
+        batch_cursor = 0
         for tensor in tqdm(scdl):
-            indices = tensor[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
             n_cells = tensor[REGISTRY_KEYS.X_KEY].shape[0]
+            if REGISTRY_KEYS.INDICES_KEY in tensor:
+                indices = tensor[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
+            else:
+                indices = np.arange(batch_cursor, batch_cursor + n_cells)
+            batch_cursor += n_cells
             cf_sample = np.broadcast_to(np.arange(n_sample)[:, None, None], (n_sample, n_cells, 1))
             inf_inputs = self.module._get_inference_input(
                 tensor,
             )
             cell_names = adata.obs_names[indices].values
+            sample_order = self.sample_order[:n_sample]
 
             if reqs.needs_mean_representations:
                 try:
@@ -461,7 +487,7 @@ class TorchMRVI(
                     dims=["cell_name", "sample", "latent_dim"],
                     coords={
                         "cell_name": cell_names,
-                        "sample": self.sample_order,
+                        "sample": sample_order,
                     },
                     name="sample_representations",
                 )
@@ -479,7 +505,7 @@ class TorchMRVI(
                     dims=["cell_name", "mc_sample", "sample", "latent_dim"],
                     coords={
                         "cell_name": cell_names,
-                        "sample": self.sample_order,
+                        "sample": sample_order,
                     },
                     name="sample_representations",
                 )
@@ -621,13 +647,14 @@ class TorchMRVI(
             dists = torch.vmap(_compute_distance)(reps)
             if return_numpy:
                 dists = dists.detach().cpu().numpy()
+            sample_order = self.sample_order[: reps.shape[1]]
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "sample_x", "sample_y"],
                 coords={
                     "cell_name": cell_names,
-                    "sample_x": self.sample_order,
-                    "sample_y": self.sample_order,
+                    "sample_x": sample_order,
+                    "sample_y": sample_order,
                 },
                 name="sample_distances",
             )
@@ -636,14 +663,15 @@ class TorchMRVI(
             dists = torch.vmap(torch.vmap(_compute_distance))(reps)
             if return_numpy:
                 dists = np.array(dists.detach().cpu().numpy())
+            sample_order = self.sample_order[: reps.shape[2]]
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "mc_sample", "sample_x", "sample_y"],
                 coords={
                     "cell_name": cell_names,
                     "mc_sample": np.arange(reps.shape[1]),
-                    "sample_x": self.sample_order,
-                    "sample_y": self.sample_order,
+                    "sample_x": sample_order,
+                    "sample_y": sample_order,
                 },
                 name="sample_distances",
             )
@@ -694,6 +722,7 @@ class TorchMRVI(
     def get_local_sample_distances(
         self,
         adata: AnnData | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         batch_size: int = 256,
         use_mean: bool = True,
         normalize_distances: bool = False,
@@ -715,6 +744,8 @@ class TorchMRVI(
         ----------
         adata
             AnnData object to use for computing the local sample representation.
+        dataloader
+            Inference dataloader to materialize when the model was initialized without AnnData.
         batch_size
             Batch size to use for computing the local sample representation.
         use_mean
@@ -737,6 +768,21 @@ class TorchMRVI(
             relevant if ``use_mean=False``.
         """
         use_vmap = "auto" if use_vmap == "auto" else use_vmap
+
+        if adata is None and self.adata is None:
+            if dataloader is None:
+                raise ValueError("Pass `adata` or an inference dataloader.")
+            from types import SimpleNamespace
+
+            obs_df = self._collect_obs_from_dataloader(dataloader)
+            obs_df["_indices"] = np.arange(len(obs_df)).astype(int)
+            adata = SimpleNamespace(
+                obs=obs_df,
+                obs_names=pd.Index(np.arange(len(obs_df)).astype(str)),
+                var_names=np.asarray(self.get_var_names()),
+                n_obs=len(obs_df),
+                shape=(len(obs_df), len(self.get_var_names())),
+            )
 
         input = "mean_distances" if use_mean else "sampled_distances"
         if normalize_distances:
@@ -777,6 +823,7 @@ class TorchMRVI(
             use_vmap=use_vmap,
             norm=norm,
             mc_samples=mc_samples,
+            dataloader=dataloader,
         )
 
     @torch.inference_mode()
@@ -1245,12 +1292,11 @@ class TorchMRVI(
         if sample_cov_keys is None:
             # Hack: kept as kwarg to maintain the order of arguments.
             raise ValueError("Must assign `sample_cov_keys`")
-        adata = self.adata if adata is None else adata
         self._check_if_trained(warn=False)
+        adata = self.adata if adata is None else adata
         # Hack to ensure new AnnDatas have indices and indices have correct dimensions.
         if adata is not None:
             adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
-
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata,
@@ -1469,9 +1515,14 @@ class TorchMRVI(
         lfc_std = []
         pde = []
         baseline_expression = []
+        batch_cursor = 0
         for tensors in tqdm(scdl):
-            indices = tensors[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
             n_cells = tensors[REGISTRY_KEYS.X_KEY].shape[0]
+            if REGISTRY_KEYS.INDICES_KEY in tensors:
+                indices = tensors[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
+            else:
+                indices = np.arange(batch_cursor, batch_cursor + n_cells)
+            batch_cursor += n_cells
             cf_sample = np.broadcast_to(
                 (np.where(sample_mask)[0])[:, None, None], (n_samples_kept, n_cells, 1)
             )
@@ -1687,7 +1738,11 @@ class TorchMRVI(
         covariates_require_lfc = torch.Tensor(covariates_require_lfc).bool()
         return Xmat, Xmat_names, covariates_require_lfc, offset_indices
 
-    def update_sample_info(self, adata):
+    def update_sample_info(
+        self,
+        adata: AnnData | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+    ):
         """Initialize/update metadata in the case where additional covariates are added.
 
         Parameters
@@ -1695,6 +1750,8 @@ class TorchMRVI(
         adata
             AnnData object to update the sample info with. Typically, this corresponds to the
             working dataset, where additional sample-specific covariates have been added.
+        dataloader
+            Inference dataloader to materialize when the model was initialized without AnnData.
 
         Examples
         --------
@@ -1708,8 +1765,18 @@ class TorchMRVI(
         >>> adata.obs["disease_status"] = adata.obs["sample_id"].map(sample_mapper)
         >>> model.update_sample_info(adata)
         """
-        adata = self._validate_anndata(adata)
-        obs_df = adata.obs.copy()
+        if adata is None and self.adata is None:
+            if dataloader is None:
+                raise ValueError("Pass `adata` or an inference dataloader.")
+            obs_df = self._collect_obs_from_dataloader(dataloader)
+        else:
+            adata = self._validate_anndata(adata)
+            obs_df = adata.obs.copy()
+        if "_scvi_sample" not in obs_df.columns:
+            sample_col = self.sample_key if self.sample_key in obs_df.columns else None
+            if sample_col is None:
+                raise ValueError("Could not infer sample column from dataloader.")
+            obs_df["_scvi_sample"] = obs_df[sample_col]
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
         self.sample_info = obs_df.set_index("_scvi_sample").sort_index()
 
