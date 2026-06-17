@@ -11,6 +11,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Add support for rapids-singlecell, {pr}`3811`.
 - Add scvi-tools MCP package that gives any MCP-compatible LLM access to scvi-tools knowledge
+- Add {class}`scvi.external.DRVI` for unsupervised disentangled representation learning of
+    single-cell omics.
 
 #### Fixed
 

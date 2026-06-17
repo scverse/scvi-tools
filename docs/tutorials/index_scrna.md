@@ -16,6 +16,7 @@ notebooks/scrna/linear_decoder
 notebooks/scrna/amortized_lda
 notebooks/scrna/AutoZI_tutorial
 notebooks/scrna/sysVI
+notebooks/scrna/drvi
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
 notebooks/scrna/Tahoe100_mrVI
@@ -111,6 +112,13 @@ Use the AutoZI model to enable gene-specific treatment of zero-inflation
 :tags: Integration, Analysis
 
 Integrate scRNA-seq datasets with substantial batch effects.
+```
+
+```{customcard}
+:path: notebooks/scrna/drvi
+:tags: Analysis, Dimensionality-reduction, Interpretability
+
+Learn an interpretable, disentangled representation of scRNA-seq data with DRVI and link latent dimensions to genes.
 ```
 
 ```{customcard}

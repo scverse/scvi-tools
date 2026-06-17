@@ -83,7 +83,7 @@ class FCLayers(nn.Module):
                     (
                         f"Layer {i}",
                         nn.Sequential(
-                            nn.Linear(
+                            self._build_linear(
                                 n_in + self.n_cov * self.inject_into_layer(i),
                                 n_out,
                                 bias=bias,
@@ -111,6 +111,15 @@ class FCLayers(nn.Module):
         """Helper to determine if covariates should be injected."""
         user_cond = layer_num == 0 or (layer_num > 0 and self.inject_covariates)
         return user_cond
+
+    def _build_linear(self, n_in: int, n_out: int, bias: bool) -> nn.Module:
+        """Build the linear projection for a layer.
+
+        Overridable seam: subclasses can return a different linear module (e.g. a
+        stacked/parallel linear) without rewriting ``__init__``. ``n_in`` is the
+        covariate-adjusted input dimension.
+        """
+        return nn.Linear(n_in, n_out, bias=bias)
 
     def set_online_update_hooks(self, hook_first_layer=True):
         """Set online update hooks."""
@@ -176,31 +185,43 @@ class FCLayers(nn.Module):
             for layer in layers:
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
-                        if x.dim() == 3:
-                            if (
-                                x.device.type == "mps"
-                            ):  # TODO: remove this when MPS supports for loop.
-                                x = torch.cat(
-                                    [(layer(slice_x.clone())).unsqueeze(0) for slice_x in x], dim=0
-                                )
-                            else:
-                                x = torch.cat(
-                                    [layer(slice_x).unsqueeze(0) for slice_x in x], dim=0
-                                )
-                        else:
-                            x = layer(x)
+                        x = self._apply_batch_norm(layer, x)
                     else:
-                        if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
-                            if x.dim() == 3:
-                                cov_list_layer = [
-                                    o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
-                                    for o in cov_list
-                                ]
-                            else:
-                                cov_list_layer = cov_list
-                            x = torch.cat((x, *cov_list_layer), dim=-1)
-                        x = layer(x)
+                        x = self._apply_layer(layer, x, cov_list, i)
         return x
+
+    def _apply_batch_norm(self, layer: nn.Module, x: torch.Tensor) -> torch.Tensor:
+        """Apply a batch-norm layer, handling the 3D (and MPS) case.
+
+        Overridable seam: subclasses with a different 3D layout can override this.
+        """
+        if x.dim() == 3:
+            if x.device.type == "mps":  # TODO: remove this when MPS supports for loop.
+                return torch.cat([(layer(slice_x.clone())).unsqueeze(0) for slice_x in x], dim=0)
+            return torch.cat([layer(slice_x).unsqueeze(0) for slice_x in x], dim=0)
+        return layer(x)
+
+    def _apply_layer(
+        self,
+        layer: nn.Module,
+        x: torch.Tensor,
+        cov_list: list[torch.Tensor],
+        layer_index: int,
+    ) -> torch.Tensor:
+        """Apply a (non batch-norm) layer, injecting covariates into linear layers.
+
+        Overridable seam: subclasses can recognize alternative linear modules and
+        adapt the covariate injection to a different tensor layout.
+        """
+        if isinstance(layer, nn.Linear) and self.inject_into_layer(layer_index):
+            if x.dim() == 3:
+                cov_list_layer = [
+                    o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1))) for o in cov_list
+                ]
+            else:
+                cov_list_layer = cov_list
+            x = torch.cat((x, *cov_list_layer), dim=-1)
+        return layer(x)
 
 
 # Encoder
