@@ -853,6 +853,23 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
         self.n_classes = n_classes
 
+    @staticmethod
+    def _split_semisupervised_batch(batch):
+        if isinstance(batch, list | tuple) and len(batch) == 2:
+            return batch[0], batch[1]
+        if isinstance(batch, dict) and all(
+            key in batch
+            for key in (
+                REGISTRY_KEYS.X_KEY,
+                REGISTRY_KEYS.BATCH_KEY,
+                REGISTRY_KEYS.LABELS_KEY,
+                REGISTRY_KEYS.CAT_COVS_KEY,
+                REGISTRY_KEYS.CONT_COVS_KEY,
+            )
+        ):
+            return batch, batch
+        return batch, None
+
     def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
         """Log with mode."""
         # TODO: Include this with a base training plan
@@ -927,23 +944,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
         # Potentially dangerous if the batch is from a single dataloader with two keys
-        if len(batch) == 2:
-            full_dataset = batch[0]
-            labelled_dataset = batch[1]
-        else:
-            if list(batch.keys())[:5] == [
-                "X",
-                "batch",
-                "labels",
-                "extra_categorical_covs",
-                "extra_continuous_covs",
-            ]:
-                # mean we are on batch loading from custom dataloader, TODO: IS THERE BETTER WAY?
-                full_dataset = batch
-                labelled_dataset = batch
-            else:
-                full_dataset = batch
-                labelled_dataset = None
+        full_dataset, labelled_dataset = self._split_semisupervised_batch(batch)
 
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
@@ -977,12 +978,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def validation_step(self, batch, batch_idx):
         """Validation step for semi-supervised training."""
         # Potentially dangerous if the batch is from a single dataloader with two keys
-        if len(batch) == 2:
-            full_dataset = batch[0]
-            labelled_dataset = batch[1]
-        else:
-            full_dataset = batch
-            labelled_dataset = None
+        full_dataset, labelled_dataset = self._split_semisupervised_batch(batch)
 
         input_kwargs = {
             "labelled_tensors": labelled_dataset,
