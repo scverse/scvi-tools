@@ -66,11 +66,6 @@ def _assert_save_load(model, model_cls, save_path, model_name, dm):
         assert latent.shape[0] == dm.n_obs
 
 
-# ---------------------------------------------------------------------------
-# Generic annbatch / SCVI
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.dataloader
 def test_annbatch(save_path: str):
     """Basic SCVI annbatch: build, train, infer, validate."""
@@ -286,7 +281,13 @@ print(
             [sys.executable, "-c", script, mode, json.dumps(paths), collection_path],
             text=True,
         )
-        return json.loads(out.strip().splitlines()[-1])
+        # Scan from the end for the JSON line; the subprocess may emit trailing
+        # ANSI escape codes (e.g. a `\x1b[0m` reset) after the payload.
+        for line in reversed(out.strip().splitlines()):
+            line = line.strip()
+            if line.startswith("{"):
+                return json.loads(line)
+        raise ValueError(f"No JSON payload in probe output:\n{out}")
 
     anndata_probe = _probe("anndata")
     annbatch_probe = _probe("annbatch")
@@ -295,11 +296,6 @@ print(
     assert annbatch_probe["has_adata"] is False
     assert annbatch_probe["delta"] < anndata_probe["delta"]
     assert anndata_probe["delta"] - annbatch_probe["delta"] > 10 * 1024 * 1024
-
-
-# ---------------------------------------------------------------------------
-# SCVI setup_annbatch
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.dataloader
@@ -384,11 +380,6 @@ def test_annbatch_setup_scvi(save_path: str):
     _assert_save_load(model, scvi.model.SCVI, save_path, "setup_scvi", dm)
 
 
-# ---------------------------------------------------------------------------
-# SCANVI
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.dataloader
 def test_annbatch_setup_scanvi(save_path: str):
     """SCANVI.setup_annbatch: train, latent, predict."""
@@ -440,11 +431,6 @@ def test_annbatch_setup_scanvi(save_path: str):
     _assert_save_load(model, scvi.model.SCANVI, save_path, "setup_scanvi", dm)
 
 
-# ---------------------------------------------------------------------------
-# sample_key forwarding
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.dataloader
 def test_annbatch_setup_base_sample_key(save_path: str):
     """Base setup_annbatch must forward sample_key to AnnbatchDataModule."""
@@ -468,11 +454,6 @@ def test_annbatch_setup_base_sample_key(save_path: str):
     )
     assert dm.n_samples == 2
     assert dm.registry["field_registries"]["sample"]["summary_stats"]["n_sample"] == 2
-
-
-# ---------------------------------------------------------------------------
-# LinearSCVI
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.dataloader
@@ -514,7 +495,10 @@ def test_annbatch_setup_linear_scvi(save_path: str):
 
 @pytest.mark.dataloader
 @pytest.mark.parametrize("model_cls", [scvi.model.LinearSCVI, scvi.external.ContrastiveVI])
-def test_annbatch_setup_dense_layer(save_path: str, model_cls):
+def test_annbatch_setup_dense_layer(
+    model_cls,
+    save_path: str,
+):
     """setup_annbatch reads dense h5ad layers from the zarr collection."""
     _zarr()
     paths = []
@@ -540,11 +524,6 @@ def test_annbatch_setup_dense_layer(save_path: str, model_cls):
     assert dm.registry["setup_args"]["layer"] == "counts"
     batch = next(iter(dm.inference_dataloader()))
     assert batch["X"].shape == (16, dm.n_vars)
-
-
-# ---------------------------------------------------------------------------
-# AUTOZI
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.dataloader
@@ -583,11 +562,6 @@ def test_annbatch_setup_autozi(save_path: str):
     _assert_save_load(model, scvi.model.AUTOZI, save_path, "setup_autozi", dm)
 
 
-# ---------------------------------------------------------------------------
-# SysVI
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.dataloader
 def test_annbatch_setup_sysvi(save_path: str):
     """SysVI.setup_annbatch: build, train, latent, normalized_expression."""
@@ -617,11 +591,6 @@ def test_annbatch_setup_sysvi(save_path: str):
     assert norm_expr.shape == (dm.n_obs, dm.n_vars)
 
     _assert_save_load(model, scvi.external.SysVI, save_path, "setup_sysvi", dm)
-
-
-# ---------------------------------------------------------------------------
-# SCAR
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.dataloader
@@ -670,11 +639,6 @@ def test_annbatch_setup_scar(save_path: str):
     assert ambient_profile.shape[0] == dm.n_vars
     assert ambient_profile.ndim == 2
     assert np.isfinite(ambient_profile).all()
-
-
-# ---------------------------------------------------------------------------
-# MRVI / TorchMRVI
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.dataloader
@@ -739,11 +703,6 @@ def test_annbatch_setup_mrvi(save_path: str):
         batch_size=128,
     )
     assert "cell" in local_sample_distances.data_vars
-
-
-# ---------------------------------------------------------------------------
-# PEAKVI
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.dataloader

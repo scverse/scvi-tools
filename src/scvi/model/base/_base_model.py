@@ -1346,13 +1346,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         def _build_collection(store_path: str, file_paths: list[str]) -> DatasetCollection:
             store = zarr.open(store_path, mode="w")
             coll = DatasetCollection(store)
-            coll.add_adatas(
-                adata_paths=file_paths,
-                shuffle=shuffle,
-                dataset_size=dataset_size,
-                var_subset=var_subset,
-                load_adata=_load_adata_from_path,
-            )
+            # annbatch shards the collection, which requires the zarr v3 write format.
+            # anndata defaults to v2, so override it for the duration of the build.
+            with ad.settings.override(zarr_write_format=3):
+                coll.add_adatas(
+                    adata_paths=file_paths,
+                    shuffle=shuffle,
+                    dataset_size=dataset_size,
+                    var_subset=var_subset,
+                    load_adata=_load_adata_from_path,
+                )
             return coll
 
         def _open_collection(store_path: str) -> DatasetCollection:
