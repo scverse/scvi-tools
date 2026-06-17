@@ -6,7 +6,7 @@ Large language models (LLMs) can significantly lower the barrier to using scvi-t
 
 ## scvi-tools MCP Server
 
-The **scvi-tools MCP server** ([`scvi-tools-mcp`](https://github.com/ori-kron-wis/scvi-tools-mcp)) is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives any MCP-compatible LLM structured access to scvi-tools knowledge: model documentation, tutorials, API reference, workflow templates, and a curated FAQ—with no runtime model execution.
+The **scvi-tools MCP server** ([`scvi-tools-mcp`](https://github.com/Yoseflab/scvi-tools-mcp)) is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives any MCP-compatible LLM structured access to scvi-tools knowledge: model documentation, tutorials, API reference, workflow templates, and a curated FAQ—with no runtime model execution.
 
 ### Installation
 
