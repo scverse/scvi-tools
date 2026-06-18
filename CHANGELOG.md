@@ -23,7 +23,11 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Changed
 
+- Changed {class}`scvi.external.Tangram` backend to be in Pytorch, {pr}`3786`.
+
 #### Removed
+
+- Removed Jax support from SCVI-Tools, {pr}`3786`.
 
 ## Version 1.4
 
