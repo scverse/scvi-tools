@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from scvi.external.mrvi_torch._components import (
+from scvi.external.mrvi._components import (
     MLP,
     AttentionBlock,
     ConditionalNormalization,
@@ -19,7 +19,7 @@ def _init_weights(m):
             nn.init.zeros_(m.bias)
 
 
-def test_torchmrvi_dense():
+def test_mrvi_dense():
     torch.manual_seed(0)
     x = torch.ones((20, 10))
     dense = Dense(10, 10)
@@ -27,7 +27,7 @@ def test_torchmrvi_dense():
     assert output.shape == torch.Size([20, 10])
 
 
-def test_torchmrvi_resnetblock():
+def test_mrvi_resnetblock():
     torch.manual_seed(0)
     x = torch.ones((20, 10))
     block = ResnetBlock(n_in=10, n_out=30, n_hidden=128)
@@ -37,7 +37,7 @@ def test_torchmrvi_resnetblock():
     assert params.shape == torch.Size([20, 30])
 
 
-def test_torchmrvi_normalnn():
+def test_mrvi_normalnn():
     torch.manual_seed(0)
     x = torch.ones((20, 10))
     nn = NormalDistOutputNN(n_in=10, n_out=30, n_hidden=128, n_layers=3)
@@ -45,7 +45,7 @@ def test_torchmrvi_normalnn():
     assert params.loc.shape == torch.Size([20, 30])
 
 
-def test_torchmrvi_mlp():
+def test_mrvi_mlp():
     torch.manual_seed(0)
     x = torch.ones((20, 10))
     mlp = MLP(n_in=10, n_out=30, n_hidden=128, n_layers=3, activation=nn.ReLU())
@@ -55,7 +55,7 @@ def test_torchmrvi_mlp():
 
 
 @pytest.mark.parametrize("training", [True, False])
-def test_torchmrvi_conditionalbatchnorm1d(training):
+def test_mrvi_conditionalbatchnorm1d(training):
     torch.manual_seed(0)
     x = torch.ones((20, 10))
     y = torch.ones((20, 1))
@@ -69,7 +69,7 @@ def test_torchmrvi_conditionalbatchnorm1d(training):
     assert params.shape == torch.Size([20, 10])
 
 
-def test_torchmrvi_attention():
+def test_mrvi_attention():
     torch.manual_seed(0)
     q_vals = torch.ones((30, 10))
     kv_vals = torch.ones((30, 10))
