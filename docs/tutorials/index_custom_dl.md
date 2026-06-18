@@ -6,6 +6,7 @@
 notebooks/custom_dl/tiledb
 notebooks/custom_dl/lamin
 notebooks/custom_dl/ann_collection
+notebooks/custom_dl/api_overview_annbatch
 notebooks/custom_dl/Tahoe100_mrVI_lamin
 ```
 
@@ -28,6 +29,13 @@ Use the Lamin MappedCollectionDataModule for a scalable approach to training an 
 :tags: Analysis, Custom-Dataloaders, Integration, Dev
 
 Use the AnnCollection dataloader for a scalable approach to training an scVI model on multiple adata's.
+```
+
+```{customcard}
+:path: notebooks/custom_dl/api_overview_annbatch
+:tags: Analysis, Custom-Dataloaders, Integration, Dev
+
+Use annbatch for AnnData-native disk-backed training with scvi-tools models.
 ```
 
 ```{customcard}

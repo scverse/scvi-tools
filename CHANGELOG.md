@@ -9,7 +9,13 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add scvi-tools MCP package that gives any MCP-compatible LLM access to scvi-tools knowledge
+- Add {class}`~scvi.dataloaders.AnnbatchDataModule` for out-of-core dataloading via `annbatch`,
+    enabling memory-efficient training on large-scale datasets stored as sharded Zarr collections,
+    with support for batch covariates, {pr}`3620`.
 - Add support for rapids-singlecell, {pr}`3811`.
+- Add {class}`scvi.external.CytoVI` KNN imputation backend option to be cuML, {pr}`3821`.
+-
 
 #### Fixed
 
@@ -17,7 +23,11 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Changed
 
+- Changed {class}`scvi.external.Tangram` backend to be in Pytorch, {pr}`3786`.
+
 #### Removed
+
+- Removed Jax support from SCVI-Tools, {pr}`3786`.
 
 ## Version 1.4
 
