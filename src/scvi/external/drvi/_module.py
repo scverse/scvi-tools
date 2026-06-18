@@ -10,6 +10,7 @@ from scvi.module.base import auto_move_data
 
 from ._base_components import SplitDecoder
 from ._constants import DRVI_MODULE_KEYS
+from ._distributions import LogNegativeBinomial
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -44,7 +45,18 @@ class DRVIModule(VAE):
     n_latent
         Dimensionality of the latent space.
     gene_likelihood
-        One of ``"nb"`` (default), ``"zinb"``, ``"poisson"`` or ``"normal"``.
+        Reconstruction likelihood. One of:
+
+        * ``"nb"`` (default) - negative binomial (mean ``= library * softmax(decoder)``).
+        * ``"pnb"`` - parametrized negative binomial: same mean, but modeled in **log space** via
+          :class:`~scvi.external.drvi.LogNegativeBinomial`. This is the numerically stable,
+          additive form that composes the per-split log contributions of the decoder
+          (recommended with ``split_aggregation="logsumexp"``).
+        * ``"zinb"`` - zero-inflated negative binomial.
+        * ``"poisson"`` - Poisson.
+        * ``"normal"`` - Gaussian with the mean modeled directly (no library/softmax) and per-gene
+          variance modeled in log space; use with continuous (e.g. log-normalized) data.
+        * ``"normal_unit_var"`` - Gaussian with unit variance.
     **kwargs
         Additional keyword arguments for :class:`~scvi.module.VAE`.
     """
@@ -62,7 +74,9 @@ class DRVIModule(VAE):
         n_continuous_cov: int = 0,
         n_cats_per_cov: Iterable[int] | None = None,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        gene_likelihood: Literal["nb", "zinb", "poisson", "normal"] = "nb",
+        gene_likelihood: Literal[
+            "nb", "pnb", "zinb", "poisson", "normal", "normal_unit_var"
+        ] = "nb",
         deeply_inject_covariates: bool = False,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
@@ -158,7 +172,7 @@ class DRVIModule(VAE):
             size_factor = library
 
         self.decoder.inspect_mode = self.inspect_mode
-        px_scale, px_r, px_rate, px_dropout = self.decoder(
+        px_scale, px_r, px_rate, px_dropout, px_agg = self.decoder(
             self.dispersion,
             z,
             size_factor,
@@ -168,24 +182,42 @@ class DRVIModule(VAE):
             cont=cont_covs,
         )
 
+        # dispersion logit, before exponentiation: log-theta for the (log-)NB likelihoods and
+        # log-variance for the normal likelihoods.
         if self.dispersion == "gene-label":
-            px_r = linear(one_hot(y.squeeze(-1), self.n_labels).float(), self.px_r)
+            px_r_logit = linear(one_hot(y.squeeze(-1), self.n_labels).float(), self.px_r)
         elif self.dispersion == "gene-batch":
-            px_r = linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
+            px_r_logit = linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.dispersion == "gene":
-            px_r = self.px_r
-        px_r = torch.exp(px_r)
+            px_r_logit = self.px_r
+        else:  # gene-cell: per cell-gene logit produced by the decoder
+            px_r_logit = px_r
 
         if self.gene_likelihood == "zinb":
             px = ZeroInflatedNegativeBinomial(
-                mu=px_rate, theta=px_r, zi_logits=px_dropout, scale=px_scale
+                mu=px_rate, theta=torch.exp(px_r_logit), zi_logits=px_dropout, scale=px_scale
             )
         elif self.gene_likelihood == "nb":
-            px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
+            px = NegativeBinomial(mu=px_rate, theta=torch.exp(px_r_logit), scale=px_scale)
+        elif self.gene_likelihood == "pnb":
+            # parametrized negative binomial: model the mean in log space, so the additive
+            # (logsumexp) split decoder composes per-split contributions correctly and the NB
+            # log-prob stays numerically stable. mu = lib * softmax(agg), theta = exp(px_r_logit).
+            # log_softmax over genes
+            log_scale = px_agg - torch.logsumexp(px_agg, dim=-1, keepdim=True)
+            log_m = library + log_scale  # library == log(observed library size)
+            px = LogNegativeBinomial(log_m=log_m, log_r=px_r_logit, log_scale=log_scale)
         elif self.gene_likelihood == "poisson":
             px = Poisson(rate=px_rate, scale=px_scale)
         elif self.gene_likelihood == "normal":
-            px = Normal(px_rate, px_r, normal_mu=px_scale)
+            # Gaussian with the mean modeled directly (no library/softmax) and per-gene variance
+            # modeled in log space.
+            var = torch.nan_to_num(torch.exp(px_r_logit), posinf=100.0, neginf=0.0) + 1e-8
+            px = Normal(px_agg, var.sqrt(), normal_mu=px_agg)
+        elif self.gene_likelihood == "normal_unit_var":
+            px = Normal(px_agg, torch.ones_like(px_agg), normal_mu=px_agg)
+        else:
+            raise ValueError(f"Unknown gene_likelihood: {self.gene_likelihood}")
 
         if self.use_observed_lib_size:
             pl = None

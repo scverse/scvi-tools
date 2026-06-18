@@ -73,14 +73,61 @@ def test_drvi_model(
     np.testing.assert_allclose(z, loaded.get_latent_representation(), atol=1e-5)
 
 
-@pytest.mark.parametrize("gene_likelihood", ["nb", "zinb", "poisson"])
+@pytest.mark.parametrize(
+    "gene_likelihood", ["nb", "pnb", "zinb", "poisson", "normal", "normal_unit_var"]
+)
 def test_drvi_gene_likelihoods(gene_likelihood):
-    """The scvi likelihoods are reused unchanged."""
+    """All likelihoods (scvi ones plus DRVI's log-space pnb and normal) train and embed."""
     adata = mock_adata()
     DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
     model = DRVI(adata, n_latent=8, gene_likelihood=gene_likelihood)
     model.train(max_epochs=1, batch_size=adata.n_obs)
     assert model.get_latent_representation().shape == (adata.n_obs, 8)
+    # reconstruction loss must be finite for every likelihood
+    rec = model.get_reconstruction_error()
+    assert all(np.isfinite(np.asarray(v)).all() for v in rec.values())
+
+
+@pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-cell"])
+def test_drvi_pnb_dispersion(dispersion):
+    """The parametrized NB works across dispersion modes."""
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = DRVI(adata, n_latent=8, gene_likelihood="pnb", dispersion=dispersion)
+    model.train(max_epochs=1, batch_size=adata.n_obs)
+    assert model.get_latent_representation().shape == (adata.n_obs, 8)
+
+
+def test_lognegativebinomial_matches_scvi_nb():
+    """LogNegativeBinomial.log_prob equals scvi NegativeBinomial.log_prob for matching params."""
+    import torch
+
+    from scvi.distributions import NegativeBinomial
+    from scvi.external.drvi import LogNegativeBinomial
+
+    torch.manual_seed(0)
+    log_m = torch.randn(8, 16) * 3.0
+    log_r = torch.randn(8, 16) * 2.0
+    value = torch.randint(0, 50, (8, 16)).float()
+
+    lp_log = LogNegativeBinomial(log_m=log_m, log_r=log_r).log_prob(value)
+    lp_nb = NegativeBinomial(mu=torch.exp(log_m), theta=torch.exp(log_r)).log_prob(value)
+    assert torch.allclose(lp_log, lp_nb, atol=1e-3, rtol=1e-4)
+
+    # stable (finite) even where the linear-space mean under/overflows
+    log_m_extreme = torch.tensor([[-60.0, 40.0, 0.0]])
+    log_r_extreme = torch.zeros(1, 3)
+    val = torch.tensor([[0.0, 5.0, 3.0]])
+    assert torch.isfinite(
+        LogNegativeBinomial(log_m=log_m_extreme, log_r=log_r_extreme).log_prob(val)
+    ).all()
+
+    # reassigning mu (as RNASeqMixin importance weighting does) keeps log_prob consistent
+    dist = LogNegativeBinomial(log_m=torch.zeros(1, 3), log_r=torch.zeros(1, 3))
+    dist.mu = torch.full((1, 3), 5.0)
+    val2 = torch.tensor([[1.0, 2.0, 3.0]])
+    expected = NegativeBinomial(mu=dist.mu, theta=torch.ones(1, 3)).log_prob(val2)
+    assert torch.allclose(dist.log_prob(val2), expected, atol=1e-4)
 
 
 def test_drvi_scarches():

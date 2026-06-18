@@ -237,9 +237,12 @@ class SplitDecoder(DecoderSCVI):
         z_split = self._apply_split(z2)  # (n_obs, n_split, split_in)
         h = self.px_decoder(z_split, *cat2, cont=cont2)  # (n_obs, n_split, n_hidden)
 
-        # per-split scale logits, aggregate over splits, then apply the scale activation
+        # per-split scale logits, aggregate over splits (raw, log-space for logsumexp), then the
+        # aggregated parameter is either passed through the scale activation (scvi likelihoods) or
+        # consumed directly in log space by the module (e.g. the parametrized/log NB and normal).
         scale_logits = self.px_scale_decoder[0](h)  # (n_obs, n_split, n_genes)
-        px_scale = self.px_scale_decoder[1](self._aggregate(scale_logits))
+        px_agg = self._aggregate(scale_logits)
+        px_scale = self.px_scale_decoder[1](px_agg)
         px_rate = torch.exp(library2) * px_scale
         # dropout / cell-wise dispersion are auxiliary: average their per-split logits
         px_dropout = self.px_dropout_decoder(h).mean(dim=-2)
@@ -251,4 +254,10 @@ class SplitDecoder(DecoderSCVI):
         def _unflatten(t):
             return None if t is None else t.reshape(*leading, t.shape[-1])
 
-        return _unflatten(px_scale), _unflatten(px_r), _unflatten(px_rate), _unflatten(px_dropout)
+        return (
+            _unflatten(px_scale),
+            _unflatten(px_r),
+            _unflatten(px_rate),
+            _unflatten(px_dropout),
+            _unflatten(px_agg),
+        )

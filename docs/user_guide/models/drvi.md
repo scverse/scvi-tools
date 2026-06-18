@@ -58,6 +58,19 @@ Two aggregations over the split dimension are available:
 - `logsumexp` (default): aggregation in log space, which makes the decoder additive in the rate.
 - `mean`: average of the per-split parameters.
 
+### Likelihoods modeled in log space
+
+DRVI models the generative parameters in **log space**, which is what makes the `logsumexp`
+aggregation a genuine additive decoder (summing the per-split contributions of the rate). In
+addition to scvi's `nb`, `zinb` and `poisson`, DRVI adds:
+
+- `pnb` — *parametrized negative binomial*: the same mean as `nb` (``library * softmax``) but
+  parametrized and evaluated in log space via {class}`~scvi.external.drvi.LogNegativeBinomial`,
+  which is numerically stable and composes the per-split log contributions directly.
+- `normal` / `normal_unit_var` — a Gaussian whose mean is modeled **directly** (no library/softmax),
+  with the per-gene variance modeled in log space (fixed to one for `normal_unit_var`); intended for
+  continuous, e.g. log-normalized, input.
+
 ### Interpretability
 
 Because the decoder is additive over splits, the contribution of each split to the reconstructed
