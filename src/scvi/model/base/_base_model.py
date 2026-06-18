@@ -858,7 +858,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     file_suffix = SAVE_KEYS.ADATA_FNAME
                 elif isinstance(self.adata, MuData):
                     file_suffix = SAVE_KEYS.MDATA_FNAME
-                self.adata.write(
+                _write_adata(
+                    self.adata,
                     os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
                     **anndata_write_kwargs,
                 )
