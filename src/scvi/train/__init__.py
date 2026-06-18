@@ -8,7 +8,6 @@ from ._callbacks import (
 from ._config import (
     AdversarialTrainingPlanConfig,
     ClassifierTrainingPlanConfig,
-    JaxTrainingPlanConfig,
     KwargsConfig,
     LowLevelPyroTrainingPlanConfig,
     PyroTrainingPlanConfig,
@@ -54,7 +53,6 @@ __all__ = [
     "SaveCheckpoint",
     "ScibCallback",
     "METRIC_KEYS",
-    "JaxTrainingPlanConfig",
     "KwargsConfig",
 ]
 
@@ -64,16 +62,6 @@ def __getattr__(name: str):
 
     only when object is actually requested.
     """
-    if name == "JaxModuleInit":
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
-        from ._callbacks import JaxModuleInit as _JaxModuleInit
-
-        return _JaxModuleInit
-    if name == "JaxTrainingPlan":
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
-        from ._trainingplans import JaxTrainingPlan as _JaxTrainingPlan
-
-        return _JaxTrainingPlan
     if name == "MlxTrainingPlan":
         error_on_missing_dependencies("mlx")
         from ._trainingplans import MlxTrainingPlan as _MlxTrainingPlan

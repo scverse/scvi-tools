@@ -54,18 +54,6 @@ def pytest_collection_modifyitems(config, items):
         elif run_optional and ("optional" not in item.keywords):
             item.add_marker(skip_non_optional)
 
-    run_jax = config.getoption("--jax")
-    skip_jax = pytest.mark.skip(reason="need --jax option to run")
-    skip_non_jax = pytest.mark.skip(reason="test not having a pytest.mark.jax decorator")
-    for item in items:
-        # All tests marked with `pytest.mark.jax` get skipped unless
-        # `--jax` passed
-        if not run_jax and ("jax" in item.keywords):
-            item.add_marker(skip_jax)
-        # Skip all tests not marked with `pytest.mark.jax` if `--jax` passed
-        elif run_jax and ("jax" not in item.keywords):
-            item.add_marker(skip_non_jax)
-
     run_private = config.getoption("--private")
     skip_private = pytest.mark.skip(reason="need --private option to run")
     skip_non_private = pytest.mark.skip(reason="test not having a pytest.mark.private decorator")

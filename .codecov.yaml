@@ -21,19 +21,11 @@ flags:
     paths:
       - src/scvi/
     carryforward: false
-  nonjax:
-    paths:
-      - src/scvi/
-    carryforward: true
   cuda:
     paths:
       - src/scvi/
     carryforward: true
   multigpu:
-    paths:
-      - src/scvi/
-    carryforward: true
-  jax:
     paths:
       - src/scvi/
     carryforward: true

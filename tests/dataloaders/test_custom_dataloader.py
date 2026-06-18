@@ -427,7 +427,7 @@ def test_lamindb_dataloader_mrvi_small(save_path: str, setup_lamindb_instance):
         sample_key="sample_str",
         batch_size=1024,
         join="inner",
-        model_name="TorchMRVI",
+        model_name="MRVI",
         collection_val=collection,
     )
 
