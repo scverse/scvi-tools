@@ -59,8 +59,8 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio"]
-cuda13 = ["torchvision", "torchaudio"]
+cuda = ["torchvision", "torchaudio","cupy-cuda12x"]
+cuda13 = ["torchvision", "torchaudio","cupy-cuda13x"]
 tpu = ["torch_xla[tpu]"]
 metal = ["torchvision", "torchaudio", "mlx-metal"]
 
@@ -93,14 +93,15 @@ parallel = ["dask[array]", "zarr"]
 # for models interpretability
 interpretability = ["captum", "shap", "decoupler"]
 # for custom dataloders
-dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
+dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata","annbatch[zarrs]>=0.2.0"]
 # for diagvi
 diagvi = ["torch_geometric", "geomloss"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 # for rapids
-rapids = [ "cugraph>=24", "cuml>=24", "cupy-cuda12x", "rapids-singlecell[rapids]" ]
-rapids-cuda13 = [ "cugraph>=24", "cuml>=24", "cupy-cuda13x", "rapids-singlecell[rapids]" ]
+rapids = [ "cupy", "rapids-singlecell[rapids]" ]
+rapids-cuda12 = [ "cugraph-cu12>=24", "cuml-cu12>=24", "cupy-cuda12x", "rapids-singlecell[rapids]" ]
+rapids-cuda13 = [ "cugraph-cu13>=24", "cuml-cu13>=24", "cupy-cuda13x", "rapids-singlecell[rapids]" ]
 
 optional = [
     "scvi-tools[autotune,mlflow,hub,file_sharing,regseq,parallel,interpretability,diagvi]",
@@ -109,13 +110,12 @@ optional = [
 tutorials = [
     "biomart",
     "cell2location",
-    "dataloaders",
     "jupyter",
     "seaborn",
     "matplotlib",
     "plotnine",
     "scrublet",
-    "scvi-tools[optional]",
+    "scvi-tools[optional,dataloaders]",
     "squidpy>=1.6.0",
     "umap-learn>=0.5.0",
 ]
@@ -142,6 +142,7 @@ markers = [
     "autotune: mark tests that are used to check ray autotune capabilities",
     "custom dataloaders: mark tests that are used to check different custom data loaders",
     "dataloader: mark tests that are used to check data loaders",
+    "jax: mark test as jax related",
     "mlflow: mark test for mlflow",
 ]
 
