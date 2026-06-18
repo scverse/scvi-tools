@@ -88,6 +88,26 @@ def test_drvi_gene_likelihoods(gene_likelihood):
     assert all(np.isfinite(np.asarray(v)).all() for v in rec.values())
 
 
+def test_drvi_registry_init():
+    """Model can be initialized from a registry (no in-memory AnnData), matching scvi's
+    datamodule/annbatch interface."""
+    adata = mock_adata()
+    DRVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        categorical_covariate_keys=["cat1"],
+        continuous_covariate_keys=["cont1"],
+    )
+    model = DRVI(adata, n_latent=8)
+    registry = model.adata_manager.registry
+
+    model_from_registry = DRVI(registry=registry, n_latent=8)
+    assert model_from_registry.module.n_input == model.module.n_input
+    assert model_from_registry.module.n_batch == model.module.n_batch
+    assert model_from_registry.module.n_latent == 8
+
+
 @pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-cell"])
 def test_drvi_pnb_dispersion(dispersion):
     """The parametrized NB works across dispersion modes."""

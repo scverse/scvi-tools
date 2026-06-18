@@ -51,7 +51,12 @@ class DRVI(
     Parameters
     ----------
     adata
-        AnnData object registered via :meth:`~scvi.external.DRVI.setup_anndata`.
+        AnnData object registered via :meth:`~scvi.external.DRVI.setup_anndata`. May be ``None``
+        when initializing from a ``registry`` (e.g. out-of-core training with a datamodule).
+    registry
+        Setup registry (e.g. from a datamodule such as
+        :class:`~scvi.dataloaders.AnnbatchDataModule`) to initialize the model without an in-memory
+        AnnData. Mutually exclusive with ``adata``.
     n_latent
         Dimensionality of the latent space.
     n_split_latent
@@ -76,25 +81,33 @@ class DRVI(
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_latent: int = 32,
         n_split_latent: int | None = None,
         split_method: Literal["split_diag", "split_map"] = "split_map",
         split_aggregation: Literal["mean", "logsumexp"] = "logsumexp",
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
+        if adata is not None:
+            n_cats_per_cov = (
+                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                else None
+            )
+        else:
+            # registry path (e.g. out-of-core training with a datamodule)
+            cat_cov_sr = self.registry["field_registries"][REGISTRY_KEYS.CAT_COVS_KEY][
+                "state_registry"
+            ]
+            n_cats_per_cov = tuple(cat_cov_sr["n_cats_per_key"]) if cat_cov_sr else None
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=self.summary_stats.n_batch,
-            n_labels=self.summary_stats.n_labels,
+            n_labels=self.summary_stats.get("n_labels", 1),
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             n_latent=n_latent,
