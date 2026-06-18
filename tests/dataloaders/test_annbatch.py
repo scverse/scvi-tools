@@ -655,7 +655,7 @@ def test_annbatch_setup_scar(save_path: str):
 
 @pytest.mark.dataloader
 def test_annbatch_setup_mrvi(save_path: str):
-    """TorchMRVI.setup_annbatch: build, train, latent, normalized_expression."""
+    """MRVI.setup_annbatch: build, train, latent, normalized_expression."""
     _zarr()
     paths = []
     donors_sites = [
@@ -674,7 +674,7 @@ def test_annbatch_setup_mrvi(save_path: str):
         paths.append(p)
 
     collection_path = os.path.join(save_path, "mrvi.zarr")
-    dm = scvi.external.TorchMRVI.setup_annbatch(
+    dm = scvi.external.MRVI.setup_annbatch(
         collection_path=collection_path,
         paths=paths,
         batch_key="batch",
@@ -693,7 +693,7 @@ def test_annbatch_setup_mrvi(save_path: str):
         == 1
     )
 
-    model = scvi.external.TorchMRVI(registry=dm.registry)
+    model = scvi.external.MRVI(registry=dm.registry)
     model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
     assert "elbo_train" in model.history
     _assert_validation_split(model, dm)
