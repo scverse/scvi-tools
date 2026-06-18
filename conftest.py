@@ -37,12 +37,6 @@ def pytest_addoption(parser):
         help="Run tests that are optional.",
     )
     parser.addoption(
-        "--jax",
-        action="store_true",
-        default=False,
-        help="Run tests that are Jax adopted.",
-    )
-    parser.addoption(
         "--accelerator",
         action="store",
         default="cpu",

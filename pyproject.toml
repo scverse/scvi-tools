@@ -59,10 +59,10 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda]"]
-cuda13 = ["torchvision", "torchaudio", "jax[cuda13]"]
+cuda = ["torchvision", "torchaudio","cupy-cuda12x"]
+cuda13 = ["torchvision", "torchaudio","cupy-cuda13x"]
 tpu = ["torch_xla[tpu]"]
-metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
+metal = ["torchvision", "torchaudio", "mlx-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -78,7 +78,7 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub,jax,diagvi]","mlx"]
+docsbuild = ["scvi-tools[docs,autotune,hub,diagvi]","mlx"]
 
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
@@ -92,32 +92,30 @@ file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 parallel = ["dask[array]", "zarr"]
 # for models interpretability
 interpretability = ["captum", "shap", "decoupler"]
-# for jax support
-jax = ["jax<0.10.0", "jaxlib", "optax", "numpyro", "flax"] #TODO: unpin once it is stable again
 # for custom dataloders
-dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
+dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata","annbatch[zarrs]>=0.2.0"]
 # for diagvi
 diagvi = ["torch_geometric", "geomloss"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 # for rapids
-rapids = [ "cugraph>=24", "cuml>=24", "cupy-cuda12x", "rapids-singlecell[rapids]" ]
-rapids-cuda13 = [ "cugraph>=24", "cuml>=24", "cupy-cuda13x", "rapids-singlecell[rapids]" ]
+rapids = [ "cupy", "rapids-singlecell[rapids]" ]
+rapids-cuda12 = [ "cugraph-cu12>=24", "cuml-cu12>=24", "cupy-cuda12x", "rapids-singlecell[rapids]" ]
+rapids-cuda13 = [ "cugraph-cu13>=24", "cuml-cu13>=24", "cupy-cuda13x", "rapids-singlecell[rapids]" ]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability,diagvi]",
+    "scvi-tools[autotune,mlflow,hub,file_sharing,regseq,parallel,interpretability,diagvi]",
     "igraph","leidenalg","pynndescent",
 ]
 tutorials = [
     "biomart",
     "cell2location",
-    "dataloaders",
     "jupyter",
     "seaborn",
     "matplotlib",
     "plotnine",
     "scrublet",
-    "scvi-tools[optional]",
+    "scvi-tools[optional,dataloaders]",
     "squidpy>=1.6.0",
     "umap-learn>=0.5.0",
 ]
