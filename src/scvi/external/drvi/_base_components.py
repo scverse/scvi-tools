@@ -10,7 +10,7 @@ from torch import nn
 from scvi.nn import FCLayers
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Sequence
     from typing import Literal
 
 
@@ -28,14 +28,15 @@ class SplitFCLayers(FCLayers):
     n_split
         Number of parallel splits (channels) carried in the second tensor dimension.
     reuse_weights
-        If ``True`` (default), all splits share a single :class:`~torch.nn.Linear` per layer
-        (its weights broadcast over the split dimension). If ``False``, each split gets its own
-        weights via :class:`stacked_linear.StackedLinearLayer`.
+        Per-layer weight-sharing across splits: a sequence of bools, one per layer (length
+        ``n_layers``). ``True`` → that layer is a single shared :class:`~torch.nn.Linear`
+        (broadcast over the split dimension); ``False`` → per-split weights via
+        :class:`stacked_linear.StackedLinearLayer`.
     **kwargs
         Keyword arguments for :class:`~scvi.nn.FCLayers`.
     """
 
-    def __init__(self, *args, n_split: int = 1, reuse_weights: bool = True, **kwargs):
+    def __init__(self, *args, n_split: int = 1, reuse_weights: Sequence[bool], **kwargs):
         # set before super().__init__() so the overridden _build_layer can read them
         self.n_split = n_split
         self.reuse_weights = reuse_weights
@@ -47,8 +48,8 @@ class SplitFCLayers(FCLayers):
         }
         super().__init__(*args, **kwargs)
 
-    def _build_linear(self, n_in: int, n_out: int, bias: bool) -> nn.Module:
-        if self.reuse_weights:
+    def _build_linear(self, n_in: int, n_out: int, bias: bool, layer_num: int) -> nn.Module:
+        if self.reuse_weights[layer_num]:
             # a shared nn.Linear already broadcasts over the (n_obs, n_split, .) split dimension
             return nn.Linear(n_in, n_out, bias=bias)
         return StackedLinearLayer(self.n_split, n_in, n_out, bias=bias)
@@ -59,6 +60,7 @@ class SplitFCLayers(FCLayers):
                 n_in + self.n_cov * self.inject_into_layer(layer_num),
                 n_out,
                 bias=self.bias,
+                layer_num=layer_num,
             ),
             nn.BatchNorm1d(self.n_split * n_out, momentum=0.01, eps=0.001)
             if self.use_batch_norm
@@ -128,8 +130,17 @@ class DecoderDRVI(nn.Module):
     n_continuous_cov
         Number of continuous covariates injected into the decoder layers.
     reuse_weights
-        Passed to :class:`SplitFCLayers`: share decoder weights across splits (``True``) or learn
-        per-split weights (``False``).
+        Weight-sharing policy across splits, applied to the FC body (its ``n_layers`` hidden
+        layers) and the parameter heads ("last"):
+
+        * ``"everywhere"`` (default) — hidden layers and heads all shared.
+        * ``"hidden"`` — hidden layers shared, heads per-split.
+        * ``"last"`` — hidden layers per-split, heads shared.
+        * ``"hidden_except_first"`` — first hidden layer per-split, the rest and heads shared.
+        * ``"nowhere"`` — hidden layers and heads all per-split.
+
+        Per-split weights use :class:`stacked_linear.StackedLinearLayer`; shared weights are a
+        single :class:`~torch.nn.Linear` broadcast over the split dimension.
     model_cell_dispersion
         Whether to build a per-cell dispersion head (``px_r_decoder``). If ``False`` (default), the
         decoder returns ``None`` for the dispersion and the module uses a shared dispersion
@@ -150,11 +161,13 @@ class DecoderDRVI(nn.Module):
         split_method: Literal["split_mask", "split_map"] = "split_map",
         n_split_output: int | Literal["auto"] = "auto",
         split_aggregation: Literal["mean", "logsumexp"] = "logsumexp",
-        n_cat_list: Iterable[int] | None = None,
+        n_cat_list: Sequence[int] | None = None,
         n_continuous_cov: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
-        reuse_weights: bool = True,
+        reuse_weights: Literal[
+            "everywhere", "last", "hidden", "nowhere", "hidden_except_first"
+        ] = "everywhere",
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
@@ -186,6 +199,16 @@ class DecoderDRVI(nn.Module):
                 self.n_split, self.n_latent // self.n_split, n_split_output, bias=False
             )
 
+        # Map the weight-sharing policy to per-layer decisions for the FC body (hidden layers)
+        # and the parameter heads ("last"). See SplitFCLayers for the per-layer reuse mechanism.
+        if reuse_weights in ("everywhere", "hidden"):
+            hidden_reuse = [True] * n_layers
+        elif reuse_weights == "hidden_except_first":
+            hidden_reuse = [i != 0 for i in range(n_layers)]
+        else:  # "last", "nowhere"
+            hidden_reuse = [False] * n_layers
+        last_reuse = reuse_weights in ("everywhere", "last", "hidden_except_first")
+
         # per-split decoder body operating on (*, n_split, n_split_output)
         self.px_decoder = SplitFCLayers(
             n_in=n_split_output,
@@ -195,7 +218,7 @@ class DecoderDRVI(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             n_split=n_split,
-            reuse_weights=reuse_weights,
+            reuse_weights=hidden_reuse,
             dropout_rate=dropout_rate,
             inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
@@ -203,11 +226,14 @@ class DecoderDRVI(nn.Module):
             **kwargs,
         )
 
-        # parameter heads (n_hidden -> n_output); the dispersion and zero-inflation heads are only
-        # built when requested, otherwise the corresponding output is ``None``.
-        self.px_scale_decoder = nn.Linear(n_hidden, n_output)
-        self.px_r_decoder = nn.Linear(n_hidden, n_output) if model_cell_dispersion else None
-        self.px_dropout_decoder = nn.Linear(n_hidden, n_output) if model_zero_inflation else None
+        def _make_head(n_out: int) -> nn.Module:
+            if last_reuse:
+                return nn.Linear(n_hidden, n_out)
+            return StackedLinearLayer(n_split, n_hidden, n_out)
+
+        self.px_scale_decoder = _make_head(n_output)
+        self.px_r_decoder = _make_head(n_output) if model_cell_dispersion else None
+        self.px_dropout_decoder = _make_head(n_output) if model_zero_inflation else None
 
     def _apply_split(self, z: torch.Tensor) -> torch.Tensor:
         """Map latent ``(*, n_latent)`` to splits ``(*, n_split, n_split_output)``."""
@@ -256,10 +282,11 @@ class DecoderDRVI(nn.Module):
         # per-split scale logits aggregated over splits, kept in log space
         px_scale_logit_per_split = self.px_scale_decoder(h)  # (*, n_split, n_genes)
         px_scale_logit = self._aggregate(px_scale_logit_per_split)  # (*, n_genes)
-        px_r_logit = self.px_r_decoder(h).mean(dim=-2) if self.px_r_decoder is not None else None
-        px_dropout_logit = None
+        px_dropout_logit, px_r_logit = None, None
+        if self.px_r_decoder is not None:
+            px_r_logit = self._aggregate(self.px_r_decoder(h))  # heuristic
         if self.px_dropout_decoder is not None:
-            px_dropout_logit = self.px_dropout_decoder(h).mean(dim=-2)
+            px_dropout_logit = -self._aggregate(-self.px_dropout_decoder(h))  # heuristic
 
         if not self.inspect_mode:
             px_scale_logit_per_split = None

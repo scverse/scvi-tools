@@ -155,6 +155,35 @@ def test_drvi_batch_embedding():
     assert model.get_batch_representation().shape[0] == adata.n_obs
 
 
+@pytest.mark.parametrize(
+    ("decoder_reuse_weights", "n_body_per_split", "head_is_shared"),
+    [
+        ("everywhere", 0, True),
+        ("hidden", 0, False),
+        ("last", 2, True),
+        ("hidden_except_first", 1, True),
+        ("nowhere", 2, False),
+    ],
+)
+def test_drvi_decoder_reuse_weights(decoder_reuse_weights, n_body_per_split, head_is_shared):
+    """decoder_reuse_weights selects which decoder layers are shared (nn.Linear) vs per-split
+    (StackedLinearLayer), across the FC body (2 layers here) and the parameter heads."""
+    from stacked_linear import StackedLinearLayer
+    from torch import nn
+
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = DRVI(adata, n_latent=8, n_layers=2, decoder_reuse_weights=decoder_reuse_weights)
+
+    decoder = model.module.decoder
+    body_per_split = sum(isinstance(m, StackedLinearLayer) for m in decoder.px_decoder.modules())
+    assert body_per_split == n_body_per_split
+    assert isinstance(decoder.px_scale_decoder, nn.Linear) == head_is_shared
+
+    model.train(max_epochs=1, batch_size=adata.n_obs)
+    assert model.get_latent_representation().shape == (adata.n_obs, 8)
+
+
 def test_drvi_size_factor_key():
     """size_factor_key is registered (full SCVI setup_anndata) and toggles use_size_factor_key."""
     adata = mock_adata()
@@ -275,6 +304,39 @@ def test_drvi_interpretability(split_method, split_aggregation):
     for key in ["OOD_combined", "IND_max"]:
         scores = model.get_interpretability_scores(embed, adata, key=key)
         assert scores.shape[0] == adata.n_vars
+
+
+@pytest.mark.parametrize("split_aggregation", ["logsumexp", "mean"])
+def test_drvi_interpretability_split_smaller_than_latent(split_aggregation):
+    """Non-directional IND interpretability works when splits group several latent dims.
+
+    With ``n_split_latent < n_latent`` each split covers a contiguous chunk of latent dims, so the
+    per-split effects are ``(n_split, n_genes)`` (i.e. how much genes are affected by each split).
+    """
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    n_latent, n_split = 8, 4
+    model = DRVI(
+        adata,
+        n_latent=n_latent,
+        n_split_latent=n_split,
+        split_method="split_map",
+        split_aggregation=split_aggregation,
+    )
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+
+    # per-split reconstruction effect: one value per split
+    recon = model.get_reconstruction_effect_of_each_split(directional=False)
+    assert recon.shape == (n_split,)
+
+    # per-split, per-gene effects: every aggregation is (n_split, n_genes)
+    effects = model.get_effect_of_splits_within_distribution(directional=False)
+    for agg, value in effects.items():
+        assert value.shape == (n_split, adata.n_vars), agg
+
+    # directional in-distribution has no clean per-split direction here -> explicit error
+    with pytest.raises(NotImplementedError):
+        model.get_effect_of_splits_within_distribution(directional=True)
 
 
 def test_drvi_interpretability_batch_embedding():

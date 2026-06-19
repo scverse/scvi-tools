@@ -60,6 +60,12 @@ class InterpretabilityMixin:
             return list(state.n_cats_per_key)
         return []
 
+    def _get_norm_of_splits(self, latent: Tensor) -> Tensor:
+        """Reduce latent ``(..., n_latent)`` to L2 norms ``(..., n_split)``."""
+        n_split = self.module.n_split_latent
+        n_latent = latent.shape[-1]
+        return latent.reshape(*latent.shape[:-1], n_split, n_latent // n_split).norm(dim=-1)
+
     @torch.inference_mode()
     def iterate_on_effect_of_splits_within_distribution(
         self,
@@ -74,13 +80,18 @@ class InterpretabilityMixin:
 
         The effect formula depends on ``module.split_aggregation`` (``"logsumexp"`` or ``"mean"``).
         """
+        if directional and self.module.n_latent != self.module.n_split_latent:
+            raise NotImplementedError(
+                "Directional in-distribution interpretability requires one split per latent."
+            )
+
         for inference_outputs, generative_outputs in self.iterate_on_ae_output(
             adata=adata,
             dataloader=dataloader,
             deterministic=deterministic,
             **kwargs,
         ):
-            # posterior mean, n_samples x n_latent
+            # posterior mean, n_cells x n_latent
             latent = inference_outputs[MODULE_KEYS.QZ_KEY].loc
 
             if self.module.split_aggregation == "logsumexp":
@@ -255,7 +266,8 @@ class InterpretabilityMixin:
                             dim=1,
                         ).unsqueeze(-1)  # n_samples x 2 x n_latent x 1
                     else:
-                        weights = latent.unsqueeze(-1)  # n_samples x n_latent x 1
+                        # weighting based on norm of each split (abs when n_split == n_latent).
+                        weights = self._get_norm_of_splits(latent).unsqueeze(-1)
                     if aggregation == "exp_weighted_mean":
                         weights = torch.exp(weights) - 1.0
                     effect_agg = (
@@ -305,6 +317,11 @@ class InterpretabilityMixin:
         directional). Requires ``embed.var`` to contain ``min`` and ``max``
         (see :meth:`set_latent_dimension_stats`).
         """
+        if self.module.n_latent != self.module.n_split_latent:
+            raise NotImplementedError(
+                "out-of-distribution interpretability requires one split per latent."
+            )
+
         assert n_steps % 2 == 0, "n_steps must be even"
         dim_mins = np.minimum(embed.var["min"].values, 0.0)
         dim_maxs = np.maximum(embed.var["max"].values, 0.0)

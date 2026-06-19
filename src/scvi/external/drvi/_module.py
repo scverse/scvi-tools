@@ -73,9 +73,10 @@ class DRVIModule(VAE):
         projection size; for ``"split_mask"`` it must equal ``n_latent``. See :class:`DecoderDRVI`.
     split_aggregation
         Per-split aggregation, one of ``"mean"`` or ``"logsumexp"``. See :class:`DecoderDRVI`.
-    reuse_weights
-        Whether decoder weights are shared across splits (``True``) or learned per split
-        (``False``, via :class:`stacked_linear.StackedLinearLayer`).
+    decoder_reuse_weights
+        Decoder weight-sharing policy across splits, one of ``"everywhere"`` (default),
+        ``"hidden"``, ``"last"``, ``"hidden_except_first"`` or ``"nowhere"``. See
+        :class:`DecoderDRVI`.
     n_latent
         Dimensionality of the latent space.
     gene_likelihood
@@ -109,7 +110,9 @@ class DRVIModule(VAE):
         split_method: Literal["split_mask", "split_map"] = "split_map",
         n_split_output: int | Literal["auto"] = "auto",
         split_aggregation: Literal["mean", "logsumexp"] = "logsumexp",
-        reuse_weights: bool = True,
+        decoder_reuse_weights: Literal[
+            "everywhere", "last", "hidden", "nowhere", "hidden_except_first"
+        ] = "everywhere",
         n_latent: int = 128,
         n_hidden: int = 256,
         n_layers: int = 1,
@@ -181,7 +184,7 @@ class DRVIModule(VAE):
             n_continuous_cov=decoder_n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
-            reuse_weights=reuse_weights,
+            reuse_weights=decoder_reuse_weights,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
