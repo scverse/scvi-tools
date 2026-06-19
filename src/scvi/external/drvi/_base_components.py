@@ -113,7 +113,7 @@ class DecoderDRVI(nn.Module):
 
     The latent ``z`` of dimension ``n_latent`` is mapped into ``n_split`` independent groups, each
     decoded by :class:`SplitFCLayers`, and the per-split parameters are aggregated over the split
-    dimension before the final activation.
+    dimension (in log space; the count-space transforms are applied by the module).
 
     Parameters
     ----------

@@ -211,7 +211,7 @@ class DRVIModule(VAE):
         size_factor: torch.Tensor | None = None,
         y: torch.Tensor | None = None,
         transform_batch: torch.Tensor | None = None,
-    ) -> dict[str, Distribution | None]:
+    ) -> dict[str, Distribution | torch.Tensor | None]:
         """Run the generative process via the additive decoder.
 
         Mirrors :meth:`scvi.module.VAE.generative` but passes continuous covariates to the decoder
