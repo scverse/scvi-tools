@@ -405,6 +405,8 @@ class HarremanAnalysis:
         seed: int = 42,
         test: Literal["parametric", "non-parametric", "both"] = "both",
         mean: Literal["algebraic", "geometric"] = "algebraic",
+        layer_key_p_test: str | None = None,
+        layer_key_np_test: str | None = None,
         device: str | None = None,
         verbose: bool = False,
     ) -> None:
@@ -427,6 +429,13 @@ class HarremanAnalysis:
             Statistical test to run.
         mean
             Averaging method for multi-gene interactions.
+        layer_key_p_test
+            Layer to use for the parametric test. Defaults to the layer set at
+            construction time (``layer_key``).
+        layer_key_np_test
+            Layer to use for the non-parametric test. Defaults to the layer set at
+            construction time (``layer_key``). Pass a different value from
+            ``layer_key_p_test`` to use separate layers (e.g. raw counts vs log-norm).
         device
             PyTorch device string. ``None`` uses the underlying default.
         verbose
@@ -440,8 +449,12 @@ class HarremanAnalysis:
 
         kwargs = {
             "adata": self._adata,
-            "layer_key_p_test": self._layer_key,
-            "layer_key_np_test": self._layer_key,
+            "layer_key_p_test": (
+                layer_key_p_test if layer_key_p_test is not None else self._layer_key
+            ),
+            "layer_key_np_test": (
+                layer_key_np_test if layer_key_np_test is not None else self._layer_key
+            ),
             "model": resolved_model,
             "M": n_permutations,
             "seed": seed,
