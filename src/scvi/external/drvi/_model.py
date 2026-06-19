@@ -3,11 +3,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from scvi.external.drvi._generative_mixin import GenerativeMixin
+from scvi.external.drvi._interpretability_mixin import InterpretabilityMixin
+from scvi.external.drvi._module import DRVIModule
 from scvi.model import SCVI
-
-from ._generative_mixin import GenerativeMixin
-from ._interpretability_mixin import InterpretabilityMixin
-from ._module import DRVIModule
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -23,7 +22,7 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
     DRVI is an unsupervised deep generative model that learns an **interpretable, disentangled**
     latent representation of single-cell omics data. Disentanglement is induced in the decoder: the
     latent is split into independent groups, each decoded separately and aggregated (see
-    :class:`~scvi.external.drvi.SplitDecoder`).
+    :class:`~scvi.external.drvi.DecoderDRVI`).
 
     DRVI is built directly on :class:`~scvi.model.SCVI`: it reuses SCVI's encoder, likelihoods,
     covariate/batch handling, minified-mode, scArches and out-of-core (datamodule) machinery
@@ -47,7 +46,7 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
     n_split_latent
         Number of latent splits. ``None`` (default) splits every latent dimension.
     split_method
-        Latent-to-split mapping, ``"split_diag"`` or ``"split_map"`` (default).
+        Latent-to-split mapping, ``"split_mask"`` or ``"split_map"`` (default).
     split_aggregation
         Per-split aggregation, ``"mean"`` or ``"logsumexp"`` (default).
     gene_likelihood
@@ -56,8 +55,8 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
     **kwargs
         Additional keyword args for :class:`~scvi.model.SCVI` /
         :class:`~scvi.external.drvi.DRVIModule`
-        (e.g. ``n_hidden``, ``n_layers``, ``dispersion``, ``batch_representation``,
-        ``activation_fn``, ``use_observed_lib_size``).
+        (e.g. ``n_hidden``, ``n_layers``, ``n_split_output``, ``dispersion``,
+        ``batch_representation``, ``activation_fn``, ``use_observed_lib_size``).
 
     Examples
     --------
@@ -76,7 +75,7 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
         registry: dict | None = None,
         n_latent: int = 32,
         n_split_latent: int | None = None,
-        split_method: Literal["split_diag", "split_map"] = "split_map",
+        split_method: Literal["split_mask", "split_map"] = "split_map",
         split_aggregation: Literal["mean", "logsumexp"] = "logsumexp",
         gene_likelihood: Literal[
             "nb", "pnb", "zinb", "poisson", "normal", "normal_unit_var"

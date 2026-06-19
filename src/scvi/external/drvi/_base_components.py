@@ -7,7 +7,7 @@ import torch
 from stacked_linear import StackedLinearLayer
 from torch import nn
 
-from scvi.nn import DecoderSCVI, FCLayers
+from scvi.nn import FCLayers
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -36,48 +36,80 @@ class SplitFCLayers(FCLayers):
     """
 
     def __init__(self, *args, n_split: int = 1, reuse_weights: bool = True, **kwargs):
-        # set before super().__init__() so the overridden _build_linear can read them
-        self._n_split = n_split
-        self._reuse_weights = reuse_weights
+        # set before super().__init__() so the overridden _build_layer can read them
+        self.n_split = n_split
+        self.reuse_weights = reuse_weights
+        # Update some defaults
+        kwargs = {
+            **kwargs,
+            "use_batch_norm": False,
+            "use_layer_norm": True,
+        }
         super().__init__(*args, **kwargs)
 
     def _build_linear(self, n_in: int, n_out: int, bias: bool) -> nn.Module:
-        if self._n_split <= 1 or self._reuse_weights:
+        if self.reuse_weights:
             # a shared nn.Linear already broadcasts over the (n_obs, n_split, .) split dimension
             return nn.Linear(n_in, n_out, bias=bias)
-        return StackedLinearLayer(self._n_split, n_in, n_out, bias=bias)
+        return StackedLinearLayer(self.n_split, n_in, n_out, bias=bias)
+
+    def _build_layer(self, n_in: int, n_out: int, layer_num: int) -> nn.Module:
+        return nn.Sequential(
+            self._build_linear(
+                n_in + self.n_cov * self.inject_into_layer(layer_num),
+                n_out,
+                bias=self.bias,
+            ),
+            nn.BatchNorm1d(self.n_split * n_out, momentum=0.01, eps=0.001)
+            if self.use_batch_norm
+            else None,
+            # Important: layer norm is applied independently per split, so
+            # LayerNorm(n_split, n_out) is not correct.
+            nn.LayerNorm(n_out, elementwise_affine=False) if self.use_layer_norm else None,
+            self.activation_fn() if self.use_activation else None,
+            nn.Dropout(p=self.dropout_rate) if self.dropout_rate > 0 else None,
+        )
 
     def _apply_layer(self, layer, x, cov_list, layer_index):
-        # recognize the stacked linear in addition to nn.Linear; broadcast covariates across the
-        # split dimension of a 3D (n_obs, n_split, n_features) tensor.
         is_linear = isinstance(layer, (nn.Linear, StackedLinearLayer))
         if is_linear and self.inject_into_layer(layer_index):
-            if x.dim() == 3:
+            if x.dim() == 4:
+                # For when we have sampling in inference. x: (n_samples, n_obs, n_split, n_hidden)
+                cov_list_layer = [
+                    o.unsqueeze(0).unsqueeze(2).expand(x.size(0), o.size(0), x.size(2), o.size(-1))
+                    for o in cov_list
+                ]
+            elif x.dim() == 3:
+                # Regular case. x: (n_obs, n_split, n_hidden)
                 cov_list_layer = [
                     o.unsqueeze(1).expand(o.size(0), x.size(1), o.size(-1)) for o in cov_list
                 ]
             else:
-                cov_list_layer = cov_list
+                raise ValueError("SplitFCLayers works only with 3D tensors.")
             if cov_list_layer:
                 x = torch.cat((x, *cov_list_layer), dim=-1)
         return layer(x)
 
     def _apply_batch_norm(self, layer, x):
-        # batch-norm over (n_obs * n_split) per feature; DRVI/scvi decoders default this off and
-        # use layer norm (which already works on the last dim of a 3D tensor) instead.
-        if x.dim() == 3:
-            n_obs, n_split, n_features = x.shape
-            x = layer(x.reshape(n_obs * n_split, n_features))
-            return x.reshape(n_obs, n_split, n_features)
+        if x.dim() == 4:
+            n_samples, n_obs, n_split, n_hidden = x.shape
+            x = layer(x.reshape(n_samples * n_obs, n_split * n_hidden))
+            return x.reshape(n_samples, n_obs, n_split, n_hidden)
+        elif x.dim() == 3:
+            n_obs, n_split, n_hidden = x.shape
+            x = layer(x.reshape(n_obs, n_split * n_hidden))
+            return x.reshape(n_obs, n_split, n_hidden)
         return layer(x)
 
 
-class SplitDecoder(DecoderSCVI):
+class DecoderDRVI(nn.Module):
     """DRVI additive decoder: split the latent, decode each split, then aggregate.
 
-    Subclasses :class:`~scvi.nn.DecoderSCVI`, reusing its parameter heads (``px_scale_decoder``,
-    ``px_r_decoder``, ``px_dropout_decoder``) and producing the same ``(px_scale, px_r, px_rate,
-    px_dropout)`` tuple, so it is a drop-in for the scvi generative process and likelihoods.
+    Reuses scvi's head structure (``px_scale_decoder``, ``px_r_decoder``, ``px_dropout_decoder``)
+    but, unlike :class:`~scvi.nn.DecoderSCVI`, returns the per-gene parameters in **log space**
+    (aggregated scale logits, dispersion logits and zero-inflation logits). The library-size,
+    softmax and exp transforms into count space are applied by the module (see
+    :meth:`~scvi.external.drvi.DRVIModule.generative`).
 
     The latent ``z`` of dimension ``n_latent`` is mapped into ``n_split`` independent groups, each
     decoded by :class:`SplitFCLayers`, and the per-split parameters are aggregated over the split
@@ -90,14 +122,21 @@ class SplitDecoder(DecoderSCVI):
     n_output
         Number of genes.
     n_split
-        Number of latent splits. With ``split_diag`` it must equal ``n_input``; with ``split_map``
-        it must divide ``n_input``.
+        Number of latent splits. Must divide ``n_input`` for both ``split_mask`` and ``split_map``.
     split_method
         How the latent is mapped to splits.
 
-        * ``"split_diag"`` — ``torch.diag_embed(z)`` so split ``i`` sees only latent dim ``i``.
+        * ``"split_mask"`` — reshape into ``n_split`` contiguous chunks and place each chunk on
+          its own split, zeroing the other chunks. Each split keeps the full latent width
+          ``n_input``; e.g. with ``n_input=10`` and ``n_split=2`` the latent
+          ``[1..10]`` becomes ``[[1,2,3,4,5,0,0,0,0,0], [0,0,0,0,0,6,7,8,9,10]]``.
         * ``"split_map"`` — reshape into ``n_split`` chunks of size ``n_input // n_split``
           and apply a learned per-split linear map (:class:`stacked_linear.StackedLinearLayer`).
+    n_split_output
+        Per-split projection output width, i.e. the input dimension to each split's decoder body.
+        ``"auto"`` (default) uses ``n_input`` (= ``n_latent``). For ``"split_map"`` it is the
+        output size of the learned per-split projection; for ``"split_mask"`` it must equal
+        ``n_input``.
     split_aggregation
         How per-split parameters are combined over the split dimension.
 
@@ -108,8 +147,16 @@ class SplitDecoder(DecoderSCVI):
     reuse_weights
         Passed to :class:`SplitFCLayers`: share decoder weights across splits (``True``) or learn
         per-split weights (``False``).
+    model_cell_dispersion
+        Whether to build a per-cell dispersion head (``px_r_decoder``). If ``False`` (default), the
+        decoder returns ``None`` for the dispersion and the module uses a shared dispersion
+        parameter instead (needed only for ``dispersion="gene-cell"``).
+    model_zero_inflation
+        Whether to build a zero-inflation head (``px_dropout_decoder``). If ``False`` (default),
+        the decoder returns ``None`` for the zero-inflation logits (needed only for the ``zinb``
+        likelihood).
     **kwargs
-        Keyword arguments for :class:`~scvi.nn.DecoderSCVI` / :class:`SplitFCLayers`.
+        Keyword arguments for :class:`SplitFCLayers`.
     """
 
     def __init__(
@@ -117,7 +164,8 @@ class SplitDecoder(DecoderSCVI):
         n_input: int,
         n_output: int,
         n_split: int,
-        split_method: Literal["split_diag", "split_map"] = "split_map",
+        split_method: Literal["split_mask", "split_map"] = "split_map",
+        n_split_output: int | Literal["auto"] = "auto",
         split_aggregation: Literal["mean", "logsumexp"] = "logsumexp",
         n_cat_list: Iterable[int] | None = None,
         n_continuous_cov: int = 0,
@@ -127,41 +175,37 @@ class SplitDecoder(DecoderSCVI):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
-        scale_activation: Literal["softmax", "softplus"] = "softmax",
         dropout_rate: float = 0.0,
+        model_cell_dispersion: bool = False,
+        model_zero_inflation: bool = False,
         **kwargs,
     ):
-        if split_method not in ("split_diag", "split_map"):
-            raise ValueError("`split_method` must be one of 'split_diag', 'split_map'.")
-        if split_aggregation not in ("mean", "logsumexp"):
-            raise ValueError("`split_aggregation` must be one of 'mean', 'logsumexp'.")
+        super().__init__()
+        if n_input % n_split != 0:
+            raise ValueError(f"`{split_method}` requires `n_latent` divisible by `n_split`.")
 
         self.n_latent = n_input
         self.n_split = n_split
         self.split_method = split_method
         self.split_aggregation = split_aggregation
         self.inspect_mode = False
-        # holds per-split pre-aggregation scale logits when inspect_mode is on
-        self._split_scale_cache: torch.Tensor | None = None
 
-        split_in = self._split_input_dim(n_input)
+        if n_split_output == "auto":
+            n_split_output = self.n_latent
+        self.n_split_output = n_split_output
 
-        # builds the parameter heads (n_hidden -> n_output) and a throwaway px_decoder we replace.
-        super().__init__(
-            n_input=split_in,
-            n_output=n_output,
-            n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-            inject_covariates=inject_covariates,
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
-            scale_activation=scale_activation,
-            **kwargs,
-        )
-        # per-split decoder body operating on (n_obs, n_split, split_in)
+        if self.split_method == "split_mask":
+            assert n_split_output == self.n_latent, (
+                "For split_mask, n_split_output must be 'auto' or equal to n_latent."
+            )
+        elif self.split_method == "split_map":
+            self.split_transform = StackedLinearLayer(
+                self.n_split, self.n_latent // self.n_split, n_split_output, bias=False
+            )
+
+        # per-split decoder body operating on (*, n_split, n_split_output)
         self.px_decoder = SplitFCLayers(
-            n_in=split_in,
+            n_in=n_split_output,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
             n_cont=n_continuous_cov,
@@ -175,89 +219,66 @@ class SplitDecoder(DecoderSCVI):
             use_layer_norm=use_layer_norm,
             **kwargs,
         )
-        if self.split_method == "split_map":
-            # learned per-split projection (submodule must be created after nn.Module.__init__):
-            # (n_obs, n_split, split_in) -> (n_obs, n_split, split_in)
-            self.split_transform = StackedLinearLayer(self.n_split, split_in, split_in, bias=False)
 
-    def _split_input_dim(self, n_input: int) -> int:
-        """Validate the split config and return the per-split input dimension."""
-        if self.split_method == "split_diag":
-            if n_input != self.n_split:
-                raise ValueError("`split_diag` requires `n_split == n_latent`.")
-            return n_input
-        # split_map
-        if n_input % self.n_split != 0:
-            raise ValueError("`split_map` requires `n_latent` divisible by `n_split`.")
-        return n_input // self.n_split
+        # parameter heads (n_hidden -> n_output); the dispersion and zero-inflation heads are only
+        # built when requested, otherwise the corresponding output is ``None``.
+        self.px_scale_decoder = nn.Linear(n_hidden, n_output)
+        self.px_r_decoder = nn.Linear(n_hidden, n_output) if model_cell_dispersion else None
+        self.px_dropout_decoder = nn.Linear(n_hidden, n_output) if model_zero_inflation else None
 
     def _apply_split(self, z: torch.Tensor) -> torch.Tensor:
-        """Map latent ``(n_obs, n_latent)`` to splits ``(n_obs, n_split, split_in)``."""
-        if self.split_method == "split_diag":
-            return torch.diag_embed(z)
-        # split_map
-        z = z.reshape(z.shape[0], self.n_split, -1)
-        return self.split_transform(z)
+        """Map latent ``(*, n_latent)`` to splits ``(*, n_split, n_split_output)``."""
+        *lead_shape, n_latent = z.shape
+        if self.split_method == "split_mask":
+            zt = z.reshape(*lead_shape, self.n_split, n_latent // self.n_split).transpose(-2, -1)
+            blocks = torch.diag_embed(zt)
+            return blocks.reshape(*lead_shape, self.n_split, n_latent)
+        elif self.split_method == "split_map":
+            z = z.reshape(*lead_shape, self.n_split, n_latent // self.n_split)
+            return self.split_transform(z)
+        else:
+            raise ValueError(f"Invalid split_method: {self.split_method}")
 
     def _aggregate(self, x: torch.Tensor) -> torch.Tensor:
-        """Aggregate per-split params ``(n_obs, n_split, n_genes)`` over the split dimension."""
+        """Aggregate per-split params ``(*, n_split, n_genes)`` over the split dimension."""
         n_split = x.shape[-2]
-        if self.split_aggregation == "mean":
+        if self.split_aggregation == "logsumexp":
+            return torch.logsumexp(x, dim=-2) - math.log(n_split)
+        elif self.split_aggregation == "mean":
             return x.sum(dim=-2) / n_split
-        # logsumexp: cancels the n_split factor of an additive (log-space) decoder
-        return torch.logsumexp(x, dim=-2) - math.log(n_split)
+        else:
+            raise ValueError(f"Invalid split_aggregation: {self.split_aggregation}")
 
     def forward(
         self,
-        dispersion: str,
         z: torch.Tensor,
-        library: torch.Tensor,
         *cat_list: int,
         cont: torch.Tensor | None = None,
     ):
-        """Decode ``z`` into ZINB/NB parameters via per-split decoding and aggregation."""
-        # flatten any leading dims (e.g. n_samples, n_obs) into a single observation axis
-        leading = z.shape[:-1]
-        z2 = z.reshape(-1, z.shape[-1])
-        n_obs = z2.shape[0]
-        library2 = library.reshape(-1, library.shape[-1])
+        """Decode ``z`` into **log-space** per-gene parameters.
 
-        def _match(t):
-            # per-cell covariates may need tiling to match the flattened (n_samples * n_obs) axis
-            if t is None:
-                return None
-            t = t.reshape(-1, t.shape[-1]) if t.dim() > 2 else t
-            if t.shape[0] != n_obs and n_obs % t.shape[0] == 0:
-                t = t.repeat(n_obs // t.shape[0], 1)
-            return t
+        Returns ``(px_scale_logit, px_r_logit, px_dropout_logit, px_scale_logit_per_split)``: the
+        aggregated per-gene scale logits (log space, before softmax), the per-cell dispersion
+        logits, the zero-inflation logits, and the per-split scale logits before aggregation
+        (only when ``inspect_mode`` is set, else ``None``). The dispersion and zero-inflation
+        outputs are ``None`` unless the corresponding head was built (``model_cell_dispersion`` /
+        ``model_zero_inflation``). The library-size, softmax and exp transforms are applied by the
+        module (not here). Any number of leading dimensions (e.g. an ``n_samples`` axis) is
+        supported and preserved: the split transform, the per-split FC layers and the aggregation
+        all act on the last one or two dimensions.
+        """
+        z_split = self._apply_split(z)  # (*, n_split, n_split_output)
+        h = self.px_decoder(z_split, *cat_list, cont=cont)  # (*, n_split, n_hidden)
 
-        cont2 = _match(cont)
-        cat2 = [_match(c) for c in cat_list]
+        # per-split scale logits aggregated over splits, kept in log space
+        px_scale_logit_per_split = self.px_scale_decoder(h)  # (*, n_split, n_genes)
+        px_scale_logit = self._aggregate(px_scale_logit_per_split)  # (*, n_genes)
+        px_r_logit = self.px_r_decoder(h).mean(dim=-2) if self.px_r_decoder is not None else None
+        px_dropout_logit = None
+        if self.px_dropout_decoder is not None:
+            px_dropout_logit = self.px_dropout_decoder(h).mean(dim=-2)
 
-        z_split = self._apply_split(z2)  # (n_obs, n_split, split_in)
-        h = self.px_decoder(z_split, *cat2, cont=cont2)  # (n_obs, n_split, n_hidden)
+        if not self.inspect_mode:
+            px_scale_logit_per_split = None
 
-        # per-split scale logits, aggregate over splits (raw, log-space for logsumexp), then the
-        # aggregated parameter is either passed through the scale activation (scvi likelihoods) or
-        # consumed directly in log space by the module (e.g. the parametrized/log NB and normal).
-        scale_logits = self.px_scale_decoder[0](h)  # (n_obs, n_split, n_genes)
-        px_agg = self._aggregate(scale_logits)
-        px_scale = self.px_scale_decoder[1](px_agg)
-        px_rate = torch.exp(library2) * px_scale
-        # dropout / cell-wise dispersion are auxiliary: average their per-split logits
-        px_dropout = self.px_dropout_decoder(h).mean(dim=-2)
-        px_r = self.px_r_decoder(h).mean(dim=-2) if dispersion == "gene-cell" else None
-
-        if self.inspect_mode:
-            self._split_scale_cache = scale_logits.reshape(*leading, self.n_split, -1)
-
-        def _unflatten(t):
-            return None if t is None else t.reshape(*leading, t.shape[-1])
-
-        return (
-            _unflatten(px_scale),
-            _unflatten(px_r),
-            _unflatten(px_rate),
-            _unflatten(px_dropout),
-            _unflatten(px_agg),
-        )
+        return px_scale_logit, px_r_logit, px_dropout_logit, px_scale_logit_per_split

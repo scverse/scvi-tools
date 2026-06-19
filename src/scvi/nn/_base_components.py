@@ -66,6 +66,12 @@ class FCLayers(nn.Module):
         activation_fn: nn.Module = nn.ReLU,
     ):
         super().__init__()
+        self.bias = bias
+        self.use_batch_norm = use_batch_norm
+        self.use_layer_norm = use_layer_norm
+        self.use_activation = use_activation
+        self.activation_fn = activation_fn
+        self.dropout_rate = dropout_rate
         self.inject_covariates = inject_covariates
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 
@@ -80,26 +86,7 @@ class FCLayers(nn.Module):
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
-                    (
-                        f"Layer {i}",
-                        nn.Sequential(
-                            self._build_linear(
-                                n_in + self.n_cov * self.inject_into_layer(i),
-                                n_out,
-                                bias=bias,
-                            ),
-                            # non-default params come from defaults in the original Tensorflow
-                            # implementation
-                            nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
-                            if use_batch_norm
-                            else None,
-                            nn.LayerNorm(n_out, elementwise_affine=False)
-                            if use_layer_norm
-                            else None,
-                            activation_fn() if use_activation else None,
-                            nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
-                        ),
-                    )
+                    (f"Layer {i}", self._build_layer(n_in, n_out, i))
                     for i, (n_in, n_out) in enumerate(
                         zip(layers_dim[:-1], layers_dim[1:], strict=True)
                     )
@@ -112,14 +99,20 @@ class FCLayers(nn.Module):
         user_cond = layer_num == 0 or (layer_num > 0 and self.inject_covariates)
         return user_cond
 
-    def _build_linear(self, n_in: int, n_out: int, bias: bool) -> nn.Module:
-        """Build the linear projection for a layer.
-
-        Overridable seam: subclasses can return a different linear module (e.g. a
-        stacked/parallel linear) without rewriting ``__init__``. ``n_in`` is the
-        covariate-adjusted input dimension.
-        """
-        return nn.Linear(n_in, n_out, bias=bias)
+    def _build_layer(self, n_in: int, n_out: int, layer_num: int) -> nn.Sequential:
+        """Build one fully-connected layer: linear (+ optional norm / activation / dropout)."""
+        return nn.Sequential(
+            nn.Linear(
+                n_in + self.n_cov * self.inject_into_layer(layer_num),
+                n_out,
+                bias=self.bias,
+            ),
+            # non-default params come from defaults in the original Tensorflow implementation
+            nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001) if self.use_batch_norm else None,
+            nn.LayerNorm(n_out, elementwise_affine=False) if self.use_layer_norm else None,
+            self.activation_fn() if self.use_activation else None,
+            nn.Dropout(p=self.dropout_rate) if self.dropout_rate > 0 else None,
+        )
 
     def set_online_update_hooks(self, hook_first_layer=True):
         """Set online update hooks."""
@@ -129,7 +122,7 @@ class FCLayers(nn.Module):
             categorical_dims = sum(self.n_cat_list)
             new_grad = torch.zeros_like(grad)
             if categorical_dims > 0:
-                new_grad[:, -categorical_dims:] = grad[:, -categorical_dims:]
+                new_grad[..., -categorical_dims:] = grad[..., -categorical_dims:]
             return new_grad
 
         def _hook_fn_zero_out(grad):
@@ -208,6 +201,7 @@ class FCLayers(nn.Module):
         """Apply a (non batch-norm) layer, injecting covariates into linear layers."""
         if isinstance(layer, nn.Linear) and self.inject_into_layer(layer_index):
             if x.dim() == 3:
+                # For when we have sampling in inference. x: (n_samples, n_obs, n_hidden)
                 cov_list_layer = [
                     o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1))) for o in cov_list
                 ]

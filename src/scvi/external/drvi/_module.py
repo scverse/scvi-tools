@@ -4,15 +4,21 @@ from typing import TYPE_CHECKING
 
 import torch
 from torch import nn
+from torch.nn.functional import linear, one_hot
 
 from scvi import REGISTRY_KEYS
+from scvi.distributions import (
+    NegativeBinomial,
+    Normal,
+    Poisson,
+    ZeroInflatedNegativeBinomial,
+)
+from scvi.external.drvi._base_components import DecoderDRVI
+from scvi.external.drvi._constants import DRVI_MODULE_KEYS
+from scvi.external.drvi._distributions import LogNegativeBinomial
 from scvi.module import VAE
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import auto_move_data
-
-from ._base_components import SplitDecoder
-from ._constants import DRVI_MODULE_KEYS
-from ._distributions import LogNegativeBinomial
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -49,7 +55,7 @@ class DRVIModule(VAE):
     Subclasses :class:`~scvi.module.VAE`, reusing its encoder, inference, loss (reconstruction +
     ``KL(qz || N(0, I))``) and likelihoods unchanged. The only deviation is the decoder: the latent
     is split into ``n_split_latent`` groups that are decoded independently and aggregated, which is
-    what gives DRVI its interpretable latent factors. See :class:`SplitDecoder`.
+    what gives DRVI its interpretable latent factors. See :class:`DecoderDRVI`.
 
     Parameters
     ----------
@@ -59,10 +65,14 @@ class DRVIModule(VAE):
         Number of latent splits. ``None`` or ``-1`` splits every latent dimension (``n_latent``),
         which is the default disentangled setting.
     split_method
-        Latent-to-split mapping, one of ``"split_diag"`` or ``"split_map"``. See
-        :class:`SplitDecoder`.
+        Latent-to-split mapping, one of ``"split_mask"`` or ``"split_map"``. See
+        :class:`DecoderDRVI`.
+    n_split_output
+        Per-split projection output width, i.e. the input dimension to each split's decoder body.
+        ``"auto"`` (default) uses ``n_latent``. For ``"split_map"`` this is the learned per-split
+        projection size; for ``"split_mask"`` it must equal ``n_latent``. See :class:`DecoderDRVI`.
     split_aggregation
-        Per-split aggregation, one of ``"mean"`` or ``"logsumexp"``. See :class:`SplitDecoder`.
+        Per-split aggregation, one of ``"mean"`` or ``"logsumexp"``. See :class:`DecoderDRVI`.
     reuse_weights
         Whether decoder weights are shared across splits (``True``) or learned per split
         (``False``, via :class:`stacked_linear.StackedLinearLayer`).
@@ -96,18 +106,19 @@ class DRVIModule(VAE):
         self,
         n_input: int,
         n_split_latent: int | None = None,
-        split_method: Literal["split_diag", "split_map"] = "split_map",
+        split_method: Literal["split_mask", "split_map"] = "split_map",
+        n_split_output: int | Literal["auto"] = "auto",
         split_aggregation: Literal["mean", "logsumexp"] = "logsumexp",
         reuse_weights: bool = True,
-        n_latent: int = 32,
-        n_hidden: int = 128,
+        n_latent: int = 128,
+        n_hidden: int = 256,
         n_layers: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Iterable[int] | None = None,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal[
             "nb", "pnb", "zinb", "poisson", "normal", "normal_unit_var"
-        ] = "nb",
+        ] = "pnb",
         deeply_inject_covariates: bool = False,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
@@ -158,12 +169,13 @@ class DRVIModule(VAE):
         use_batch_norm_decoder = use_batch_norm in ("decoder", "both")
         use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
 
-        # replace the inherited DecoderSCVI with the additive split decoder
-        self.decoder = SplitDecoder(
+        # replace the inherited decoder with drvi additive decoder
+        self.decoder = DecoderDRVI(
             n_latent,
             n_input,
             n_split=self.n_split_latent,
             split_method=split_method,
+            n_split_output=n_split_output,
             split_aggregation=split_aggregation,
             n_cat_list=cat_list,
             n_continuous_cov=decoder_n_continuous_cov,
@@ -173,8 +185,9 @@ class DRVIModule(VAE):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            scale_activation="softmax",
             dropout_rate=0.0,
+            model_cell_dispersion=dispersion == "gene-cell",
+            model_zero_inflation=gene_likelihood == "zinb",
             **decoder_extra_kwargs,
         )
 
@@ -199,22 +212,13 @@ class DRVIModule(VAE):
         y: torch.Tensor | None = None,
         transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution | None]:
-        """Run the generative process via the additive split decoder.
+        """Run the generative process via the additive decoder.
 
         Mirrors :meth:`scvi.module.VAE.generative` but passes continuous covariates to the decoder
         separately (so the split transformation only sees the latent dimensions). With the
         embedding batch representation, the learned batch embedding is injected into each split as
         an extra continuous covariate.
         """
-        from torch.nn.functional import linear, one_hot
-
-        from scvi.distributions import (
-            NegativeBinomial,
-            Normal,
-            Poisson,
-            ZeroInflatedNegativeBinomial,
-        )
-
         categorical_input = torch.split(cat_covs, 1, dim=1) if cat_covs is not None else ()
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
@@ -234,14 +238,17 @@ class DRVIModule(VAE):
             decoder_cats = (batch_index, *categorical_input)
 
         self.decoder.inspect_mode = self.inspect_mode
-        px_scale, px_r, px_rate, px_dropout, px_agg = self.decoder(
-            self.dispersion,
+        # the decoder returns log-space per-gene parameters. Labels are not part of the decoder's
+        # n_cat_list, so y is not passed here (unlike scvi's VAE); it is only used for the
+        # gene-label dispersion below.
+        px_scale_logit, px_r_logit, px_dropout_logit, px_scale_logit_per_split = self.decoder(
             z,
-            size_factor,
             *decoder_cats,
-            y,
             cont=decoder_cont,
         )
+        # log_softmax over genes, then add the (log) library size to get log(mu)
+        px_scale_log = px_scale_logit - torch.logsumexp(px_scale_logit, dim=-1, keepdim=True)
+        px_rate_log = size_factor + px_scale_log  # size_factor == log(library size)
 
         # dispersion logit, before exponentiation: log-theta for the (log-)NB likelihoods and
         # log-variance for the normal likelihoods.
@@ -251,32 +258,30 @@ class DRVIModule(VAE):
             px_r_logit = linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.dispersion == "gene":
             px_r_logit = self.px_r
-        else:  # gene-cell: per cell-gene logit produced by the decoder
-            px_r_logit = px_r
 
-        if self.gene_likelihood == "zinb":
-            px = ZeroInflatedNegativeBinomial(
-                mu=px_rate, theta=torch.exp(px_r_logit), zi_logits=px_dropout, scale=px_scale
-            )
-        elif self.gene_likelihood == "nb":
-            px = NegativeBinomial(mu=px_rate, theta=torch.exp(px_r_logit), scale=px_scale)
-        elif self.gene_likelihood == "pnb":
-            # parametrized negative binomial: model the mean in log space, so the additive
-            # (logsumexp) split decoder composes per-split contributions correctly and the NB
-            # log-prob stays numerically stable. mu = lib * softmax(agg), theta = exp(px_r_logit).
-            # log_softmax over genes
-            log_scale = px_agg - torch.logsumexp(px_agg, dim=-1, keepdim=True)
-            log_m = library + log_scale  # library == log(observed library size)
-            px = LogNegativeBinomial(log_m=log_m, log_r=px_r_logit, log_scale=log_scale)
-        elif self.gene_likelihood == "poisson":
-            px = Poisson(rate=px_rate, scale=px_scale)
+        if self.gene_likelihood == "pnb":
+            px = LogNegativeBinomial(log_m=px_rate_log, log_r=px_r_logit, log_scale=px_scale_log)
+        elif self.gene_likelihood in ("nb", "zinb", "poisson"):
+            px_scale = torch.exp(px_scale_log)
+            px_rate = torch.exp(px_rate_log)
+            if self.gene_likelihood == "nb":
+                px = NegativeBinomial(mu=px_rate, theta=torch.exp(px_r_logit), scale=px_scale)
+            elif self.gene_likelihood == "zinb":
+                px = ZeroInflatedNegativeBinomial(
+                    mu=px_rate,
+                    theta=torch.exp(px_r_logit),
+                    zi_logits=px_dropout_logit,
+                    scale=px_scale,
+                )
+            else:  # poisson
+                px = Poisson(rate=px_rate, scale=px_scale)
         elif self.gene_likelihood == "normal":
-            # Gaussian with the mean modeled directly (no library/softmax) and per-gene variance
-            # modeled in log space.
+            # Gaussian with the mean modeled directly (the raw log-space decoder output, no
+            # library/softmax) and per-gene variance modeled in log space.
             var = torch.nan_to_num(torch.exp(px_r_logit), posinf=100.0, neginf=0.0) + 1e-8
-            px = Normal(px_agg, var.sqrt(), normal_mu=px_agg)
+            px = Normal(px_scale_logit, var.sqrt(), normal_mu=px_scale_logit)
         elif self.gene_likelihood == "normal_unit_var":
-            px = Normal(px_agg, torch.ones_like(px_agg), normal_mu=px_agg)
+            px = Normal(px_scale_logit, torch.ones_like(px_scale_logit), normal_mu=px_scale_logit)
         else:
             raise ValueError(f"Unknown gene_likelihood: {self.gene_likelihood}")
 
@@ -289,13 +294,9 @@ class DRVIModule(VAE):
             pl = Normal(local_library_log_means, local_library_log_vars.sqrt())
         pz = Normal(torch.zeros_like(z), torch.ones_like(z))
 
-        outputs = {
+        return {
             MODULE_KEYS.PX_KEY: px,
             MODULE_KEYS.PL_KEY: pl,
             MODULE_KEYS.PZ_KEY: pz,
+            DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY: px_scale_logit_per_split,
         }
-        if self.inspect_mode:
-            outputs[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY] = {
-                "mean": self.decoder._split_scale_cache
-            }
-        return outputs

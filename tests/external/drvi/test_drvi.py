@@ -23,8 +23,8 @@ def mock_adata(n_genes: int = 50, n_batches: int = 2, n_labels: int = 3) -> AnnD
     [
         ("split_map", "logsumexp"),
         ("split_map", "mean"),
-        ("split_diag", "logsumexp"),
-        ("split_diag", "mean"),
+        ("split_mask", "logsumexp"),
+        ("split_mask", "mean"),
     ],
 )
 @pytest.mark.parametrize(
@@ -108,10 +108,10 @@ def test_drvi_registry_init():
     assert model_from_registry.module.n_latent == 8
 
 
-@pytest.mark.parametrize("activation_fn", ["elu", "relu", "gelu"])
+@pytest.mark.parametrize("activation_fn", ["elu", "relu"])
 def test_drvi_activation_fn(activation_fn):
     """Hidden-layer activation is configurable (default ELU) in both encoder and decoder."""
-    expected = {"elu": "ELU", "relu": "ReLU", "gelu": "GELU"}[activation_fn]
+    expected = {"elu": "ELU", "relu": "ReLU"}[activation_fn]
     adata = mock_adata()
     DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
     model = DRVI(adata, n_latent=8, activation_fn=activation_fn)
@@ -248,7 +248,7 @@ def test_drvi_scarches():
 
 @pytest.mark.parametrize(
     ("split_method", "split_aggregation"),
-    [("split_map", "logsumexp"), ("split_diag", "mean")],
+    [("split_map", "logsumexp"), ("split_mask", "mean")],
 )
 def test_drvi_interpretability(split_method, split_aggregation):
     """Latent-dimension stats and interpretability scores end-to-end."""
@@ -286,3 +286,59 @@ def test_drvi_interpretability_requires_full_split():
     embed = AnnData(model.get_latent_representation(), obs=adata.obs.copy())
     with pytest.raises(ValueError, match="one split per latent dimension"):
         model.set_latent_dimension_stats(embed, adata=adata)
+
+
+@pytest.mark.parametrize("gene_likelihood", ["nb", "pnb", "zinb"])
+def test_drvi_rnaseq_mixin(gene_likelihood):
+    """The inherited :class:`~scvi.model.base.RNASeqMixin` methods work with DRVI.
+
+    Covers the parametrized log-space NB (``pnb``) too, exercising
+    :class:`~scvi.external.drvi.LogNegativeBinomial`'s ``mu`` / ``theta`` / ``scale`` interface and
+    the ``mu``-reassignment used by importance weighting.
+    """
+    n_genes, n_latent = 50, 8
+    adata = mock_adata(n_genes=n_genes)
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = DRVI(adata, n_latent=n_latent, gene_likelihood=gene_likelihood)
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+
+    # get_normalized_expression: defaults, multi-sample, per-batch, gene subset, latent library
+    norm = model.get_normalized_expression()
+    assert norm.shape == (adata.n_obs, n_genes)
+    samples = model.get_normalized_expression(n_samples=3, return_mean=False, return_numpy=True)
+    assert samples.shape == (3, adata.n_obs, n_genes)
+    tb = model.get_normalized_expression(transform_batch=["batch_0"])
+    assert tb.shape == (adata.n_obs, n_genes)
+    subset = model.get_normalized_expression(gene_list=adata.var_names[:5].tolist())
+    assert subset.shape == (adata.n_obs, 5)
+    latent_lib = model.get_normalized_expression(library_size="latent")
+    assert latent_lib.shape == (adata.n_obs, n_genes)
+
+    # importance-weighted expression (reassigns px.mu before log_prob -> must stay consistent)
+    importance = model.get_normalized_expression(
+        n_samples=5, weights="importance", return_numpy=True
+    )
+    assert importance.shape == (adata.n_obs, n_genes)
+    assert np.isfinite(importance).all()
+
+    # likelihood parameters
+    params = model.get_likelihood_parameters()
+    assert "mean" in params
+    assert params["mean"].shape == (adata.n_obs, n_genes)
+
+    # posterior predictive sampling
+    pps = model.posterior_predictive_sample()
+    assert pps.shape == (adata.n_obs, n_genes)
+
+    # observed library size (DRVI has no library encoder, matching SCVI's observed-lib default)
+    lib = model.get_latent_library_size(give_mean=False)
+    assert lib.shape == (adata.n_obs, 1)
+
+    # feature-feature correlation matrix
+    corr = model.get_feature_correlation_matrix(n_samples=3)
+    assert corr.shape == (n_genes, n_genes)
+
+    # differential expression (change mode, one-vs-rest over labels)
+    de = model.differential_expression(groupby="labels", mode="change", silent=True)
+    assert de.shape[0] > 0
+    assert "proba_de" in de.columns

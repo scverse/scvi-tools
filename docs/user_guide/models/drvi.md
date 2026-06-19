@@ -41,18 +41,16 @@ reconstruction parameters. Because every split can only influence the output thr
 aggregation, the model is encouraged to allocate independent factors of variation to different
 latent dimensions.
 
-Two latent-to-split mappings are available:
-
-- `split_diag`: requires `n_split_latent == n_latent`; split `i` sees only latent dimension `i`
-  (via a diagonal embedding).
-- `split_map` (default): the latent is reshaped into `n_split_latent` chunks and each chunk is
-  passed through a learned per-split linear projection
-  ({class}`stacked_linear.StackedLinearLayer`).
-
 Two aggregations over the split dimension are available:
 
 - `logsumexp` (default): aggregation in log space, which makes the decoder additive in the rate.
 - `mean`: average of the per-split parameters.
+
+Two latent-to-split mappings are available (`n_latent` should be divisible by `n_split_latent`):
+
+- `split_map` (default): the latent is reshaped into `n_split_latent` chunks and each chunk is passed through a learned per-split linear projection.
+- `split_mask`: latent is split into chunks and padded with zeros so, each split `i` keeps only its own chunk.
+
 
 ### Likelihoods modeled in log space
 

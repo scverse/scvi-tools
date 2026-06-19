@@ -13,9 +13,8 @@ from torch.nn import functional as F
 
 import scvi
 from scvi import REGISTRY_KEYS
+from scvi.external.drvi._constants import DRVI_MODULE_KEYS
 from scvi.module._constants import MODULE_KEYS
-
-from ._constants import DRVI_MODULE_KEYS
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,7 +50,7 @@ class InterpretabilityMixin:
     reconstructed expression, both in-distribution (over the data) and out-of-distribution (by
     traversing each latent dimension), and packages the per-gene scores for downstream use.
     Relies on the additive split decoder exposing per-split parameters in ``inspect_mode`` (see
-    :class:`~scvi.external.drvi.SplitDecoder`) and on the :class:`GenerativeMixin` iterators.
+    :class:`~scvi.external.drvi.DecoderDRVI`) and on the :class:`GenerativeMixin` iterators.
     Plotting is intentionally omitted.
     """
 
@@ -88,8 +87,8 @@ class InterpretabilityMixin:
             if self.module.split_aggregation == "logsumexp":
                 # softmax(x) == softmax(x + c); the library / -log(K) constants cancel, but the
                 # add_to_counts offset depends on the total decoder effect (a 1e6-count cell).
-                log_mean_params = generative_outputs[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY][
-                    "mean"
+                log_mean_params = generative_outputs[
+                    DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY
                 ]  # n_samples x n_splits x n_genes
                 total_effect_per_cell = torch.logsumexp(log_mean_params, dim=[-2, -1])
                 log_add_to_counts = total_effect_per_cell + np.log(add_to_counts / 1e6)
@@ -105,7 +104,7 @@ class InterpretabilityMixin:
                 effect_tensor = -torch.log(1 - F.softmax(log_mean_params, dim=-2)[:, :-1, :])
             elif self.module.split_aggregation == "mean":
                 effect_tensor = torch.abs(
-                    generative_outputs[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY]["mean"]
+                    generative_outputs[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY]
                 )
             else:
                 raise NotImplementedError(
@@ -339,9 +338,7 @@ class InterpretabilityMixin:
                 batch_size=batch_size,
                 map_cat_values=False,
             ):
-                effect_tensors.append(
-                    gen_output[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY]["mean"]
-                )
+                effect_tensors.append(gen_output[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY])
             effect_tensors = torch.cat(effect_tensors, dim=0)  # n_steps x n_splits x n_genes
             effect_tensors = effect_tensors.reshape(
                 2, int(n_steps / 2), effect_tensors.shape[1], effect_tensors.shape[2]
