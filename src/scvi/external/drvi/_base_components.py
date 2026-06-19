@@ -73,33 +73,16 @@ class SplitFCLayers(FCLayers):
     def _apply_layer(self, layer, x, cov_list, layer_index):
         is_linear = isinstance(layer, (nn.Linear, StackedLinearLayer))
         if is_linear and self.inject_into_layer(layer_index):
-            if x.dim() == 4:
-                # For when we have sampling in inference. x: (n_samples, n_obs, n_split, n_hidden)
-                cov_list_layer = [
-                    o.unsqueeze(0).unsqueeze(2).expand(x.size(0), o.size(0), x.size(2), o.size(-1))
-                    for o in cov_list
-                ]
-            elif x.dim() == 3:
-                # Regular case. x: (n_obs, n_split, n_hidden)
-                cov_list_layer = [
-                    o.unsqueeze(1).expand(o.size(0), x.size(1), o.size(-1)) for o in cov_list
-                ]
-            else:
-                raise ValueError("SplitFCLayers works only with 3D tensors.")
+            assert x.dim() in (3, 4), "SplitFCLayers works only with 3D tensors."
+            # broadcast each covariate (n_obs, o_dim) over the split (and any leading n_samples)
+            cov_list_layer = [o.unsqueeze(-2).expand(*x.shape[:-1], o.size(-1)) for o in cov_list]
             if cov_list_layer:
                 x = torch.cat((x, *cov_list_layer), dim=-1)
         return layer(x)
 
     def _apply_batch_norm(self, layer, x):
-        if x.dim() == 4:
-            n_samples, n_obs, n_split, n_hidden = x.shape
-            x = layer(x.reshape(n_samples * n_obs, n_split * n_hidden))
-            return x.reshape(n_samples, n_obs, n_split, n_hidden)
-        elif x.dim() == 3:
-            n_obs, n_split, n_hidden = x.shape
-            x = layer(x.reshape(n_obs, n_split * n_hidden))
-            return x.reshape(n_obs, n_split, n_hidden)
-        return layer(x)
+        # batch norm over n_split * n_hidden features: fold all leading dims into the batch axis
+        return layer(x.reshape(-1, x.shape[-2] * x.shape[-1])).reshape(x.shape)
 
 
 class DecoderDRVI(nn.Module):

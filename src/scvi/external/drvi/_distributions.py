@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import torch
-from torch.distributions import Distribution
-from torch.nn import functional as F
+import torch.nn.functional as F
+from torch.distributions import Distribution, constraints
+from torch.distributions.utils import broadcast_all
+
+from scvi.distributions._negative_binomial import _gamma, torch_lgamma_mps
 
 
 class LogNegativeBinomial(Distribution):
@@ -27,52 +30,59 @@ class LogNegativeBinomial(Distribution):
     log_scale
         Optional log of the library-size-independent normalized mean, exposed as ``scale`` for
         :class:`~scvi.model.base.RNASeqMixin` (e.g. ``log_softmax`` of the decoder output).
-    eps
-        Small constant for numerical stability.
+    validate_args
+        Raise ValueError if arguments do not match constraints.
     """
 
     arg_constraints = {
-        "log_m": torch.distributions.constraints.real,
-        "log_r": torch.distributions.constraints.real,
+        "log_m": constraints.real,
+        "log_r": constraints.real,
     }
-    support = torch.distributions.constraints.nonnegative_integer
+    support = constraints.nonnegative_integer
 
     def __init__(
         self,
         log_m: torch.Tensor,
         log_r: torch.Tensor,
         log_scale: torch.Tensor | None = None,
-        eps: float = 1e-8,
         validate_args: bool = False,
     ) -> None:
-        self._eps = eps
-        self.log_m = log_m
-        self.log_r = log_r
-        # mean-space parameters, exposed as attributes for RNASeqMixin compatibility. log_prob uses
-        # log_m / log_r directly (full log-space numerical stability); ``mu`` is a property whose
-        # setter keeps ``log_m`` in sync, because RNASeqMixin reassigns ``px.mu`` before calling
-        # log_prob (importance weighting / differential expression).
-        self._mu = torch.exp(log_m)
-        self.theta = torch.exp(log_r)
-        self.scale = torch.exp(log_scale) if log_scale is not None else self._mu
+        self._eps = 1e-8
+        self.on_mps = log_m.device.type == "mps"  # TODO: until torch solves the MPS issues
+        if log_scale is None:
+            self.log_m, self.log_r = broadcast_all(log_m, log_r)
+            self.log_scale = None
+        else:
+            self.log_m, self.log_r, self.log_scale = broadcast_all(log_m, log_r, log_scale)
         super().__init__(validate_args=validate_args)
 
+    # Mean-space parameters are derived lazily from the log-parameters
+    # log_prob uses log_m and log_r directly for full log-space numerical stability.
     @property
     def mu(self) -> torch.Tensor:
-        return self._mu
+        return torch.exp(self.log_m)
 
     @mu.setter
     def mu(self, value: torch.Tensor) -> None:
-        self._mu = value
+        # RNASeqMixin reassigns ``px.mu`` before log_prob (importance weighting / DE); keep log_m
+        # in sync so log_prob reflects the new mean.
         self.log_m = torch.log(value + self._eps)
 
     @property
+    def theta(self) -> torch.Tensor:
+        return torch.exp(self.log_r)
+
+    @property
+    def scale(self) -> torch.Tensor:
+        return torch.exp(self.log_scale) if self.log_scale is not None else self.mu
+
+    @property
     def mean(self) -> torch.Tensor:
-        return self._mu
+        return self.mu
 
     @property
     def variance(self) -> torch.Tensor:
-        return self._mu + self._mu**2 / self.theta
+        return self.mu + self.mu**2 / self.theta
 
     def get_normalized(self, key: str) -> torch.Tensor:
         """Return a named mean-space parameter (RNASeqMixin contract)."""
@@ -87,26 +97,36 @@ class LogNegativeBinomial(Distribution):
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         """Negative-binomial log-probability evaluated from the log-parameters."""
         log_m, log_r, eps = self.log_m, self.log_r, self._eps
+        lgamma = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
         r = torch.exp(log_r)
         # log C(value + r - 1, value)
-        choice = (
-            torch.lgamma(value + r + eps) - torch.lgamma(value + 1 + eps) - torch.lgamma(r + eps)
-        )
+        choice = lgamma(value + r + eps) - lgamma(value + 1 + eps) - lgamma(r + eps)
         # value * log(p),  p = mu / (mu + theta);  log(p) = -softplus(log_r - log_m)
         log_pow_k = -value * F.softplus(log_r - log_m + eps)
         # r * log(1 - p),  1 - p = theta / (mu + theta);  log(1 - p) = -softplus(log_m - log_r)
         log_pow_r = -r * F.softplus(log_m - log_r + eps)
         return choice + log_pow_k + log_pow_r
 
-    def sample(self, sample_shape: torch.Size = torch.Size()) -> torch.Tensor:
-        """Sample via the Gamma-Poisson mixture (same as a negative binomial).
+    @torch.inference_mode()
+    def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
+        """Sample via the Gamma-Poisson mixture (same as a negative binomial)."""
+        sample_shape = sample_shape or torch.Size()
+        gamma_d = _gamma(self.theta, self.mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU
+        p_means = gamma_d.sample(sample_shape)
+        # Clamp as the distribution objects can behave badly when their parameters are too high.
+        l_train = torch.clamp(p_means, max=1e8)
+        counts = (
+            torch.distributions.Poisson(l_train).sample().to("mps")
+            if self.on_mps  # TODO: NEED TORCH MPS FIX for 'aten::poisson'
+            else torch.distributions.Poisson(l_train).sample()
+        )
+        return counts
 
-        Parameterized from the log-parameters to stay consistent with :meth:`log_prob`:
-        ``concentration = theta = exp(log_r)`` and ``rate = theta / mu = exp(log_r - log_m)``.
-        """
-        with torch.no_grad():
-            concentration = torch.exp(self.log_r).clamp(min=self._eps)
-            rate = torch.exp(self.log_r - self.log_m).clamp(min=self._eps)
-            gamma = torch.distributions.Gamma(concentration=concentration, rate=rate)
-            samples = gamma.sample(sample_shape)
-            return torch.distributions.Poisson(samples.clamp(max=1e8)).sample()
+    def __repr__(self) -> str:
+        param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
+        args_string = ", ".join(
+            f"{p}: {v if v.numel() == 1 else v.size()}"
+            for p in param_names
+            if (v := self.__dict__[p]) is not None
+        )
+        return self.__class__.__name__ + "(" + args_string + ")"
