@@ -9,55 +9,49 @@ from tqdm import tqdm
 
 import scvi
 from scvi import REGISTRY_KEYS
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.module._constants import MODULE_KEYS
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from anndata import AnnData
-    from lightning import LightningDataModule
+    from torch import Tensor
 
 logger = logging.getLogger(__name__)
 
 
 class GenerativeMixin:
-    """Generative helpers backing the DRVI interpretability analyses.
-
-    Minimal port of DRVI's ``GenerativeMixin``: the two batched iterators that the
-    :class:`~scvi.external.drvi.InterpretabilityMixin` consumes. Both run in inference mode, toggle
-    the module's ``inspect_mode`` (so the decoder exposes per-split parameters) and, optionally,
-    ``fully_deterministic`` (so the encoder returns the posterior mean instead of a sample).
-    """
+    """Generative helpers backing the DRVI interpretability analyses."""
 
     @torch.inference_mode()
     def iterate_on_ae_output(
         self,
         adata: AnnData | None = None,
-        datamodule: LightningDataModule | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
         deterministic: bool = False,
     ):
-        """Yield ``(inference_outputs, generative_outputs, losses)`` per minibatch.
+        """Yield ``(inference_outputs, generative_outputs)`` per minibatch.
 
-        Runs the full autoencoder (encoder + decoder) over ``adata``. With ``deterministic=True``
-        the bottleneck uses the posterior mean (no sampling).
+        Runs the full autoencoder (encoder + decoder) over ``adata`` (or a custom ``dataloader``,
+        e.g. from an out-of-core datamodule) via ``module.forward(compute_loss=False)`` (no loss
+        computed). With ``deterministic=True`` the bottleneck uses the posterior mean.
         """
-        if datamodule is None:
+        _validate_adata_dataloader_input(self, adata, dataloader)
+        if dataloader is None:
             adata = self._validate_anndata(adata)
-            data_loader = self._make_data_loader(
+            dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
-        else:
-            datamodule.setup(stage="predict")
-            data_loader = datamodule.predict_dataloader()
 
         self.module.inspect_mode = True
         try:
             if deterministic:
                 self.module.fully_deterministic = True
-            for tensors in tqdm(data_loader, mininterval=5.0):
-                yield self.module(tensors, loss_kwargs={"kl_weight": 1})
+            for tensors in tqdm(dataloader, mininterval=5.0):
+                yield self.module.forward(tensors=tensors, compute_loss=False)
         finally:
             self.module.fully_deterministic = False
             self.module.inspect_mode = False

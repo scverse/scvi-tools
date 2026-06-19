@@ -17,11 +17,11 @@ from scvi.external.drvi._constants import DRVI_MODULE_KEYS
 from scvi.module._constants import MODULE_KEYS
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
     from typing import Any, Literal
 
     from anndata import AnnData
-    from lightning import LightningDataModule
+    from torch import Tensor
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +46,11 @@ def _sparse_std(x: sparse.csr_matrix, axis: int = 0, ddof: int = 0) -> np.ndarra
 class InterpretabilityMixin:
     """Interpretability analyses for DRVI's latent factors (splits).
 
-    Core logic ported from DRVI. Quantifies how much each latent split contributes to the
+    Quantifies how much each latent split contributes to the
     reconstructed expression, both in-distribution (over the data) and out-of-distribution (by
-    traversing each latent dimension), and packages the per-gene scores for downstream use.
+    traversing each latent dimension), and outputs the per-gene scores for downstream use.
     Relies on the additive split decoder exposing per-split parameters in ``inspect_mode`` (see
     :class:`~scvi.external.drvi.DecoderDRVI`) and on the :class:`GenerativeMixin` iterators.
-    Plotting is intentionally omitted.
     """
 
     def _get_n_cats_per_cov(self) -> list[int]:
@@ -65,7 +64,7 @@ class InterpretabilityMixin:
     def iterate_on_effect_of_splits_within_distribution(
         self,
         adata: AnnData | None = None,
-        datamodule: LightningDataModule | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         add_to_counts: float = 1.0,
         deterministic: bool = True,
         directional: bool = True,
@@ -75,9 +74,9 @@ class InterpretabilityMixin:
 
         The effect formula depends on ``module.split_aggregation`` (``"logsumexp"`` or ``"mean"``).
         """
-        for inference_outputs, generative_outputs, _losses in self.iterate_on_ae_output(
+        for inference_outputs, generative_outputs in self.iterate_on_ae_output(
             adata=adata,
-            datamodule=datamodule,
+            dataloader=dataloader,
             deterministic=deterministic,
             **kwargs,
         ):
@@ -125,7 +124,7 @@ class InterpretabilityMixin:
     def get_reconstruction_effect_of_each_split(
         self,
         adata: AnnData | None = None,
-        datamodule: LightningDataModule | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         add_to_counts: float = 1.0,
         aggregate_over_cells: bool = True,
         deterministic: bool = True,
@@ -140,7 +139,7 @@ class InterpretabilityMixin:
         store = None if aggregate_over_cells else []
         for effect_tensor, _latent in self.iterate_on_effect_of_splits_within_distribution(
             adata=adata,
-            datamodule=datamodule,
+            dataloader=dataloader,
             add_to_counts=add_to_counts,
             deterministic=deterministic,
             directional=directional,
@@ -162,7 +161,7 @@ class InterpretabilityMixin:
         self,
         embed: AnnData,
         adata: AnnData | None = None,
-        datamodule: LightningDataModule | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         vanished_threshold: float = 0.5,
     ) -> None:
         """Annotate ``embed.var`` with per-dimension reconstruction effect, ordering and stats.
@@ -181,7 +180,7 @@ class InterpretabilityMixin:
 
         embed.var["reconstruction_effect"] = 0.0
         embed.var.loc[embed.var.sort_values("original_dim_id").index, "reconstruction_effect"] = (
-            self.get_reconstruction_effect_of_each_split(adata=adata, datamodule=datamodule)
+            self.get_reconstruction_effect_of_each_split(adata=adata, dataloader=dataloader)
         )
         embed.var["order"] = (-embed.var["reconstruction_effect"]).argsort().argsort()
 
@@ -205,7 +204,7 @@ class InterpretabilityMixin:
     def get_effect_of_splits_within_distribution(
         self,
         adata: AnnData | None = None,
-        datamodule: LightningDataModule | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         add_to_counts: float = 1.0,
         deterministic: bool = True,
         directional: bool = True,
@@ -228,7 +227,7 @@ class InterpretabilityMixin:
         for i, (effect_tensor, latent) in enumerate(
             self.iterate_on_effect_of_splits_within_distribution(
                 adata=adata,
-                datamodule=datamodule,
+                dataloader=dataloader,
                 add_to_counts=add_to_counts,
                 deterministic=deterministic,
                 directional=directional,
