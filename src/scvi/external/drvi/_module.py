@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
+from torch import nn
 
+from scvi import REGISTRY_KEYS
 from scvi.module import VAE
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import auto_move_data
@@ -17,6 +19,28 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from torch.distributions import Distribution
+
+
+def _resolve_activation(activation: str | type[nn.Module]) -> type[nn.Module]:
+    """Resolve an activation name (e.g. ``"elu"``) to an ``nn.Module`` subclass.
+
+    A class / callable returning an ``nn.Module`` is returned unchanged, so users can pass a custom
+    activation directly.
+    """
+    ACTIVATIONS: dict[str, type[nn.Module]] = {
+        "relu": nn.ReLU,
+        "elu": nn.ELU,
+    }
+
+    if isinstance(activation, str):
+        try:
+            return ACTIVATIONS[activation.lower()]
+        except KeyError:
+            raise ValueError(
+                f"Unknown activation '{activation}'. Choose one of {sorted(ACTIVATIONS)} "
+                "or pass an nn.Module subclass."
+            ) from None
+    return activation
 
 
 class DRVIModule(VAE):
@@ -57,6 +81,13 @@ class DRVIModule(VAE):
         * ``"normal"`` - Gaussian with the mean modeled directly (no library/softmax) and per-gene
           variance modeled in log space; use with continuous (e.g. log-normalized) data.
         * ``"normal_unit_var"`` - Gaussian with unit variance.
+    activation_fn
+        Hidden-layer activation for both the encoder and the split decoder. Either a name (one of
+        ``"elu"`` (default, DRVI's choice),``"relu"``, or an ``nn.Module`` subclass.
+    extra_encoder_kwargs
+        Extra keyword arguments for the encoder :class:`~scvi.nn.FCLayers`.
+    extra_decoder_kwargs
+        Extra keyword arguments for the decoder :class:`~scvi.external.drvi.SplitFCLayers`.
     **kwargs
         Additional keyword arguments for :class:`~scvi.module.VAE`.
     """
@@ -80,8 +111,16 @@ class DRVIModule(VAE):
         deeply_inject_covariates: bool = False,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        activation_fn: str | type[nn.Module] = "elu",
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
         **kwargs,
     ):
+        # hidden-layer activation for both encoder and (split) decoder; DRVI defaults to ELU.
+        activation = _resolve_activation(activation_fn)
+        extra_encoder_kwargs = {"activation_fn": activation, **(extra_encoder_kwargs or {})}
+        decoder_extra_kwargs = {"activation_fn": activation, **(extra_decoder_kwargs or {})}
+
         super().__init__(
             n_input,
             n_latent=n_latent,
@@ -94,6 +133,7 @@ class DRVIModule(VAE):
             deeply_inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            extra_encoder_kwargs=extra_encoder_kwargs,
             **kwargs,
         )
 
@@ -106,7 +146,15 @@ class DRVIModule(VAE):
         self.inspect_mode = False
         self.fully_deterministic = False
 
-        cat_list = [self.n_batch] + list(n_cats_per_cov or [])
+        # With the embedding batch representation the batch is injected into each split as a
+        # continuous covariate (the learned batch embedding) rather than one-hot in n_cat_list.
+        if self.batch_representation == "embedding":
+            batch_dim = self.get_embedding(REGISTRY_KEYS.BATCH_KEY).embedding_dim
+            cat_list = list(n_cats_per_cov or [])
+            decoder_n_continuous_cov = n_continuous_cov + batch_dim
+        else:
+            cat_list = [self.n_batch] + list(n_cats_per_cov or [])
+            decoder_n_continuous_cov = n_continuous_cov
         use_batch_norm_decoder = use_batch_norm in ("decoder", "both")
         use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
 
@@ -118,7 +166,7 @@ class DRVIModule(VAE):
             split_method=split_method,
             split_aggregation=split_aggregation,
             n_cat_list=cat_list,
-            n_continuous_cov=n_continuous_cov,
+            n_continuous_cov=decoder_n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
             reuse_weights=reuse_weights,
@@ -127,6 +175,7 @@ class DRVIModule(VAE):
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softmax",
             dropout_rate=0.0,
+            **decoder_extra_kwargs,
         )
 
     def _regular_inference(self, *args, **kwargs):
@@ -153,8 +202,9 @@ class DRVIModule(VAE):
         """Run the generative process via the additive split decoder.
 
         Mirrors :meth:`scvi.module.VAE.generative` but passes continuous covariates to the decoder
-        separately (so the split transformation only sees the latent dimensions) and supports the
-        one-hot batch representation only.
+        separately (so the split transformation only sees the latent dimensions). With the
+        embedding batch representation, the learned batch embedding is injected into each split as
+        an extra continuous covariate.
         """
         from torch.nn.functional import linear, one_hot
 
@@ -171,15 +221,26 @@ class DRVIModule(VAE):
         if not self.use_size_factor_key:
             size_factor = library
 
+        # batch handling: one-hot batch is injected via the decoder's n_cat_list; the embedding
+        # batch representation is concatenated to each split as a continuous covariate.
+        if self.batch_representation == "embedding":
+            batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+            decoder_cont = (
+                batch_rep if cont_covs is None else torch.cat([cont_covs, batch_rep], dim=-1)
+            )
+            decoder_cats = categorical_input
+        else:
+            decoder_cont = cont_covs
+            decoder_cats = (batch_index, *categorical_input)
+
         self.decoder.inspect_mode = self.inspect_mode
         px_scale, px_r, px_rate, px_dropout, px_agg = self.decoder(
             self.dispersion,
             z,
             size_factor,
-            batch_index,
-            *categorical_input,
+            *decoder_cats,
             y,
-            cont=cont_covs,
+            cont=decoder_cont,
         )
 
         # dispersion logit, before exponentiation: log-theta for the (log-)NB likelihoods and

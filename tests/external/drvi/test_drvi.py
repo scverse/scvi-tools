@@ -108,6 +108,82 @@ def test_drvi_registry_init():
     assert model_from_registry.module.n_latent == 8
 
 
+@pytest.mark.parametrize("activation_fn", ["elu", "relu", "gelu"])
+def test_drvi_activation_fn(activation_fn):
+    """Hidden-layer activation is configurable (default ELU) in both encoder and decoder."""
+    expected = {"elu": "ELU", "relu": "ReLU", "gelu": "GELU"}[activation_fn]
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = DRVI(adata, n_latent=8, activation_fn=activation_fn)
+
+    enc = {type(m).__name__ for m in model.module.z_encoder.encoder.modules()}
+    dec = {type(m).__name__ for m in model.module.decoder.px_decoder.modules()}
+    assert expected in enc
+    assert expected in dec
+
+    model.train(max_epochs=1, batch_size=adata.n_obs)
+    assert model.get_latent_representation().shape == (adata.n_obs, 8)
+
+
+def test_drvi_activation_fn_default_is_elu():
+    """DRVI defaults to ELU (DRVI's choice), and a class can be passed directly."""
+    from torch import nn
+
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+
+    default_model = DRVI(adata, n_latent=8)
+    enc = {type(m).__name__ for m in default_model.module.z_encoder.encoder.modules()}
+    assert "ELU" in enc
+
+    class_model = DRVI(adata, n_latent=8, activation_fn=nn.GELU)
+    dec = {type(m).__name__ for m in class_model.module.decoder.px_decoder.modules()}
+    assert "GELU" in dec
+
+    with pytest.raises(ValueError, match="Unknown activation"):
+        DRVI(adata, n_latent=8, activation_fn="not_an_activation")
+
+
+def test_drvi_batch_embedding():
+    """Batch embedding (EmbeddingMixin) is supported: the embedded batch is injected into each
+    split, and get_batch_representation works."""
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = DRVI(adata, n_latent=8, batch_representation="embedding")
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+    assert model.get_latent_representation().shape == (adata.n_obs, 8)
+    assert model.get_batch_representation().shape[0] == adata.n_obs
+
+
+def test_drvi_size_factor_key():
+    """size_factor_key is registered (full SCVI setup_anndata) and toggles use_size_factor_key."""
+    adata = mock_adata()
+    adata.obs["size_factor"] = np.asarray(adata.X.sum(1)).ravel().astype(np.float32)
+    DRVI.setup_anndata(
+        adata, batch_key="batch", labels_key="labels", size_factor_key="size_factor"
+    )
+    model = DRVI(adata, n_latent=8)
+    assert model.module.use_size_factor_key
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+    assert model.get_latent_representation().shape == (adata.n_obs, 8)
+
+
+def test_drvi_minified():
+    """Minified mode (BaseMinifiedModeModelClass) works end-to-end."""
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = DRVI(adata, n_latent=8)
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+
+    qzm, qzv = model.get_latent_representation(give_mean=True, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
+    assert model.minified_data_type is not None
+    assert model.get_latent_representation().shape == (adata.n_obs, 8)
+    assert model.get_normalized_expression().shape == (adata.n_obs, adata.n_vars)
+
+
 @pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-cell"])
 def test_drvi_pnb_dispersion(dispersion):
     """The parametrized NB works across dispersion modes."""

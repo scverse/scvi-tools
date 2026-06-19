@@ -10,9 +10,10 @@ The advantages of DRVI are:
 - Interpretable factors: Each latent dimension tends to capture an independent, biologically
   meaningful axis of variation, which can be linked back to genes via the built-in
   interpretability analyses.
-- Built on scVI: It reuses the scVI encoder, likelihoods (negative binomial, zero-inflated
-  negative binomial, Poisson, normal) and training machinery, so it integrates with the rest of
-  the scvi-tools ecosystem (covariates, scArches transfer learning, etc.).
+- Built on scVI: {class}`~scvi.external.DRVI` subclasses {class}`~scvi.model.SCVI` and only swaps
+  the decoder, so it inherits the full SCVI interface — covariates, batch embedding
+  (`batch_representation="embedding"`), size factors, minified mode, scArches transfer learning,
+  out-of-core training via a datamodule, and the standard likelihoods (plus DRVI's log-space `pnb`).
 
 The limitations of DRVI include:
 
