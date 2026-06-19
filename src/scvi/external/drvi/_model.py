@@ -96,9 +96,12 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
             **kwargs,
         )
         self._model_summary_string = (
-            f"DRVI model with n_latent: {n_latent}, n_split_latent: {n_split_latent}, "
-            f"split_method: '{split_method}', split_aggregation: '{split_aggregation}', "
-            f"gene_likelihood: '{gene_likelihood}'."
+            "Model with the following params:\n"
+            f"  n_latent: {self.module.n_latent}\n"
+            f"  n_split_latent: {self.module.n_split_latent}\n"
+            f"  split_method: {self.module.split_method!r}\n"
+            f"  split_aggregation: {self.module.split_aggregation!r}"
+            f". gene_likelihood: {self.module.gene_likelihood!r}"
         )
         self.init_params_ = self._get_init_params(locals())
         logger.info("The model has been initialized")
