@@ -48,15 +48,15 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/sysvi`
      - Integrating single-cell RNA-seq datasets with substantial batch effects
      - :cite:p:`Hrovatin23`
-   * - :doc:`/user_guide/models/drvi`
-     - Unsupervised disentangled representation learning of single-cell omics
-     - :cite:p:`Moinfar2024`
    * - :doc:`/user_guide/models/decipher`
      - Joint representation and visualization of derailed cell states with Decipher
      - :cite:p:`Nazaret24`
    * - :doc:`/user_guide/models/velovi`
      - Deep generative modeling of transcriptional dynamics for RNA velocity analysis in single cells
      - :cite:p:`GayosoWeiler23`
+   * - :doc:`/user_guide/models/drvi`
+     - Unsupervised deep disentangled representation learning of single-cell omics
+     - :cite:p:`Moinfar2024`
 ```
 
 ## ATAC-seq analysis

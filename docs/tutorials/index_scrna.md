@@ -116,7 +116,7 @@ Integrate scRNA-seq datasets with substantial batch effects.
 
 ```{customcard}
 :path: notebooks/scrna/drvi
-:tags: Analysis, Dimensionality-reduction, Interpretability
+:tags: Analysis, Dimensionality-reduction, Interpretability, Factor Analysis
 
 Learn an interpretable, disentangled representation of scRNA-seq data with DRVI and link latent dimensions to genes.
 ```

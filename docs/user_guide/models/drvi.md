@@ -7,18 +7,13 @@ latent representation of single-cell omics data.
 
 The advantages of DRVI are:
 
-- Interpretable factors: Each latent dimension tends to capture an independent, biologically
-  meaningful axis of variation, which can be linked back to genes via the built-in
-  interpretability analyses.
+- Disentanglement: DRVI disentangled cell identity, signaling pathways, stress responses, developmental trajectories, and perturbation effects into distinct factors.
+- Interpretability: Each factor (latent dimension) can be linked back to genes via the built-in interpretability analyses.
 - Built on scVI: {class}`~scvi.external.DRVI` subclasses {class}`~scvi.model.SCVI` and only swaps
   the decoder, so it inherits the full SCVI interface — covariates, batch embedding
   (`batch_representation="embedding"`), size factors, minified mode, scArches transfer learning,
   out-of-core training via a datamodule, and the standard likelihoods (plus DRVI's log-space `pnb`).
 
-The limitations of DRVI include:
-
-- Interpretability assumes one split per latent dimension (`n_split_latent == n_latent`, the
-  default).
 
 ```{topic} Tutorials:
 
@@ -27,7 +22,7 @@ The limitations of DRVI include:
 
 ```{topic} References:
 
--  Paper: Moinfar and Theis. Unsupervised deep disentangled representation of single-cell omics.
+-  Paper: Disentangling cellular heterogeneity into interpretable biological factors through structured latent representations.
 bioRxiv (2024): https://doi.org/10.1101/2024.11.06.622266
 ```
 
@@ -81,3 +76,15 @@ observed cells) and out-of-distribution (by traversing each latent dimension), a
 top genes per latent dimension. See {meth}`~scvi.external.DRVI.set_latent_dimension_stats`,
 {meth}`~scvi.external.DRVI.calculate_interpretability_scores` and
 {meth}`~scvi.external.DRVI.get_interpretability_scores`.
+
+## Scope: core model only
+
+Only the **core DRVI model** and its **core interpretability methods** are included in scvi-tools
+(the model, the additive decoder and log-sum-exp pooling, the log-space likelihoods, and the interpretability methods.).
+
+The **utility functions for latent-space visualization and analysis are not** part of scvi-tools.
+For those, install the full [`drvi-py`](https://github.com/theislab/drvi) package:
+
+```bash
+pip install drvi-py
+```

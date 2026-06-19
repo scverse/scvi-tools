@@ -191,10 +191,7 @@ class FCLayers(nn.Module):
         return x
 
     def _apply_batch_norm(self, layer: nn.Module, x: torch.Tensor) -> torch.Tensor:
-        """Apply a batch-norm layer, handling the 3D (and MPS) case.
-
-        Overridable seam: subclasses with a different 3D layout can override this.
-        """
+        """Apply a batch-norm layer, handling the 3D (and MPS) case."""
         if x.dim() == 3:
             if x.device.type == "mps":  # TODO: remove this when MPS supports for loop.
                 return torch.cat([(layer(slice_x.clone())).unsqueeze(0) for slice_x in x], dim=0)
@@ -208,11 +205,7 @@ class FCLayers(nn.Module):
         cov_list: list[torch.Tensor],
         layer_index: int,
     ) -> torch.Tensor:
-        """Apply a (non batch-norm) layer, injecting covariates into linear layers.
-
-        Overridable seam: subclasses can recognize alternative linear modules and
-        adapt the covariate injection to a different tensor layout.
-        """
+        """Apply a (non batch-norm) layer, injecting covariates into linear layers."""
         if isinstance(layer, nn.Linear) and self.inject_into_layer(layer_index):
             if x.dim() == 3:
                 cov_list_layer = [
