@@ -277,6 +277,24 @@ def test_drvi_interpretability(split_method, split_aggregation):
         assert scores.shape[0] == adata.n_vars
 
 
+def test_drvi_interpretability_batch_embedding():
+    """Interpretability works with embedding batches, incl. the OOD decode-from-latent path
+    (which embeds the supplied batch index into each split via the module's generative)."""
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    n_latent = 8
+    model = DRVI(adata, n_latent=n_latent, batch_representation="embedding")
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+
+    embed = AnnData(model.get_latent_representation(), obs=adata.obs.copy())
+    model.set_latent_dimension_stats(embed, adata=adata)
+    model.calculate_interpretability_scores(embed, methods="ALL", n_steps=4, n_samples=3)
+    assert "OOD_combined_positive" in embed.varm
+    assert "IND_max_positive" in embed.varm
+    scores = model.get_interpretability_scores(embed, adata, key="OOD_combined")
+    assert scores.shape[0] == adata.n_vars
+
+
 def test_drvi_interpretability_requires_full_split():
     """Per-dimension interpretability requires n_split_latent == n_latent."""
     adata = mock_adata()
