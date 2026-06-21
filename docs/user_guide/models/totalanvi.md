@@ -138,7 +138,3 @@ predictions, attributions = model.predict(ig_interpretability=True)
     Gayoso, A., Steier, Z., Lopez, R., Regier, J., Nazor, K. L., Streets, A., & Yosef, N. (2021).
     Joint probabilistic modeling of single-cell multi-omic data with totalVI.
     *Nature Methods*, 18(3), 272–282. https://doi.org/10.1038/s41592-020-01050-x
-
-    Xu, C., Lopez, R., Mehlman, E., Regier, J., Jordan, M. I., & Yosef, N. (2021).
-    Probabilistic harmonization and annotation of single-cell transcriptomics data with deep generative models.
-    *Molecular Systems Biology*, 17(1), e9620. https://doi.org/10.15252/msb.20209620
