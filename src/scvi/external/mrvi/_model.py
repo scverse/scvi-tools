@@ -1417,8 +1417,16 @@ class MRVI(
 
         def sqrtm_batch(xtmx: torch.Tensor) -> torch.Tensor:
             # xtmx shape: (n_cells, n_covariates, n_covariates)
+            # nan_to_num guards against scipy.linalg.sqrtm returning NaN/inf for
+            # degenerate cells (e.g. zero admissible samples); those cells get
+            # ts=0 → pval=1 (not significant), which is the correct fallback.
             sqrtm_list = [
-                torch.from_numpy(scipy.linalg.sqrtm(m.cpu().numpy()).real).to(xtmx.device)
+                torch.nan_to_num(
+                    torch.from_numpy(scipy.linalg.sqrtm(m.cpu().numpy()).real).to(xtmx.device),
+                    nan=0.0,
+                    posinf=0.0,
+                    neginf=0.0,
+                )
                 for m in xtmx
             ]
             return torch.stack(sqrtm_list, dim=0)
