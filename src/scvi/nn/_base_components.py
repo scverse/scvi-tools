@@ -114,6 +114,10 @@ class FCLayers(nn.Module):
             nn.Dropout(p=self.dropout_rate) if self.dropout_rate > 0 else None,
         )
 
+    def _is_linear_layer(self, layer: nn.Module) -> bool:
+        """Whether ``layer`` is a linear map covariate-injection and scArches hooks act on."""
+        return isinstance(layer, nn.Linear)
+
     def set_online_update_hooks(self, hook_first_layer=True):
         """Set online update hooks."""
         self.hooks = []
@@ -132,7 +136,7 @@ class FCLayers(nn.Module):
             for layer in layers:
                 if i == 0 and not hook_first_layer:
                     continue
-                if isinstance(layer, nn.Linear):
+                if self._is_linear_layer(layer):
                     if self.inject_into_layer(i):
                         w = layer.weight.register_hook(_hook_fn_weight)
                     else:
@@ -199,7 +203,7 @@ class FCLayers(nn.Module):
         layer_index: int,
     ) -> torch.Tensor:
         """Apply a (non batch-norm) layer, injecting covariates into linear layers."""
-        if isinstance(layer, nn.Linear) and self.inject_into_layer(layer_index):
+        if self._is_linear_layer(layer) and self.inject_into_layer(layer_index):
             if x.dim() == 3:
                 # For when we have sampling in inference. x: (n_samples, n_obs, n_hidden)
                 cov_list_layer = [

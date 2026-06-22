@@ -255,24 +255,125 @@ def test_lognegativebinomial_matches_scvi_nb():
     assert torch.allclose(dist.log_prob(val2), expected, atol=1e-4)
 
 
-def test_drvi_scarches():
-    """scArches transfer learning via the reused ArchesMixin."""
-    adata = mock_adata()
-    DRVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        categorical_covariate_keys=["cat1"],
-        continuous_covariate_keys=["cont1"],
-    )
-    model = DRVI(adata, n_latent=8)
-    model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
+def _run_query_to_reference(**model_kwargs):
+    """scArches query->reference run; returns (reference_change, query_change).
 
-    query = mock_adata()
+    Holds out ``batch_0`` as a new query batch, trains the reference model, transfers via
+    ``load_query_data`` and finetunes on the query. Then measures how much the reference
+    and query latent representations change.
+    """
+    adata = mock_adata(n_batches=3)
+    ref = adata[adata.obs["batch"] != "batch_0"].copy()
+    query = adata[adata.obs["batch"] == "batch_0"].copy()
+
+    DRVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    model = DRVI(ref, n_latent=8, encode_covariates=True, **model_kwargs)
+    model.train(max_epochs=2, batch_size=ref.n_obs)
+    latent_reference = model.get_latent_representation(ref)
+
     DRVI.prepare_query_anndata(query, model)
-    query_model = DRVI.load_query_data(query, model)
-    query_model.train(max_epochs=2, batch_size=math.ceil(query.n_obs / 2.0))
-    assert query_model.get_latent_representation().shape == (query.n_obs, 8)
+    transfer = DRVI.load_query_data(query, model)
+    train_kwargs = {"plan_kwargs": {"lr": 0.1, "weight_decay": 0.0}}
+    transfer.train(max_epochs=2, batch_size=query.n_obs, **train_kwargs)
+    latent_query = transfer.get_latent_representation(query)
+    transfer.train(max_epochs=2, batch_size=query.n_obs, **train_kwargs)
+
+    reference_change = np.sum((latent_reference - transfer.get_latent_representation(ref)) ** 2)
+    query_change = np.sum((latent_query - transfer.get_latent_representation(query)) ** 2)
+    return reference_change, query_change
+
+
+@pytest.mark.parametrize(
+    "model_kwargs",
+    [
+        # batch modeling: one-hot (also the default used by the configs below)
+        {"batch_representation": "one-hot"},
+        # weight-sharing strategies
+        {"decoder_reuse_weights": "everywhere"},
+        {"decoder_reuse_weights": "hidden"},
+        {"decoder_reuse_weights": "last"},
+        {"decoder_reuse_weights": "hidden_except_first"},
+        {"decoder_reuse_weights": "nowhere"},
+        # splitting strategies (split_map is the default of the configs above)
+        {"split_method": "split_mask"},
+        {"n_split_latent": 4},
+    ],
+    ids=[
+        "one-hot",
+        "reuse-everywhere",
+        "reuse-hidden",
+        "reuse-last",
+        "reuse-hidden_except_first",
+        "reuse-nowhere",
+        "split_mask",
+        "n_split_4",
+    ],
+)
+def test_drvi_query_to_reference_mapping(model_kwargs):
+    """scArches query->reference mapping keeps reference embeddings intact while the query
+    embeddings are updated."""
+    reference_change, query_change = _run_query_to_reference(**model_kwargs)
+    assert reference_change < 1e-6
+    assert query_change > 1e-3
+
+
+# def test_drvi_query_to_reference_mapping_embedding_batch():
+#     """With ``batch_representation="embedding"`` the reference stays intact but the query is NOT
+#     updated: scvi's scArches freezes the whole batch-embedding parameter (incl. the new query
+#     row). This is a core-scvi limitation (identical in :class:`~scvi.model.SCVI`), inherited by
+#     DRVI; use one-hot batches for query adaptation."""
+#     reference_change, query_change = _run_query_to_reference(batch_representation="embedding")
+#     assert reference_change < 1e-6  # reference embeddings intact
+#     assert query_change < 1e-6  # query frozen too (documented core-scvi limitation)
+
+
+@pytest.mark.parametrize("deeply_inject_covariates", [True, False])
+def test_drvi_query_to_reference_freezes_per_split_decoder_weights(deeply_inject_covariates):
+    """With weight-sharing off (per-split ``StackedLinearLayer``, 3d weights), scArches keeps the
+    reference decoder weights frozen while updating only the new covariate (query batch) column.
+    """
+    from stacked_linear import StackedLinearLayer
+
+    adata = mock_adata(n_batches=3)
+    ref = adata[adata.obs["batch"] != "batch_0"].copy()
+    query = adata[adata.obs["batch"] == "batch_0"].copy()
+    DRVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    model = DRVI(
+        ref,
+        n_latent=8,
+        n_layers=3,
+        decoder_reuse_weights="nowhere",
+        deeply_inject_covariates=deeply_inject_covariates,
+    )
+    model.train(max_epochs=2, batch_size=ref.n_obs)
+
+    DRVI.prepare_query_anndata(query, model)
+    transfer = DRVI.load_query_data(query, model)
+
+    # Checking all per-split (StackedLinearLayer) layers
+    px = transfer.module.decoder.px_decoder
+    stacked = [
+        (i, group[0])
+        for i, group in enumerate(px.fc_layers)
+        if isinstance(group[0], StackedLinearLayer)
+    ]
+    assert stacked  # at least one per-split layer exists
+
+    # the new query batch is appended last -> its covariate column is the last input column
+    before = {i: layer.weight.detach().clone() for i, layer in stacked}
+    transfer.train(
+        max_epochs=3, batch_size=query.n_obs, plan_kwargs={"lr": 0.1, "weight_decay": 0.0}
+    )
+
+    n_updated = 0
+    for i, layer in stacked:
+        delta = (layer.weight.detach() - before[i]) ** 2
+        if px.inject_into_layer(i):
+            assert delta[..., :-1].sum().item() < 1e-8  # reference weights frozen
+            assert delta[..., -1:].sum().item() > 1e-3  # new query-batch column updated
+            n_updated += 1
+        else:
+            assert delta.sum().item() < 1e-8  # no covariate column -> fully frozen
 
 
 @pytest.mark.parametrize(

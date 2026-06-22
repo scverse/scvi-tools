@@ -19,9 +19,9 @@ class SplitFCLayers(FCLayers):
 
     A thin subclass of :class:`~scvi.nn.FCLayers` for DRVI's additive decoder. The input is a 3D
     tensor of shape ``(n_obs, n_split, n_features)`` (one independent "split" per channel) instead
-    of the usual 2D ``(n_obs, n_features)``. Only the layer-construction / per-layer application
-    seams of :class:`~scvi.nn.FCLayers` are overridden — ``__init__`` and ``forward`` are inherited
-    unchanged.
+    of the usual 2D ``(n_obs, n_features)``. Only small construction/application seams of
+    :class:`~scvi.nn.FCLayers` are overridden; ``forward`` and ``set_online_update_hooks`` (the
+    scArches hooks) are inherited unchanged.
 
     Parameters
     ----------
@@ -48,19 +48,18 @@ class SplitFCLayers(FCLayers):
         }
         super().__init__(*args, **kwargs)
 
-    def _build_linear(self, n_in: int, n_out: int, bias: bool, layer_num: int) -> nn.Module:
+    def _build_linear(self, n_in: int, n_out: int, layer_num: int) -> nn.Module:
         if self.reuse_weights[layer_num]:
             # a shared nn.Linear already broadcasts over the (n_obs, n_split, .) split dimension
-            return nn.Linear(n_in, n_out, bias=bias)
-        return StackedLinearLayer(self.n_split, n_in, n_out, bias=bias)
+            return nn.Linear(n_in, n_out, bias=self.bias)
+        return StackedLinearLayer(self.n_split, n_in, n_out, bias=self.bias)
 
     def _build_layer(self, n_in: int, n_out: int, layer_num: int) -> nn.Module:
         return nn.Sequential(
             self._build_linear(
                 n_in + self.n_cov * self.inject_into_layer(layer_num),
                 n_out,
-                bias=self.bias,
-                layer_num=layer_num,
+                layer_num,
             ),
             nn.BatchNorm1d(self.n_split * n_out, momentum=0.01, eps=0.001)
             if self.use_batch_norm
@@ -72,9 +71,11 @@ class SplitFCLayers(FCLayers):
             nn.Dropout(p=self.dropout_rate) if self.dropout_rate > 0 else None,
         )
 
+    def _is_linear_layer(self, layer: nn.Module) -> bool:
+        return isinstance(layer, (nn.Linear, StackedLinearLayer))
+
     def _apply_layer(self, layer, x, cov_list, layer_index):
-        is_linear = isinstance(layer, (nn.Linear, StackedLinearLayer))
-        if is_linear and self.inject_into_layer(layer_index):
+        if self._is_linear_layer(layer) and self.inject_into_layer(layer_index):
             assert x.dim() in (3, 4), "SplitFCLayers works only with 3D tensors."
             # broadcast each covariate (n_obs, o_dim) over the split (and any leading n_samples)
             cov_list_layer = [o.unsqueeze(-2).expand(*x.shape[:-1], o.size(-1)) for o in cov_list]
