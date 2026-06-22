@@ -101,8 +101,8 @@ diagvi = ["torch_geometric", "geomloss"]
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 # for rapids
 rapids = [ "cupy", "rapids-singlecell[rapids]" ]
-rapids-cuda12 = [ "cugraph-cu12>=24", "cuml-cu12>=24", "cupy-cuda12x", "rapids-singlecell[rapids]" ]
-rapids-cuda13 = [ "cugraph-cu13>=24", "cuml-cu13>=24", "cupy-cuda13x", "rapids-singlecell[rapids]" ]
+rapids-cuda12 = [ "cugraph-cu12>=24", "cuml-cu12>=24", "cupy-cuda12x", "rapids-singlecell-cu12[rapids]" ]
+rapids-cuda13 = [ "cugraph-cu13>=24", "cuml-cu13>=24", "cupy-cuda13x", "rapids-singlecell-cu13[rapids]" ]
 
 optional = [
     "scvi-tools[autotune,mlflow,hub,file_sharing,regseq,parallel,interpretability,diagvi]",
