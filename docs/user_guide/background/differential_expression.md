@@ -46,9 +46,9 @@ This guide has two aims.
 First, it aims to provide insight as to how scVI-tools' differential expression module works for transcript expression (`scVI`), surface protein expression (`TOTALVI`), or chromatin accessibility (`PeakVI`).
 More precisely, we explain how it can:
 
--   approximate population-specific normalized expression levels
--   detect biologically relevant features
--   provide easy-to-interpret predictions
+- approximate population-specific normalized expression levels
+- detect biologically relevant features
+- provide easy-to-interpret predictions
 
 More importantly, this guide explains the function of the hyperparameters of the `differential_expression` method.
 
@@ -126,6 +126,33 @@ In particular, we will represent state $C$ latent representation with the mixtur
 ```
 
 where `idx1` and `idx2` specify which observations to use to approximate these quantities.
+
+For example, `idx1` and `idx2` can be used to perform within-cluster differential
+expression by comparing two conditions separately within each cluster.
+
+```python
+import pandas as pd
+
+results = []
+
+for cell_type in adata.obs["cell_type"].unique():
+    idx1 = (adata.obs["cell_type"] == cell_type) & (adata.obs["condition"] == "case")
+    idx2 = (adata.obs["cell_type"] == cell_type) & (
+        adata.obs["condition"] == "control"
+    )
+
+    de_cell_type = model.differential_expression(
+        idx1=idx1.to_numpy(),
+        idx2=idx2.to_numpy(),
+    )
+    de_cell_type["cell_type"] = cell_type
+    results.append(de_cell_type)
+
+de_results = pd.concat(results)
+```
+
+This pattern reuses the standard `differential_expression` method while
+restricting each comparison to cells from the same cluster.
 
 Once established latent distributions for each state, expression vectors $h_{n} \in \mathbb{R}^F$ ($F$ being the total number of features) are obtained as neural network outputs $h_n = f^h_\theta(z_n)$.
 We note $h^A_f, h^B_f$ the respective expression levels in states $A, B$ obtained using this sampling procedure.
