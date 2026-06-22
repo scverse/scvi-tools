@@ -9,8 +9,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
-- Add [scvi-tools MCP](%22https://scvi-tools-mcp.readthedocs.io/en/latest/index.html%22) package that
-    gives any MCP-compatible LLM access to scvi-tools knowledge.
+- Add [scvi-tools MCP](%22https://scvi-tools-mcp.readthedocs.io/en/latest/index.html%22) package
+    that gives any MCP-compatible LLM access to scvi-tools knowledge.
 - Add {class}`~scvi.dataloaders.AnnbatchDataModule` for out-of-core dataloading via `annbatch`,
     enabling memory-efficient training on large-scale datasets stored as sharded Zarr collections,
     with support for batch covariates, {pr}`3620`.
