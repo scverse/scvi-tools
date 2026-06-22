@@ -136,14 +136,16 @@ import pandas as pd
 results = []
 
 for cell_type in adata.obs["cell_type"].unique():
-    idx1 = (adata.obs["cell_type"] == cell_type) & (adata.obs["condition"] == "case")
-    idx2 = (adata.obs["cell_type"] == cell_type) & (
-        adata.obs["condition"] == "control"
-    )
+    idx1 = adata.obs_names[
+        (adata.obs["cell_type"] == cell_type) & (adata.obs["condition"] == "case")
+    ]
+    idx2 = adata.obs_names[
+        (adata.obs["cell_type"] == cell_type) & (adata.obs["condition"] == "control")
+    ]
 
     de_cell_type = model.differential_expression(
-        idx1=idx1.to_numpy(),
-        idx2=idx2.to_numpy(),
+        idx1=idx1,
+        idx2=idx2,
     )
     de_cell_type["cell_type"] = cell_type
     results.append(de_cell_type)
