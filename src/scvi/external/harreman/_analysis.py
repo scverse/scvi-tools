@@ -619,6 +619,21 @@ class _HarremanHsAccessor:
 
         return compute_top_scoring_modules(self._resolve(adata), **kwargs)
 
+    def load_signatures(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.vision.signature import load_signatures
+
+        load_signatures(self._resolve(adata), **kwargs)
+
+    def compute_vision_signatures(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.vision.signature import compute_vision_signatures
+
+        compute_vision_signatures(self._resolve(adata), **kwargs)
+
+    def integrate_vision_hotspot_results(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.hotspot.modules import integrate_vision_hotspot_results
+
+        integrate_vision_hotspot_results(self._resolve(adata), **kwargs)
+
 
 class _HarremanTlAccessor:
     """Tool methods accessible as ``ha.tl.<method>``."""

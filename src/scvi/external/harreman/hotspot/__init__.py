@@ -5,4 +5,5 @@ from .modules import (
     calculate_super_module_scores,
     compute_top_scoring_modules,
     create_modules,
+    integrate_vision_hotspot_results,
 )

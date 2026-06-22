@@ -1,4 +1,5 @@
 import time
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -657,3 +658,125 @@ def calculate_super_module_scores(
     print("Finished computing super-module scores in %.3f seconds" % (time.time() - start))
 
     return
+
+
+def integrate_vision_hotspot_results(
+    adata: AnnData,
+    cor_method: Literal["pearson", "spearman"] = "pearson",
+    use_super_modules: bool = False,
+) -> None:
+    """
+    Integrate VISION signature scoring with Hotspot module assignments.
+
+    Requires that VISION signature scoring has already been run (producing
+    ``adata.obsm['vision_signatures']``, ``adata.uns['norm_data_key']``, and
+    ``adata.uns['signature_varm_key']``) and that Hotspot modules have been
+    created via :func:`create_modules` and scored via
+    :func:`calculate_module_scores` (or :func:`calculate_super_module_scores`
+    when ``use_super_modules=True``).
+
+    For each (signature, module) pair the function computes:
+
+    * A hypergeometric enrichment test of signature gene overlap with module
+      genes (log2 fold-enrichment, raw p-value, BH-FDR).
+    * Pearson or Spearman correlation between per-cell signature scores and
+      per-cell module activity scores.
+
+    An overlap signature matrix (genes present in significant signature–module
+    intersections) is also computed and stored for downstream use.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data object. Must contain:
+
+        - ``obsm['vision_signatures']``: per-cell signature scores produced by
+          ``harreman.vision.signature.compute_signatures_anndata``.
+        - ``uns['norm_data_key']``: expression layer key used for signature
+          scoring (``None``, ``"use_raw"``, or a layer name).
+        - ``uns['signature_varm_key']``: key in ``adata.varm`` for the
+          gene × signature scoring matrix.
+        - ``uns['gene_modules']`` (or ``uns['gene_modules_sm']`` when
+          ``use_super_modules=True``): module → gene-list mapping produced by
+          :func:`calculate_module_scores` / :func:`calculate_super_module_scores`.
+        - ``obsm['module_scores']`` (or ``obsm['super_module_scores']``): per-cell
+          module activity scores.
+    cor_method : {'pearson', 'spearman'}, default 'pearson'
+        Correlation method used to relate signature scores to module scores.
+    use_super_modules : bool, default False
+        If ``True``, use super-module gene lists and scores (``gene_modules_sm``
+        / ``super_module_scores``) instead of the standard module equivalents.
+
+    Returns
+    -------
+    None
+        Results are stored in-place on ``adata``:
+
+        - ``uns['sig_mod_enrichment_stats']``: log2 fold-enrichment
+          (signatures × modules).
+        - ``uns['sig_mod_enrichment_pvals']``: raw hypergeometric p-values
+          (signatures × modules).
+        - ``uns['sig_mod_enrichment_FDR']``: BH-corrected FDR values
+          (signatures × modules).
+        - ``uns['sig_mod_correlation_coefs']``: correlation coefficients
+          (modules × signatures).
+        - ``uns['sig_mod_correlation_pvals']``: raw correlation p-values
+          (modules × signatures).
+        - ``uns['sig_mod_correlation_FDR']``: BH-corrected FDR values
+          (modules × signatures).
+        - ``uns['cor_method']``: the correlation method used.
+        - ``varm['signatures_overlap']``: binary gene × overlap-signature matrix
+          for signature–module intersections with p < 0.05.
+        - ``obsm['signature_modules_overlap']``: per-cell scores for each
+          significant signature–module overlap.
+    """
+    from harreman.hotspot.modules import compute_sig_mod_correlation, compute_sig_mod_enrichment
+    from visionpy.signature import compute_signatures_anndata
+
+    gene_modules_key = "gene_modules_sm" if use_super_modules else "gene_modules"
+
+    if "vision_signatures" not in adata.obsm:
+        raise ValueError(
+            "adata.obsm['vision_signatures'] not found. "
+            "Run VISION signature scoring before calling this function."
+        )
+    if gene_modules_key not in adata.uns or len(adata.uns[gene_modules_key]) == 0:
+        raise ValueError(
+            f"adata.uns['{gene_modules_key}'] not found or empty. "
+            "Run create_modules() (and calculate_super_module_scores() if "
+            "use_super_modules=True) before calling this function."
+        )
+    if cor_method not in ("pearson", "spearman"):
+        raise ValueError(f"Invalid cor_method '{cor_method}'. Choose 'pearson' or 'spearman'.")
+
+    norm_data_key = adata.uns["norm_data_key"]
+    signature_varm_key = adata.uns["signature_varm_key"]
+
+    start = time.time()
+    print("Integrating VISION and Hotspot results...")
+
+    pvals_df, stats_df, fdr_df = compute_sig_mod_enrichment(
+        adata, norm_data_key, signature_varm_key, use_super_modules
+    )
+    adata.uns["sig_mod_enrichment_stats"] = stats_df
+    adata.uns["sig_mod_enrichment_pvals"] = pvals_df
+    adata.uns["sig_mod_enrichment_FDR"] = fdr_df
+
+    adata.uns["cor_method"] = cor_method
+    cor_coef_df, cor_pval_df, cor_fdr_df = compute_sig_mod_correlation(
+        adata, cor_method, use_super_modules
+    )
+    adata.uns["sig_mod_correlation_coefs"] = cor_coef_df
+    adata.uns["sig_mod_correlation_pvals"] = cor_pval_df
+    adata.uns["sig_mod_correlation_FDR"] = cor_fdr_df
+
+    adata.obsm["signature_modules_overlap"] = compute_signatures_anndata(
+        adata,
+        norm_data_key,
+        signature_varm_key="signatures_overlap",
+        signature_names_uns_key=None,
+    )
+
+    print(
+        "Finished integrating VISION and Hotspot results in %.3f seconds" % (time.time() - start)
+    )
