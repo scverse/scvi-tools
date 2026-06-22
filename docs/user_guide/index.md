@@ -130,7 +130,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`GayosoSteier21`
    * - :doc:`/user_guide/models/totalanvi`
      - A probabilistic generative model for single-cell RNA and CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer both protein expression and cell states
-     - :cite:p:`Mark25`
+     - :cite:p:`Mark26`
 ```
 
 ### Multiome
