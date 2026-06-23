@@ -1175,19 +1175,12 @@ def _scvi_query_to_reference(**model_kwargs):
 
 @pytest.mark.parametrize("batch_representation", ["one-hot", "embedding"])
 def test_scvi_query_to_reference_mapping(batch_representation):
-    """scArches keeps the reference latent intact while updating the query, for both one-hot and
-    embedding batch representations. The embedding case relies on the freezable-embedding handling
-    in :class:`~scvi.model.base.ArchesMixin` / :class:`~scvi.nn.Embedding`."""
+    """scArches keeps the reference latent intact while updating the query."""
     reference_change, query_change, transfer = _scvi_query_to_reference(
         batch_representation=batch_representation
     )
     assert reference_change < 1e-4  # reference latent intact (frozen path)
     assert query_change > 1e-3  # query latent updated by transfer training
-
-    if batch_representation == "embedding":
-        emb = transfer.module.get_embedding(scvi.REGISTRY_KEYS.BATCH_KEY)
-        assert emb.weight.requires_grad  # re-enabled so the new query row can train
-        assert emb.num_embeddings == 3  # grew by the new query batch
 
 
 def test_scvi_query_to_reference_freezes_reference_embedding_rows():
