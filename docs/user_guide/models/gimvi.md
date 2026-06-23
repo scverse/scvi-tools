@@ -59,7 +59,7 @@ For each modality, an optional, separate library-size encoder produces a latent 
 
 #### Joint decoder
 
-A single multi-decoder ({class}`~scvi.nn.MultiDecoder`) maps the shared latent code back into the full sequencing gene space of size $G$. It has shared layers plus modality-conditioned layers, and is conditioned on the batch covariate. Because the decoder reconstructs all $G$ genes, the latent representation of a spatial cell can be decoded into genes that were never measured spatially — this is exactly the imputation mechanism (see [Imputation of missing spatial genes](#imputation-of-missing-spatial-genes)).
+A single, shared multi-decoder ({class}`~scvi.nn.MultiDecoder`) maps the shared latent code back into the full sequencing gene space of size $G$, conditioned on the batch covariate (the decoder weights are **not** modality-specific). Because the decoder reconstructs all $G$ genes for both modalities, the latent representation of a spatial cell can be decoded into genes that were never measured spatially — this is exactly the imputation mechanism (see [Imputation of missing spatial genes](#imputation-of-missing-spatial-genes)). The modality index only selects which gene-index mapping is used to renormalize the decoded expression over each modality's observed genes; it does not route through different decoder networks.
 
 #### Adversarial modality classifier
 
@@ -80,12 +80,12 @@ For a cell $n$ in modality $m \in \{0, 1\}$ (0 = sequencing, 1 = spatial) with b
    \mathrm{LogNormal}(\ell_\mu^\top s_n,\ \ell_{\sigma^2}^\top s_n) & \text{if modality } m \text{ models library size} \\
    \delta(\log \textstyle\sum_g x_{ng}) & \text{otherwise (observed library size)}
  \end{cases} \\
- \rho_n &= f_w^{(m)}(\mathbf{z}_n, s_n) \\
+ \rho_n &= f_w(\mathbf{z}_n, s_n) \\
  x_{ng} &\sim \mathrm{ObservationModel}_m(\ell_n \rho_{ng},\ \theta_{s_n g}),\quad g \in \mathcal{G}_m
 \end{align}
 ```
 
-The latent code $\mathbf{z}_n$ is **shared across modalities** — the same prior and the same latent space are used for both datasets. The decoder $f_w^{(m)}$ produces normalized expression $\rho_n$ over the full gene set; for modality $m$, $\rho_n$ is renormalized to sum to 1 over only the genes observed in that modality ($\mathcal{M}_m$), and the mean rate is $\mu_{ng} = \ell_n \rho_{ng}$.
+The latent code $\mathbf{z}_n$ is **shared across modalities** — the same prior and the same latent space are used for both datasets. The shared decoder $f_w$ produces normalized expression $\rho_n$ over the full gene set; for modality $m$, $\rho_n$ is renormalized to sum to 1 over only the genes observed in that modality ($\mathcal{M}_m$), and the mean rate is $\mu_{ng} = \ell_n \rho_{ng}$.
 
 The observation model is chosen per modality via `generative_distributions` (default `["zinb", "nb"]`). gimVI supports:
 
@@ -191,7 +191,7 @@ The central task of gimVI is to impute, for the spatial cells, the genes that we
 ```
 
 -   `normalized=True` (default) returns the normalized expression frequencies $\rho_n$ (decoder `sample_scale`); `normalized=False` returns the unnormalized mean rate $\mu_n = \ell_n \rho_n$ (decoder `sample_rate`).
--   `decode_mode` lets you encode a cell with its own modality's encoder but decode it through *another* modality's decoder head, enabling cross-modality decoding.
+-   `decode_mode` selects which dataset's decoding is applied. The cell is always encoded with its own modality's encoder; gimVI then uses a **single shared decoder**, and `decode_mode` only changes which modality's gene-index mapping is used to renormalize the decoded expression over the probability simplex (`indices_mappings[decode_mode]`). It does not switch to a separate per-modality decoder network.
 
 A common evaluation (used in the tutorial) holds out a fraction of genes from the spatial panel, imputes them with gimVI, and measures the per-gene Spearman correlation between the held-out true spatial expression and the imputed values.
 
