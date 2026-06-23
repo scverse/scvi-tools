@@ -439,7 +439,8 @@ def _set_params_online_update(
             and "decoder" in key
             and (not freeze_batchnorm_decoder)
         )
-        if one or two or three or four or five:
+        six = f"_embeddings_dict.{REGISTRY_KEYS.BATCH_KEY}" in key
+        if one or two or three or four or five or six:
             return True
         else:
             return False
