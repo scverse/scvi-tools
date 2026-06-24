@@ -86,6 +86,18 @@ def test_destvi_validation():
     model.train(max_epochs=2, train_size=0.9, early_stopping=True)
     assert "validation_loss" in model.history
 
+    # Non-amortized spot parameters (here `V`, since amortization="latent") are only trained on the
+    # training spots, so a validation set would be evaluated on randomly-initialized parameters.
+    # Reject it. ("proportion"/"none" are not exercised here because mog priors require amortized
+    # latents, but they hit the same `amortization != 'both'` guard.)
+    model = DestVI.from_rna_model(dataset, sc_model, amortization="latent")
+    with pytest.raises(ValueError, match="amortization='both'"):
+        model.train(max_epochs=2, train_size=0.9)
+    with pytest.raises(ValueError, match="amortization='both'"):
+        model.train(max_epochs=2, early_stopping=True)
+    # train_size=1.0 (all spots trained) must still work
+    model.train(max_epochs=1)
+
 
 @pytest.mark.internet
 def test_destvi_new(save_path: str):
