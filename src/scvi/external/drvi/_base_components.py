@@ -28,15 +28,27 @@ class SplitFCLayers(FCLayers):
     n_split
         Number of parallel splits (channels) carried in the second tensor dimension.
     reuse_weights
-        Per-layer weight-sharing across splits: a sequence of bools, one per layer (length
-        ``n_layers``). ``True`` → that layer is a single shared :class:`~torch.nn.Linear`
-        (broadcast over the split dimension); ``False`` → per-split weights via
-        :class:`stacked_linear.StackedLinearLayer`.
+        Per-layer weight-sharing across splits: either a single bool applied to every layer, or a
+        sequence of bools with one entry per layer (length ``n_layers``). ``True`` → that layer is
+        a single shared :class:`~torch.nn.Linear` (broadcast over the split dimension); ``False``
+        → per-split weights via :class:`stacked_linear.StackedLinearLayer`.
     **kwargs
         Keyword arguments for :class:`~scvi.nn.FCLayers`.
     """
 
-    def __init__(self, *args, n_split: int = 1, reuse_weights: Sequence[bool], **kwargs):
+    def __init__(self, *args, n_split: int = 1, reuse_weights: Sequence[bool] | bool, **kwargs):
+        n_layers = kwargs.get("n_layers", 1)
+        if isinstance(reuse_weights, bool):
+            reuse_weights = [reuse_weights] * n_layers
+        elif (
+            not hasattr(reuse_weights, "__len__")
+            or len(reuse_weights) != n_layers
+            or not all(isinstance(r, bool) for r in reuse_weights)
+        ):
+            raise ValueError(
+                "`reuse_weights` must be a bool or a sequence of booleans with one entry per "
+                f"layer (n_layers={n_layers}), got {reuse_weights!r}."
+            )
         # set before super().__init__() so the overridden _build_layer can read them
         self.n_split = n_split
         self.reuse_weights = reuse_weights
@@ -76,7 +88,11 @@ class SplitFCLayers(FCLayers):
 
     def _apply_layer(self, layer, x, cov_list, layer_index):
         if self._is_linear_layer(layer) and self.inject_into_layer(layer_index):
-            assert x.dim() in (3, 4), "SplitFCLayers works only with 3D tensors."
+            if x.dim() not in (3, 4):
+                raise ValueError(
+                    "SplitFCLayers expects a 3D (n_obs, n_split, n_features) input — or 4D with a "
+                    f"leading n_samples axis — when injecting covariates, got a {x.dim()}D tensor."
+                )
             # broadcast each covariate (n_obs, o_dim) over the split (and any leading n_samples)
             cov_list_layer = [o.unsqueeze(-2).expand(*x.shape[:-1], o.size(-1)) for o in cov_list]
             if cov_list_layer:
@@ -192,9 +208,11 @@ class DecoderDRVI(nn.Module):
         self.n_split_output = n_split_output
 
         if self.split_method == "split_mask":
-            assert n_split_output == self.n_latent, (
-                "For split_mask, n_split_output must be 'auto' or equal to n_latent."
-            )
+            if n_split_output != self.n_latent:
+                raise ValueError(
+                    "For split_mask, n_split_output must be 'auto' or equal to n_latent "
+                    f"({self.n_latent}), got {n_split_output}."
+                )
         elif self.split_method == "split_map":
             self.split_transform = StackedLinearLayer(
                 self.n_split, self.n_latent // self.n_split, n_split_output, bias=False

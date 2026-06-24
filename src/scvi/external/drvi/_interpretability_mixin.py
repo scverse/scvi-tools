@@ -78,7 +78,35 @@ class InterpretabilityMixin:
     ):
         """Yield ``(effect_tensor, latent)`` per minibatch: each split's effect on every gene.
 
-        The effect formula depends on ``module.split_aggregation`` (``"logsumexp"`` or ``"mean"``).
+        Low-level building block behind the in-distribution scores: it runs the autoencoder over
+        the data and converts the per-split decoder parameters into a per-gene effect. The effect
+        formula depends on ``module.split_aggregation`` (``"logsumexp"`` or ``"mean"``).
+
+        Parameters
+        ----------
+        adata
+            AnnData to run on. Defaults to the model's registered AnnData.
+        dataloader
+            Custom minibatch iterator (e.g. from an out-of-core datamodule) used instead of
+            building one from ``adata``. Exactly one of ``adata`` / ``dataloader`` may be given.
+        add_to_counts
+            Pseudo-count (relative to a ``1e6``-count cell) used by the ``"logsumexp"`` effect for
+            numerical stability.
+        deterministic
+            If ``True`` (default), use the posterior mean for the bottleneck (no sampling).
+        directional
+            If ``True`` (default), split each effect into the factor's positive and negative
+            directions. Requires ``n_split_latent == n_latent``.
+        kwargs
+            Forwarded to :meth:`iterate_on_ae_output` (e.g. ``indices``, ``batch_size``).
+
+        Yields
+        ------
+        effect_tensor
+            Per-split, per-gene effect, ``(n_cells, n_splits, n_genes)`` (or
+            ``(n_cells, 2, n_splits, n_genes)`` when ``directional``).
+        latent
+            Posterior-mean latent for the minibatch, ``(n_cells, n_latent)``.
         """
         if directional and self.module.n_latent != self.module.n_split_latent:
             raise NotImplementedError(
@@ -142,10 +170,33 @@ class InterpretabilityMixin:
         directional: bool = False,
         **kwargs: Any,
     ) -> np.ndarray:
-        """Effect of each split on reconstruction.
+        """Effect of each split on reconstruction (summed over genes).
 
-        Shape is ``(n_splits,)`` (or ``(2, n_splits)`` if directional) when aggregating over cells,
-        else ``(n_cells, n_splits)`` (or ``(n_cells, 2, n_splits)``).
+        Used by :meth:`set_latent_dimension_stats` to rank latent factors by how much they drive
+        the reconstruction.
+
+        Parameters
+        ----------
+        adata
+            AnnData to run on. Defaults to the model's registered AnnData.
+        dataloader
+            Custom minibatch iterator used instead of building one from ``adata``. Exactly one of
+            ``adata`` / ``dataloader`` may be given.
+        add_to_counts
+            Pseudo-count forwarded to the effect computation.
+        aggregate_over_cells
+            If ``True`` (default), sum the effect over all cells; otherwise return per-cell values.
+        deterministic
+            If ``True`` (default), use the posterior mean for the bottleneck (no sampling).
+        directional
+            If ``True``, split into the factor's positive and negative directions.
+        kwargs
+            Forwarded to :meth:`iterate_on_effect_of_splits_within_distribution`.
+
+        Returns
+        -------
+        ``(n_splits,)`` (or ``(2, n_splits)`` if directional) when aggregating over cells, else
+        ``(n_cells, n_splits)`` (or ``(n_cells, 2, n_splits)``).
         """
         store = None if aggregate_over_cells else []
         for effect_tensor, _latent in self.iterate_on_effect_of_splits_within_distribution(
@@ -177,21 +228,51 @@ class InterpretabilityMixin:
     ) -> None:
         """Annotate ``embed.var`` with per-dimension reconstruction effect, ordering and stats.
 
-        Adds columns ``reconstruction_effect``, ``order``, ``max_value``, ``mean``, ``min``,
-        ``max``, ``std``, ``std_abs``, ``title`` and ``vanished`` (+ directional vanished flags).
+        Typically the first interpretability step: it ranks the latent factors and records the
+        per-dimension activation stats. When a split groups several latent dimensions
+        (``n_split_latent < n_latent``), each split's reconstruction effect is broadcast to the
+        latent dimensions it contains.
+
+        Parameters
+        ----------
+        embed
+            AnnData of the latent space (one ``var`` per latent factor, ``X`` holding the latent
+            values). Annotated in place.
+        adata
+            AnnData to compute the reconstruction effect on. Defaults to the model's registered
+            AnnData.
+        dataloader
+            Custom minibatch iterator used instead of building one from ``adata``. Exactly one of
+            ``adata`` / ``dataloader`` may be given.
+        vanished_threshold
+            A dimension (or direction) is flagged as "vanished" (inactive) when its maximum
+            absolute latent value stays below this threshold.
+
+        Notes
+        -----
+        Adds the columns ``reconstruction_effect``, ``order``, ``max_value``, ``mean``, ``min``,
+        ``max``, ``std``, ``std_abs``, ``title`` and ``vanished`` (+ per-direction vanished flags)
+        to ``embed.var``.
         """
-        if embed.n_vars != self.module.n_split_latent:
+        n_latent = self.module.n_latent
+        n_split = self.module.n_split_latent
+        if embed.n_vars != n_latent:
             raise ValueError(
-                "Per-dimension interpretability assumes one split per latent dimension "
-                f"(n_split_latent == n_latent). Got n_split_latent={self.module.n_split_latent} "
-                f"and {embed.n_vars} embedding dimensions."
+                "Per-dimension interpretability expects one embedding dimension per latent "
+                f"dimension. Got embed.n_vars={embed.n_vars} and n_latent={n_latent}."
             )
         if "original_dim_id" not in embed.var:
             embed.var["original_dim_id"] = np.arange(embed.var.shape[0])
 
+        # reconstruction effect is computed per split; when a split groups several latent dims
+        # (n_split_latent < n_latent) broadcast each split's effect to the dims it contains.
+        recon_per_split = self.get_reconstruction_effect_of_each_split(
+            adata=adata, dataloader=dataloader
+        )
+        recon_per_dim = np.repeat(recon_per_split, n_latent // n_split)
         embed.var["reconstruction_effect"] = 0.0
         embed.var.loc[embed.var.sort_values("original_dim_id").index, "reconstruction_effect"] = (
-            self.get_reconstruction_effect_of_each_split(adata=adata, dataloader=dataloader)
+            recon_per_dim
         )
         embed.var["order"] = (-embed.var["reconstruction_effect"]).argsort().argsort()
 
@@ -226,8 +307,37 @@ class InterpretabilityMixin:
     ) -> dict[str, np.ndarray]:
         """In-distribution per-split, per-gene effect scores.
 
-        Returns one ``(n_splits, n_genes)`` (or ``(2, n_splits, n_genes)`` if directional) array
-        per requested aggregation (``max``, ``linear_weighted_mean``, ``exp_weighted_mean``).
+        Aggregates each factor's per-gene effect over the observed data, weighting cells by how
+        strongly the factor is activated.
+
+        Parameters
+        ----------
+        adata
+            AnnData to run on. Defaults to the model's registered AnnData.
+        dataloader
+            Custom minibatch iterator used instead of building one from ``adata``. Exactly one of
+            ``adata`` / ``dataloader`` may be given.
+        add_to_counts
+            Pseudo-count forwarded to the effect computation.
+        deterministic
+            If ``True`` (default), use the posterior mean for the bottleneck (no sampling).
+        directional
+            If ``True`` (default), score the factor's positive and negative directions separately.
+            Requires ``n_split_latent == n_latent``.
+        aggregations
+            Which cell-aggregation(s) to compute: ``"max"`` (peak effect across cells),
+            ``"linear_weighted_mean"`` and ``"exp_weighted_mean"`` (activation-weighted means), or
+            ``"ALL"`` (default) for all three. A single name or a sequence is accepted.
+        skip_threshold
+            Cells whose latent activation is below this value contribute (near) zero weight to the
+            weighted-mean aggregations, so weakly-activated cells are effectively ignored.
+        kwargs
+            Forwarded to :meth:`iterate_on_effect_of_splits_within_distribution`.
+
+        Returns
+        -------
+        A dict mapping each requested aggregation to a ``(n_splits, n_genes)`` array (or
+        ``(2, n_splits, n_genes)`` when ``directional``).
         """
         if aggregations == "ALL":
             aggregations = ["max", "linear_weighted_mean", "exp_weighted_mean"]
@@ -308,21 +418,49 @@ class InterpretabilityMixin:
         add_to_counts: float = 1.0,
         directional: bool = True,
         batch_size: int = scvi.settings.batch_size,
+        seed: int | None = None,
     ) -> dict[str, np.ndarray]:
         """Out-of-distribution per-split, per-gene effect scores via latent traversal.
 
-        Traverses each latent dimension between its observed min/max over random batch/covariate
-        combinations and returns ``min_possible``, ``max_possible`` and ``combined``
-        log-fold-change style effects (``(n_splits, n_genes)`` or ``(2, n_splits, n_genes)`` if
-        directional). Requires ``embed.var`` to contain ``min`` and ``max``
-        (see :meth:`set_latent_dimension_stats`).
+        Leverages DRVI's additive decoder: each latent factor ``Z_i`` is decoded by its own
+        subnetwork ``f_i``, and the per-gene effects are aggregated over factors (``logsumexp``
+        here). The effect of perturbing ``Z_i`` on a gene therefore depends only on ``f_i``, which
+        is probed by traversing the dimension over discrete steps between its observed ``min``
+        and ``max`` (from :meth:`set_latent_dimension_stats`), averaged over randomly sampled
+        batch/covariate combinations. ``f_i``'s nonlinearity is summarized by its maximum
+        contributions over the traversal.
+
+        For each factor and gene, three log-fold-change (LFC) effect scores are returned, each
+        ``(n_splits, n_genes)`` (or ``(2, n_splits, n_genes)`` when ``directional``, splitting the
+        factor's negative ``[min, 0]`` and positive ``[0, max]`` traversal directions):
+
+        * ``max_possible`` -- the **largest achievable** LFC: the factor's extreme contribution vs.
+          its own minimum, with every other factor held at its minimum contribution.
+          Overall shows how much a gene can be moved by the factor, regardless of other factors.
+        * ``min_possible`` -- the same LFC but with every other factor held at its maximum
+          contribution. Shrinks when a gene is driven by several factors.
+          Overall specific is a factor's effect.
+        * ``combined`` -- the product ``max_possible * min_possible``; large only when the factor
+        is both strong and specific.
+
+        ``add_to_counts`` is a pseudo-count (relative to a ``1e6``-count reference cell) folded
+        into LFC calculations for numerical stability. See the DRVI paper :cite:p:`Moinfar2024`
+        (Supplementary Note "Interpretation of Latent Factors via Additive Decoder Architecture")
+        for the full derivation.
+
+        This function Requires ``embed.var`` to contain ``min`` and ``max``.
+
+        The batch/covariate combinations are sampled randomly. Pass ``seed`` for a reproducible
+        sample; ``None`` (default) leaves the RNG untouched, so it still honors a previously set
+        ``scvi.settings.seed``.
         """
         if self.module.n_latent != self.module.n_split_latent:
             raise NotImplementedError(
                 "out-of-distribution interpretability requires one split per latent."
             )
 
-        assert n_steps % 2 == 0, "n_steps must be even"
+        if n_steps % 2 != 0:
+            raise ValueError(f"n_steps must be even, got {n_steps}.")
         dim_mins = np.minimum(embed.var["min"].values, 0.0)
         dim_maxs = np.maximum(embed.var["max"].values, 0.0)
 
@@ -330,6 +468,10 @@ class InterpretabilityMixin:
         all_cat_combinations = np.asarray(
             list(itertools.product(*[range(n) for n in n_cat_total]))
         )
+        # uses numpy's global RNG, so it is reproducible via ``scvi.settings.seed``; ``seed`` (when
+        # given) reseeds it here, while ``seed=None`` leaves the RNG state untouched.
+        if seed is not None:
+            np.random.seed(seed)
         all_cat_combinations = np.random.permutation(all_cat_combinations)[:n_samples]
 
         n_combined = 0
@@ -360,23 +502,29 @@ class InterpretabilityMixin:
                 2, int(n_steps / 2), effect_tensors.shape[1], effect_tensors.shape[2]
             )
 
+            # extremes of each factor's log-space contribution f_i over the traversal.
             min_per_split = effect_tensors.amin(dim=[0, 1])  # n_splits x n_genes
             max_per_split = effect_tensors.amax(dim=[0, 1])  # n_splits x n_genes
+            # max over the +/- half-ranges separately when directional, else over the full range
             directional_max_per_split = (
                 effect_tensors.amax(dim=1) if directional else max_per_split
             )
 
+            # add_to_counts pseudo-count (vs a 1e6-count cell) for numerical stability.
             log_add_to_counts = torch.logsumexp(max_per_split, dim=[0, 1]) + np.log(
                 add_to_counts / 1e6
             )
             add_min = log_add_to_counts.reshape(1, 1).expand(1, min_per_split.shape[1])
             add_max = log_add_to_counts.reshape(1, 1).expand(1, max_per_split.shape[1])
+            # All factors at maximum
             lse_min = torch.logsumexp(
                 torch.cat([min_per_split, add_min], dim=0), dim=0, keepdim=True
             )
+            # All factors at minimum
             lse_max = torch.logsumexp(
                 torch.cat([max_per_split, add_max], dim=0), dim=0, keepdim=True
             )
+            # effect_max-lfc: other factors held at their minimum (lse_min)
             max_possible = (
                 torch.log(
                     torch.exp(lse_min)
@@ -385,12 +533,13 @@ class InterpretabilityMixin:
                 )
                 - lse_min
             )
+            # effect_min-lfc: other factors held at their maximum (lse_max)
             min_possible = torch.log(
                 torch.exp(lse_max)
                 - torch.exp(max_per_split)
                 + torch.exp(directional_max_per_split)
             ) - torch.log(torch.exp(lse_max) - torch.exp(max_per_split) + torch.exp(min_per_split))
-            combined = max_possible * min_possible
+            combined = max_possible * min_possible  # effect_combined
 
             if n_combined == 0:
                 store["min_possible"] = min_possible
@@ -414,11 +563,49 @@ class InterpretabilityMixin:
         inplace: bool = True,
         **kwargs: Any,
     ) -> dict[str, np.ndarray] | None:
-        """Compute in- and/or out-of-distribution interpretability scores.
+        """Compute per-factor, per-gene interpretability scores and (optionally) store them.
 
-        ``methods`` selects ``"IND"``, ``"OOD"`` (default) or ``"ALL"``. With ``inplace=True`` the
-        scores are stored in ``embed.varm`` (keys
-        ``"{method}_{aggregation}[_positive/_negative]"``); otherwise returned as a dict.
+        Top-level entry point for DRVI's latent-factor interpretability. It runs the in- and/or
+        out-of-distribution analyses and collects their per-aggregation score matrices (one value
+        per latent factor and gene) under a single, consistently named set of keys.
+
+        Parameters
+        ----------
+        embed
+            AnnData of the latent space (one ``var`` per latent factor), as annotated by
+            :meth:`set_latent_dimension_stats`. Scores are written to its ``varm`` when
+            ``inplace``.
+        methods
+            Which analyses to run: ``"IND"`` (in-distribution, over the data via
+            :meth:`get_effect_of_splits_within_distribution`), ``"OOD"`` (default; out-of-
+            distribution latent traversal via :meth:`get_effect_of_splits_out_of_distribution`), or
+            ``"ALL"`` for both. A sequence of these is also accepted.
+        directional
+            If ``True`` (default), each factor's positive and negative directions are scored
+            separately and the resulting keys gain a ``_positive`` / ``_negative`` suffix. Requires
+            ``n_split_latent == n_latent``.
+        add_to_counts
+            Pseudo-count forwarded to the underlying effect computations (see those methods).
+        inplace
+            If ``True`` (default), store each score matrix in ``embed.varm`` and return ``None``;
+            otherwise return them as a dict and leave ``embed`` untouched.
+        kwargs
+            Extra keyword arguments forwarded to the underlying method(s), each filtered to the
+            arguments that method actually accepts. Useful ones include ``adata`` / ``dataloader``,
+            ``deterministic`` and ``skip_threshold`` (IND), and ``n_steps``, ``n_samples``,
+            ``seed`` and ``batch_size`` (OOD).
+
+        Returns
+        -------
+        ``None`` when ``inplace=True`` (scores written to ``embed.varm``), otherwise a dict mapping
+        each key to its ``(n_factors, n_genes)`` score matrix.
+
+        Notes
+        -----
+        Keys are ``"{method}_{aggregation}[_positive|_negative]"``. The aggregations are ``max``,
+        ``linear_weighted_mean`` and ``exp_weighted_mean`` for IND, and ``min_possible``,
+        ``max_possible`` and ``combined`` for OOD (e.g. ``"OOD_combined_positive"``). These are the
+        keys :meth:`get_interpretability_scores` reads back (default ``"OOD_combined"``).
         """
         if methods == "ALL":
             methods = ["IND", "OOD"]
@@ -477,7 +664,36 @@ class InterpretabilityMixin:
     ) -> pd.DataFrame:
         """Return interpretability scores as a genes (rows) × dimensions (cols) DataFrame.
 
-        Reads scores stored in ``embed.varm`` by :meth:`calculate_interpretability_scores`.
+        Reads scores stored in ``embed.varm`` by :meth:`calculate_interpretability_scores` and the
+        per-dimension annotations from :meth:`set_latent_dimension_stats`, returning a tidy,
+        ordered and labeled table for inspection.
+
+        Parameters
+        ----------
+        embed
+            AnnData of the latent space with scores in ``varm`` and the
+            :meth:`set_latent_dimension_stats` annotations in ``var``.
+        adata
+            Data AnnData, used to take the gene names for the DataFrame columns.
+        key
+            ``varm`` score key to read (default ``"OOD_combined"``). With ``directional``, the
+            ``_positive`` / ``_negative`` suffixes are appended automatically.
+        directional
+            If ``True`` (default), include both the positive and negative direction of each factor
+            as separate columns (titles suffixed with ``+`` / ``-``).
+        gene_symbols
+            ``adata.var`` column to use for gene names; defaults to ``adata.var_names``.
+        order_col
+            ``embed.var`` column used to order the dimension columns (default ``"order"``).
+        title_col
+            ``embed.var`` column used to label the dimension columns (default ``"title"``).
+        hide_vanished
+            If ``True`` (default), drop factors (or directions) flagged as vanished by
+            :meth:`set_latent_dimension_stats`.
+
+        Returns
+        -------
+        A :class:`~pandas.DataFrame` of genes (rows) × dimensions (columns).
         """
         if directional:
             effect_data = np.concatenate(

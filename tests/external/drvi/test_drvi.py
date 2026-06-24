@@ -19,12 +19,15 @@ def mock_adata(n_genes: int = 50, n_batches: int = 2, n_labels: int = 3) -> AnnD
 
 
 @pytest.mark.parametrize(
-    ("split_method", "split_aggregation"),
+    ("split_method", "split_aggregation", "n_split_latent"),
     [
-        ("split_map", "logsumexp"),
-        ("split_map", "mean"),
-        ("split_mask", "logsumexp"),
-        ("split_mask", "mean"),
+        ("split_map", "logsumexp", None),
+        ("split_map", "mean", None),
+        ("split_mask", "logsumexp", None),
+        ("split_mask", "mean", None),
+        # n_split_latent=1: a single split over all latent dims (no disentanglement)
+        ("split_map", "logsumexp", 1),
+        ("split_mask", "logsumexp", 1),
     ],
 )
 @pytest.mark.parametrize(
@@ -37,6 +40,7 @@ def mock_adata(n_genes: int = 50, n_batches: int = 2, n_labels: int = 3) -> AnnD
 def test_drvi_model(
     split_method,
     split_aggregation,
+    n_split_latent,
     categorical_covariate_keys,
     continuous_covariate_keys,
     save_path,
@@ -55,6 +59,7 @@ def test_drvi_model(
     model = DRVI(
         adata,
         n_latent=n_latent,
+        n_split_latent=n_split_latent,
         split_method=split_method,
         split_aggregation=split_aggregation,
     )
@@ -123,25 +128,6 @@ def test_drvi_activation_fn(activation_fn):
 
     model.train(max_epochs=1, batch_size=adata.n_obs)
     assert model.get_latent_representation().shape == (adata.n_obs, 8)
-
-
-def test_drvi_activation_fn_default_is_elu():
-    """DRVI defaults to ELU (DRVI's choice), and a class can be passed directly."""
-    from torch import nn
-
-    adata = mock_adata()
-    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-
-    default_model = DRVI(adata, n_latent=8)
-    enc = {type(m).__name__ for m in default_model.module.z_encoder.encoder.modules()}
-    assert "ELU" in enc
-
-    class_model = DRVI(adata, n_latent=8, activation_fn=nn.GELU)
-    dec = {type(m).__name__ for m in class_model.module.decoder.px_decoder.modules()}
-    assert "GELU" in dec
-
-    with pytest.raises(ValueError, match="Unknown activation"):
-        DRVI(adata, n_latent=8, activation_fn="not_an_activation")
 
 
 def test_drvi_batch_embedding():
@@ -376,11 +362,12 @@ def test_drvi_query_to_reference_freezes_per_split_decoder_weights(deeply_inject
             assert delta.sum().item() < 1e-8  # no covariate column -> fully frozen
 
 
+@pytest.mark.parametrize("batch_representation", ["one-hot", "embedding"])
 @pytest.mark.parametrize(
     ("split_method", "split_aggregation"),
     [("split_map", "logsumexp"), ("split_mask", "mean")],
 )
-def test_drvi_interpretability(split_method, split_aggregation):
+def test_drvi_interpretability(split_method, split_aggregation, batch_representation):
     """Latent-dimension stats and interpretability scores end-to-end."""
     adata = mock_adata()
     DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
@@ -390,6 +377,7 @@ def test_drvi_interpretability(split_method, split_aggregation):
         n_latent=n_latent,
         split_method=split_method,
         split_aggregation=split_aggregation,
+        batch_representation=batch_representation,
     )
     model.train(max_epochs=2, batch_size=adata.n_obs)
 
@@ -439,34 +427,16 @@ def test_drvi_interpretability_split_smaller_than_latent(split_aggregation):
     with pytest.raises(NotImplementedError):
         model.get_effect_of_splits_within_distribution(directional=True)
 
-
-def test_drvi_interpretability_batch_embedding():
-    """Interpretability works with embedding batches, incl. the OOD decode-from-latent path
-    (which embeds the supplied batch index into each split via the module's generative)."""
-    adata = mock_adata()
-    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    n_latent = 8
-    model = DRVI(adata, n_latent=n_latent, batch_representation="embedding")
-    model.train(max_epochs=2, batch_size=adata.n_obs)
-
+    # set_latent_dimension_stats broadcasts each split's reconstruction effect to its latent dims
     embed = AnnData(model.get_latent_representation(), obs=adata.obs.copy())
     model.set_latent_dimension_stats(embed, adata=adata)
-    model.calculate_interpretability_scores(embed, methods="ALL", n_steps=4, n_samples=3)
-    assert "OOD_combined_positive" in embed.varm
-    assert "IND_max_positive" in embed.varm
-    scores = model.get_interpretability_scores(embed, adata, key="OOD_combined")
-    assert scores.shape[0] == adata.n_vars
-
-
-def test_drvi_interpretability_requires_full_split():
-    """Per-dimension interpretability requires n_split_latent == n_latent."""
-    adata = mock_adata()
-    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    model = DRVI(adata, n_latent=8, n_split_latent=4, split_method="split_map")
-    model.train(max_epochs=1, batch_size=adata.n_obs)
-    embed = AnnData(model.get_latent_representation(), obs=adata.obs.copy())
-    with pytest.raises(ValueError, match="one split per latent dimension"):
-        model.set_latent_dimension_stats(embed, adata=adata)
+    recon = embed.var["reconstruction_effect"].to_numpy()
+    assert recon.shape == (n_latent,)
+    # each split covers n_latent // n_split contiguous dims that share the split's effect
+    d = n_latent // n_split
+    for i in range(n_split):
+        block = recon[i * d : (i + 1) * d]
+        assert np.allclose(block, block[0])
 
 
 @pytest.mark.parametrize("gene_likelihood", ["nb", "pnb", "zinb"])

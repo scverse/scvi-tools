@@ -50,7 +50,7 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
     split_aggregation
         Per-split aggregation, ``"mean"`` or ``"logsumexp"`` (default).
     gene_likelihood
-        Reconstruction likelihood; ``"nb"`` (default), ``"pnb"`` (log-space parametrized NB),
+        Reconstruction likelihood; ``"pnb"`` (default, log-space parametrized NB), ``"nb"``,
         ``"zinb"``, ``"poisson"``, ``"normal"`` or ``"normal_unit_var"``.
     **kwargs
         Additional keyword args for :class:`~scvi.model.SCVI` /
@@ -79,7 +79,7 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
         split_aggregation: Literal["mean", "logsumexp"] = "logsumexp",
         gene_likelihood: Literal[
             "nb", "pnb", "zinb", "poisson", "normal", "normal_unit_var"
-        ] = "nb",
+        ] = "pnb",
         **kwargs,
     ):
         # SCVI.__init__ handles the adata / registry / deferred (datamodule) paths, library size

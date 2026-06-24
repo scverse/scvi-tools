@@ -46,6 +46,8 @@ class GenerativeMixin:
                 adata=adata, indices=indices, batch_size=batch_size
             )
 
+        prev_inspect_mode = self.module.inspect_mode
+        prev_fully_deterministic = self.module.fully_deterministic
         self.module.inspect_mode = True
         try:
             if deterministic:
@@ -53,8 +55,8 @@ class GenerativeMixin:
             for tensors in tqdm(dataloader, mininterval=5.0):
                 yield self.module.forward(tensors=tensors, compute_loss=False)
         finally:
-            self.module.fully_deterministic = False
-            self.module.inspect_mode = False
+            self.module.fully_deterministic = prev_fully_deterministic
+            self.module.inspect_mode = prev_inspect_mode
 
     @torch.inference_mode()
     def iterate_on_decoded_latent_samples(
@@ -86,6 +88,8 @@ class GenerativeMixin:
         map_cat_values
             Map categorical / batch values to integer codes via the AnnData manager registries.
         """
+        was_training = self.module.training
+        prev_inspect_mode = self.module.inspect_mode
         self.module.eval()
         self.module.inspect_mode = True
 
@@ -148,4 +152,5 @@ class GenerativeMixin:
                 )
                 yield self.module.generative(**gen_input)
         finally:
-            self.module.inspect_mode = False
+            self.module.inspect_mode = prev_inspect_mode
+            self.module.train(was_training)
