@@ -61,6 +61,44 @@ def test_destvi():
             spatial_model.get_normalized_expression()
 
 
+def test_destvi_validation():
+    # DestVI must be trainable with a validation set: `early_stopping`,
+    # `check_val_every_n_epoch` and `train_size < 1.0` previously crashed in the loss because the
+    # augmentation branch was not gated on `self.training` (validation produces no augmentation
+    # tensors). See `MRDeconv.loss`.
+    n_latent = 2
+    n_labels = 5
+    dataset = synthetic_iid(n_labels=n_labels)
+    CondSCVI.setup_anndata(dataset, labels_key="labels", batch_key="batch")
+    sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=2, prior="mog", num_classes_mog=10)
+    sc_model.train(1, train_size=0.9)
+
+    DestVI.setup_anndata(dataset, layer=None)
+
+    # train_size < 1.0 with validation evaluated every epoch
+    model = DestVI.from_rna_model(dataset, sc_model, amortization="both")
+    model.train(max_epochs=2, train_size=0.9, check_val_every_n_epoch=1)
+    assert "validation_loss" in model.history
+    assert not np.isnan(model.history["validation_loss"].values[0][0])
+
+    # early stopping (requires a working validation pass)
+    model = DestVI.from_rna_model(dataset, sc_model, amortization="both")
+    model.train(max_epochs=2, train_size=0.9, early_stopping=True)
+    assert "validation_loss" in model.history
+
+    # Non-amortized spot parameters (here `V`, since amortization="latent") are only trained on the
+    # training spots, so a validation set would be evaluated on randomly-initialized parameters.
+    # Reject it. ("proportion"/"none" are not exercised here because mog priors require amortized
+    # latents, but they hit the same `amortization != 'both'` guard.)
+    model = DestVI.from_rna_model(dataset, sc_model, amortization="latent")
+    with pytest.raises(ValueError, match="amortization='both'"):
+        model.train(max_epochs=2, train_size=0.9)
+    with pytest.raises(ValueError, match="amortization='both'"):
+        model.train(max_epochs=2, early_stopping=True)
+    # train_size=1.0 (all spots trained) must still work
+    model.train(max_epochs=1)
+
+
 @pytest.mark.internet
 def test_destvi_new(save_path: str):
     CELL_TYPE_ID = "broad_cell_types"

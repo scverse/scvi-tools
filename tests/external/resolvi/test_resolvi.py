@@ -30,6 +30,21 @@ def test_resolvi_train(adata):
     )
 
 
+def test_resolvi_train_validation_unsupported(adata):
+    # RESOLVI trains with Pyro SVI and per-cell global parameters, so it does not support a
+    # validation set. `train_size != 1.0` previously raised a cryptic TypeError (collision with
+    # the hardcoded `train_size=1.0`), and `early_stopping` has no validation set to monitor.
+    # Both must now raise a clear ValueError, while the supported settings still train.
+    RESOLVI.setup_anndata(adata)
+    model = RESOLVI(adata)
+    with pytest.raises(ValueError, match="train_size"):
+        model.train(max_epochs=2, train_size=0.8)
+    with pytest.raises(ValueError, match="early_stopping"):
+        model.train(max_epochs=2, early_stopping=True)
+    # explicit train_size=1.0 must not collide, and the default path still works
+    model.train(max_epochs=2, train_size=1.0)
+
+
 def test_resolvi_train_size_factor(adata):
     RESOLVI.setup_anndata(adata, batch_key="batch", size_factor_key="cell_area")
     model = RESOLVI(adata, size_scaling=True)
@@ -93,6 +108,30 @@ def test_resolvi_downstream(adata):
     model_query.train(
         max_epochs=2,
     )
+
+
+def test_resolvi_normalized_expression_gene_list(adata):
+    RESOLVI.setup_anndata(adata, size_factor_key="cell_area")
+    model = RESOLVI(adata)
+    model.train(
+        max_epochs=2,
+    )
+    gene_list = adata.var_names[:3].tolist()
+
+    # both functions must honor `gene_list` and return only the requested subset
+    expr = model.get_normalized_expression(n_samples=2, gene_list=gene_list)
+    assert list(expr.columns) == gene_list
+    assert expr.shape == (adata.n_obs, len(gene_list))
+
+    expr_imp = model.get_normalized_expression_importance(n_samples=30, gene_list=gene_list)
+    assert list(expr_imp.columns) == gene_list
+    assert expr_imp.shape == (adata.n_obs, len(gene_list))
+
+    # `transform_batch` is not supported by the importance estimator: it must be ignored
+    # (not error) and warn the user, so that `differential_expression(weights="importance")`
+    # can still call it.
+    with pytest.warns(UserWarning, match="transform_batch.*ignored"):
+        model.get_normalized_expression_importance(n_samples=30, transform_batch=0)
 
 
 def test_resolvi_downstream_size_scaling(adata):
