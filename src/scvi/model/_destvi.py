@@ -659,7 +659,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         %(param_adata)s
         %(param_layer)s
         smoothed_layer
-            param that...
+            When provided, the model adds a spatial-smoothing regularization that encourages a
+            spot's inferred cell-type proportions to agree with those inferred from its
+            neighborhood, yielding spatially smoother deconvolution.
+            Optional; if ``None`` the regularization is disabled.
         %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
