@@ -256,11 +256,6 @@ class InterpretabilityMixin:
         """
         n_latent = self.module.n_latent
         n_split = self.module.n_split_latent
-        if embed.n_vars != n_latent:
-            raise ValueError(
-                "Per-dimension interpretability expects one embedding dimension per latent "
-                f"dimension. Got embed.n_vars={embed.n_vars} and n_latent={n_latent}."
-            )
         if "original_dim_id" not in embed.var:
             embed.var["original_dim_id"] = np.arange(embed.var.shape[0])
 
@@ -378,6 +373,7 @@ class InterpretabilityMixin:
                     else:
                         # weighting based on norm of each split (abs when n_split == n_latent).
                         weights = self._get_norm_of_splits(latent).unsqueeze(-1)
+                        weights = weights.clamp(min=skip_threshold) - skip_threshold
                     if aggregation == "exp_weighted_mean":
                         weights = torch.exp(weights) - 1.0
                     effect_agg = (
