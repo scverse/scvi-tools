@@ -6,6 +6,7 @@ from scvi.utils import error_on_missing_dependencies
 from ._amortizedlda import AmortizedLDAPyroModule
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
+from ._joint_embedding_vae import JointEmbeddingVAE
 from ._mrdeconv import MRDeconv
 from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
@@ -21,6 +22,7 @@ __all__ = [
     "AutoZIVAE",
     "SCANVAE",
     "Classifier",
+    "JointEmbeddingVAE",
     "PEAKVAE",
     "VAEC",
     "MRDeconv",
