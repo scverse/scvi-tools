@@ -4,6 +4,7 @@ import os
 import numpy as np
 import pytest
 from anndata import AnnData
+from torch import nn
 
 import scvi
 from scvi.external import DRVI
@@ -130,6 +131,50 @@ def test_drvi_activation_fn(activation_fn):
     assert model.get_latent_representation().shape == (adata.n_obs, 8)
 
 
+@pytest.mark.parametrize(
+    ("spec", "expected_type", "attr", "value"),
+    [
+        ("ReLU", nn.ReLU, None, None),
+        ("ELU", nn.ELU, "alpha", 1.0),
+        ("ELU_0.5", nn.ELU, "alpha", 0.5),
+        ("nn.ELU_0.5", nn.ELU, "alpha", 0.5),
+    ],
+)
+def test_drvi_resolve_mean_activation(spec, expected_type, attr, value):
+    """The resolver maps a torch.nn class name (with optional ``_<arg>``) to an instance."""
+    from scvi.external.drvi._module import _resolve_mean_activation
+
+    act = _resolve_mean_activation(spec)
+    assert isinstance(act, expected_type)
+    if attr is not None:
+        assert getattr(act, attr) == value
+    # None and an nn.Module instance round-trip
+    assert isinstance(_resolve_mean_activation(None), nn.Identity)
+    passthrough = nn.ReLU()
+    assert _resolve_mean_activation(passthrough) is passthrough
+
+
+def test_drvi_mean_activation(save_path):
+    """mean_activation wraps the latent mean head only, constrains q_m, and round-trips."""
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = DRVI(adata, n_latent=8, mean_activation="ReLU", use_observed_lib_size=False)
+
+    # wraps the latent mean head (Sequential(Linear, ReLU))
+    assert isinstance(model.module.z_encoder.mean_encoder[-1], nn.ReLU)
+
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+    # relu on q_m => non-negative latent means (latent_distribution="normal" => identity transform)
+    z_mean = model.get_latent_representation(give_mean=True)
+    assert (z_mean >= 0).all()
+
+    # the wrapped mean head round-trips through save/load (param names stay consistent)
+    dir_path = os.path.join(save_path, "drvi_mean_activation/")
+    model.save(dir_path, overwrite=True)
+    loaded = DRVI.load(dir_path, adata=adata)
+    np.testing.assert_allclose(z_mean, loaded.get_latent_representation(give_mean=True), atol=1e-5)
+
+
 def test_drvi_batch_embedding():
     """Batch embedding (EmbeddingMixin) is supported: the embedded batch is injected into each
     split, and get_batch_representation works."""
@@ -155,7 +200,6 @@ def test_drvi_decoder_reuse_weights(decoder_reuse_weights, n_body_per_split, hea
     """decoder_reuse_weights selects which decoder layers are shared (nn.Linear) vs per-split
     (StackedLinearLayer), across the FC body (2 layers here) and the parameter heads."""
     from stacked_linear import StackedLinearLayer
-    from torch import nn
 
     adata = mock_adata()
     DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")

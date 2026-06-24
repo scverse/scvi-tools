@@ -49,6 +49,27 @@ def _resolve_activation(activation: str | type[nn.Module]) -> type[nn.Module]:
     return activation
 
 
+def _resolve_mean_activation(
+    activation: str | type[nn.Module] | nn.Module | None,
+) -> nn.Module:
+    """Resolve a ``mean_activation`` spec to the ``nn.Module`` applied to the latent mean ``q_m``.
+
+    ``None`` is the identity (no-op). An ``nn.Module`` subclass / instance is used directly. A
+    string names a :mod:`torch.nn` class (e.g. ``"ReLU"``), with an optional positional argument
+    after an underscore (e.g. ``"ELU_0.5"`` -> ``nn.ELU(0.5)``).
+    """
+    if activation is None:
+        return nn.Identity()
+    if isinstance(activation, nn.Module):
+        return activation
+    if isinstance(activation, type):
+        return activation()
+
+    name, _, arg = activation.removeprefix("nn.").partition("_")
+    cls = getattr(nn, name)
+    return cls(float(arg)) if arg else cls()
+
+
 class DRVIModule(VAE):
     """PyTorch module for DRVI: a disentangled-representation VAE with an additive split decoder.
 
@@ -95,6 +116,13 @@ class DRVIModule(VAE):
     activation_fn
         Hidden-layer activation for both the encoder and the split decoder. Either a name (one of
         ``"elu"`` (default, DRVI's choice),``"relu"``, or an ``nn.Module`` subclass.
+    mean_activation
+        Activation applied to the encoder's latent mean ``q_m``. ``None`` (default) is a no-op; a
+        non-identity activation (e.g. ``"ReLU"``) constrains the latent space (e.g. non-negative
+        means). Accepts the name of a :mod:`torch.nn` class with an optional positional argument
+        after an underscore (e.g. ``"ReLU"``, ``"GELU"``, ``"ELU_0.5"``, ``"LeakyReLU_0.2"``), an
+        ``nn.Module`` subclass, or an instance. Applied only to the latent encoder, not the
+        library encoder.
     extra_encoder_kwargs
         Extra keyword arguments for the encoder :class:`~scvi.nn.FCLayers`.
     extra_decoder_kwargs
@@ -126,6 +154,7 @@ class DRVIModule(VAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         activation_fn: str | type[nn.Module] = "elu",
+        mean_activation: str | type[nn.Module] | nn.Module | None = None,
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
         **kwargs,
@@ -150,6 +179,11 @@ class DRVIModule(VAE):
             extra_encoder_kwargs=extra_encoder_kwargs,
             **kwargs,
         )
+
+        # apply the optional latent-mean activation to the latent (z) encoder.
+        mean_act = _resolve_mean_activation(mean_activation)
+        if not isinstance(mean_act, nn.Identity):
+            self.z_encoder.mean_encoder = nn.Sequential(self.z_encoder.mean_encoder, mean_act)
 
         if n_split_latent is None or n_split_latent == -1:
             n_split_latent = n_latent
