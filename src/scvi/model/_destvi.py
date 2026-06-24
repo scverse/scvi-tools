@@ -623,6 +623,26 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        # A validation set is only meaningful when every spot-specific parameter is amortized.
+        # With amortization != "both", the proportions (`V`) and/or latents (`gamma`) are stored
+        # per spot and only optimized for the spots seen during training, so held-out validation
+        # spots keep their random initialization and the validation loss is not meaningful.
+        validation_requested = (
+            train_size < 1.0
+            or bool(validation_size)
+            or kwargs.get("early_stopping", False)
+            or kwargs.get("check_val_every_n_epoch", None) is not None
+        )
+        if validation_requested and self.module.amortization != "both":
+            raise ValueError(
+                "DestVI only supports a validation set (`train_size < 1.0`, `validation_size`, "
+                "`early_stopping`, or `check_val_every_n_epoch`) when `amortization='both'`. With "
+                f"`amortization={self.module.amortization!r}`, the per-spot parameters (`V` and/or"
+                "`gamma`) are not amortized and are trained only on the training spots, leaving "
+                "validation spots at their random initialization. Use `amortization='both'`, or "
+                "train on all spots with `train_size=1.0` and no early stopping / validation."
+            )
+
         update_dict = {
             "lr": lr,
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
@@ -659,7 +679,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         %(param_adata)s
         %(param_layer)s
         smoothed_layer
-            param that...
+            When provided, the model adds a spatial-smoothing regularization that encourages a
+            spot's inferred cell-type proportions to agree with those inferred from its
+            neighborhood, yielding spatially smoother deconvolution.
+            Optional; if ``None`` the regularization is disabled.
         %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
