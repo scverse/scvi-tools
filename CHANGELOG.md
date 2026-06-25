@@ -27,6 +27,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Changed {class}`scvi.external.Tangram` backend to be in Pytorch, {pr}`3786`.
 - Consolidate parts of the training and data loading between {class}`~scvi.external.GIMVI`
     and {class}`scvi.external.DIAGVI`, {pr}`3830`.
+- support validation set in DestVI training and raise clear errors for unsupported validation
+    in RESOLVI, {pr}`3881`.
 
 #### Removed
 

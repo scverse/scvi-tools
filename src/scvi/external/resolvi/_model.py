@@ -229,7 +229,25 @@ class RESOLVI(
             List of parameters to train if running model in Arches mode.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
+
+        Notes
+        -----
+        RESOLVI trains with Pyro SVI and maintains per-cell global parameters, so it does not
+        support a held-out validation set. ``train_size`` must be ``1.0`` and ``early_stopping``
+        is not available.
         """
+        train_size = kwargs.pop("train_size", 1.0)
+        if train_size != 1.0:
+            raise ValueError(
+                "RESOLVI does not support a validation set: it uses Pyro SVI with per-cell "
+                f"global parameters, so `train_size` must be 1.0 (got {train_size})."
+            )
+        if kwargs.pop("early_stopping", False):
+            raise ValueError(
+                "RESOLVI does not support `early_stopping` because it trains without a "
+                "validation set (`train_size` must be 1.0)."
+            )
+
         blocked = self._block_parameters.copy()
         for name, param in self.module.named_parameters():
             if not param.requires_grad:
