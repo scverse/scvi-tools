@@ -152,7 +152,6 @@ Existing module classes with respective generative and inference procedures.
 
    module.AutoZIVAE
    module.Classifier
-   module.JointEmbeddingVAE
    module.LDVAE
    module.MRDeconv
    module.PEAKVAE
@@ -197,7 +196,7 @@ Module classes in the external API with respective generative and inference proc
    external.scviva.NicheLossOutput
    external.sysvi.SysVAE
    external.diagvi.DIAGVAE
-
+   external.JointEmbeddingVAE
 ```
 
 ## Module (Base)

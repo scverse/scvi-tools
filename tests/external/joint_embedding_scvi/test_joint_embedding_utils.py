@@ -1,6 +1,6 @@
 import torch
 
-from scvi.module._joint_embedding_utils import (
+from scvi.external.joint_embedding_scvi._utils import (
     binomial_split,
     cross_correlation_loss,
     sample_thinning_probs,

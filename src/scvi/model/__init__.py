@@ -1,6 +1,7 @@
 import warnings
 
 from scvi import settings
+from scvi.external.joint_embedding_scvi._joint_embedding_scvi import JointEmbeddingSCVI
 from scvi.utils import error_on_missing_dependencies
 
 from . import utils
@@ -8,7 +9,6 @@ from ._amortizedlda import AmortizedLDA
 from ._autozi import AUTOZI
 from ._condscvi import CondSCVI
 from ._destvi import DestVI
-from ._joint_embedding_scvi import JointEmbeddingSCVI
 from ._linear_scvi import LinearSCVI
 from ._multivi import MULTIVI
 from ._peakvi import PEAKVI

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class JointEmbeddingSCVI(SCVI):
-    """SCVI with joint embedding loss using binomial thinning and CCO.
+    """SCVI with joint embedding loss using binomial thinning and CCO :cite:p:`Svensson26`.
 
     This model extends the standard SCVI with a cross-correlation objective (CCO)
     loss that encourages the embedding of a thinned view to match the embedding

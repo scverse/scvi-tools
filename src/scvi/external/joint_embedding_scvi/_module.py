@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING
 import torch
 
 from scvi import REGISTRY_KEYS
-from scvi.module._constants import MODULE_KEYS
-from scvi.module._joint_embedding_utils import (
+from scvi.external.joint_embedding_scvi._utils import (
     binomial_split,
     cross_correlation_loss,
     sample_thinning_probs,
     variance_loss,
 )
+from scvi.module._constants import MODULE_KEYS
 from scvi.module._vae import VAE
 from scvi.module.base import LossOutput
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class JointEmbeddingVAE(VAE):
-    """VAE with joint embedding loss using binomial thinning and CCO.
+    """VAE with joint embedding loss using binomial thinning and CCO :cite:p:`Svensson26`.
 
     This module extends the standard VAE with a cross-correlation objective (CCO)
     loss that encourages the embedding of a thinned view to match the embedding

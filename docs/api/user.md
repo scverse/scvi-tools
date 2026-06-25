@@ -26,7 +26,6 @@ import scvi
    model.AUTOZI
    model.CondSCVI
    model.DestVI
-   model.JointEmbeddingSCVI
    model.LinearSCVI
    model.PEAKVI
    model.SCANVI
@@ -68,6 +67,7 @@ import scvi
    external.SysVI
    external.SCVIVA
    external.DIAGVI
+   external.JointEmbeddingSCVI
 ```
 
 ## Data loading
