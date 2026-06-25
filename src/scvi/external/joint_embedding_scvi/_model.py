@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from scvi.external.joint_embedding_scvi._module import JointEmbeddingVAE
 from scvi.model._scvi import SCVI
-from scvi.module import JointEmbeddingVAE
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -80,13 +80,13 @@ class JointEmbeddingSCVI(SCVI):
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     **kwargs
-        Additional keyword arguments for :class:`~scvi.module.JointEmbeddingVAE`.
+        Additional keyword arguments for :class:`~scvi.external.JointEmbeddingVAE`.
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.JointEmbeddingSCVI.setup_anndata(adata, batch_key="batch")
-    >>> model = scvi.model.JointEmbeddingSCVI(
+    >>> scvi.external.JointEmbeddingSCVI.setup_anndata(adata, batch_key="batch")
+    >>> model = scvi.external.JointEmbeddingSCVI(
     ...     adata,
     ...     joint_embedding_weight=1.0,
     ...     lambda_off_diag=0.01,
@@ -97,7 +97,7 @@ class JointEmbeddingSCVI(SCVI):
     See Also
     --------
     :class:`~scvi.model.SCVI`
-    :class:`~scvi.module.JointEmbeddingVAE`
+    :class:`~scvi.external.JointEmbeddingVAE`
     """
 
     _module_cls = JointEmbeddingVAE

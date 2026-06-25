@@ -1,7 +1,6 @@
 import warnings
 
 from scvi import settings
-from scvi.external.joint_embedding_scvi._joint_embedding_vae import JointEmbeddingVAE
 from scvi.utils import error_on_missing_dependencies
 
 from ._amortizedlda import AmortizedLDAPyroModule
@@ -22,7 +21,6 @@ __all__ = [
     "AutoZIVAE",
     "SCANVAE",
     "Classifier",
-    "JointEmbeddingVAE",
     "PEAKVAE",
     "VAEC",
     "MRDeconv",

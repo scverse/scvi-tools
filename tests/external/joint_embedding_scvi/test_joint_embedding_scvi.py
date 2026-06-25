@@ -3,7 +3,7 @@ import pytest
 import scipy.sparse as sp
 
 from scvi.data import synthetic_iid
-from scvi.model import JointEmbeddingSCVI
+from scvi.external import JointEmbeddingSCVI
 
 CCO_METRICS = {"cco_loss", "cco_invariance", "cco_redundancy", "variance_loss"}
 

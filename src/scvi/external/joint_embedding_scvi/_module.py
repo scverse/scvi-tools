@@ -82,6 +82,17 @@ class JointEmbeddingVAE(VAE):
         self.variance_weight = variance_weight
         self.use_joint_embedding = use_joint_embedding
 
+        # Binomial thinning requires integer count data. The Gaussian likelihood
+        # operates on real-valued (e.g. log-normalized) input, which thinning would
+        # silently corrupt, so the joint embedding objective is incompatible with it.
+        if self.use_joint_embedding and self.gene_likelihood == "normal":
+            raise ValueError(
+                "JointEmbeddingVAE uses binomial thinning, which requires count data, so "
+                "gene_likelihood='normal' is incompatible with use_joint_embedding=True. "
+                "Use a count likelihood ('nb', 'zinb', 'poisson') or set "
+                "use_joint_embedding=False."
+            )
+
     def loss(
         self,
         tensors: dict[str, torch.Tensor],

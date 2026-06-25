@@ -1,7 +1,6 @@
 import warnings
 
 from scvi import settings
-from scvi.external.joint_embedding_scvi._joint_embedding_scvi import JointEmbeddingSCVI
 from scvi.utils import error_on_missing_dependencies
 
 from . import utils
@@ -26,7 +25,6 @@ __all__ = [
     "PEAKVI",
     "CondSCVI",
     "DestVI",
-    "JointEmbeddingSCVI",
     "MULTIVI",
     "AmortizedLDA",
     "utils",
