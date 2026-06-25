@@ -1,6 +1,6 @@
 # contrastiveVI
 
-**contrastiveVI** [^ref1] (contrastive variational inference; Python class
+**contrastiveVI** {cite:p}`Weinberger23` (contrastive variational inference; Python class
 {class}`~scvi.external.ContrastiveVI`) is a generative model for the contrastive analysis
 of scRNA-seq count data that can subsequently be used for many common downstream tasks.
 
@@ -18,8 +18,3 @@ enriched in target cells from variations shared with background cells.
 :::{note}
 This page is under construction.
 :::
-
-[^ref1]:
-    Ethan Weinberger, Chris Lin, Su-In Lee (2023),
-    _Isolating salient variations of interest in single-cell data with contrastiveVI_,
-    [Nature Methods](https://www.nature.com/articles/s41592-023-01955-3).

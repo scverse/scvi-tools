@@ -1,6 +1,6 @@
 # PoissonVI
 
-**PoissonVI** (Python class {class}`~scvi.external.POISSONVI`) is a ...
+**PoissonVI** {cite:p}`Martens2023` (Python class {class}`~scvi.external.POISSONVI`) is a ...
 
 The advantages of PoissonVI are:
 

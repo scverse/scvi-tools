@@ -4,7 +4,7 @@
 This page is under construction.
 :::
 
-**VeloVI** (Python class {class}`~scvi.external.VELOVI`) is a ...
+**VeloVI** {cite:p}`GayosoWeiler23` (Python class {class}`~scvi.external.VELOVI`) is a ...
 
 The advantages of VeloVI are:
 
