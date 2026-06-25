@@ -129,6 +129,7 @@ class HarremanAnalysis:
         self._adata.uns.setdefault(HARREMAN_UNS_KEY, {HARREMAN_PARAMS_KEY: {}})
 
         self.hs = _HarremanHsAccessor(self)
+        self.vs = _HarremanVsAccessor(self)
         self.tl = _HarremanTlAccessor(self)
         self.pl = _HarremanPlAccessor(self)
 
@@ -619,7 +620,28 @@ class _HarremanHsAccessor:
 
         return compute_top_scoring_modules(self._resolve(adata), **kwargs)
 
+    def integrate_vision_hotspot_results(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.hotspot.modules import integrate_vision_hotspot_results
+
+        integrate_vision_hotspot_results(self._resolve(adata), **kwargs)
+
+
+class _HarremanVsAccessor:
+    """VISION signature analysis methods accessible as ``ha.vs.<method>``."""
+
+    def __init__(self, ha: HarremanAnalysis) -> None:
+        self._ha = ha
+
+    def _resolve(self, adata: AnnData | None) -> AnnData:
+        return adata if adata is not None else self._ha._adata
+
     def load_signatures(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.vision.signature import load_signatures
+
+        load_signatures(self._resolve(adata), **kwargs)
+
+    def signatures_from_file(self, adata: AnnData | None = None, **kwargs) -> None:
+        """Alias for :meth:`load_signatures`."""
         from scvi.external.harreman.vision.signature import load_signatures
 
         load_signatures(self._resolve(adata), **kwargs)
@@ -629,10 +651,51 @@ class _HarremanHsAccessor:
 
         compute_vision_signatures(self._resolve(adata), **kwargs)
 
-    def integrate_vision_hotspot_results(self, adata: AnnData | None = None, **kwargs) -> None:
-        from scvi.external.harreman.hotspot.modules import integrate_vision_hotspot_results
+    def analyze_vision(
+        self,
+        adata: AnnData | None = None,
+        norm_data_key: str | None = None,
+        signature_varm_key: str = "signatures",
+        signature_names_uns_key: str | None = None,
+        scores_only: bool = False,
+        **kwargs,
+    ) -> None:
+        """Run VISION analysis on the AnnData object.
 
-        integrate_vision_hotspot_results(self._resolve(adata), **kwargs)
+        Parameters
+        ----------
+        adata : AnnData, optional
+            AnnData object to analyse. Defaults to ``ha._adata``.
+        norm_data_key : str or None, default None
+            Expression layer to use (``None`` uses ``adata.X``, ``"use_raw"``
+            uses ``adata.raw.X``, any other string is looked up in
+            ``adata.layers``).
+        signature_varm_key : str, default "signatures"
+            Key in ``adata.varm`` for the gene × signature weight matrix.
+        signature_names_uns_key : str or None, default None
+            Key in ``adata.uns`` for custom signature column names.
+        scores_only : bool, default False
+            When ``True``, only per-cell signature scores are computed (no KNN
+            graph or spatial autocorrelation).  Pass ``True`` when the dataset
+            does not yet have a neighbourhood graph in ``adata.obsp``.
+        **kwargs
+            Forwarded to
+            :func:`~scvi.external.harreman.vision.signature.compute_vision_signatures`.
+        """
+        if not scores_only:
+            raise NotImplementedError(
+                "Full VISION analysis (scores_only=False) is not yet supported. "
+                "Pass scores_only=True to compute per-cell signature scores only."
+            )
+        from scvi.external.harreman.vision.signature import compute_vision_signatures
+
+        compute_vision_signatures(
+            self._resolve(adata),
+            norm_data_key=norm_data_key,
+            signature_varm_key=signature_varm_key,
+            signature_names_uns_key=signature_names_uns_key,
+            **kwargs,
+        )
 
 
 class _HarremanTlAccessor:

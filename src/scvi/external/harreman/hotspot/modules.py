@@ -7,7 +7,7 @@ import torch
 from anndata import AnnData
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
-from scipy.stats import norm, zscore
+from scipy.stats import hypergeom, norm, pearsonr, spearmanr, zscore
 from sklearn.decomposition import PCA
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
@@ -660,6 +660,100 @@ def calculate_super_module_scores(
     return
 
 
+def _compute_sig_mod_enrichment(
+    adata: AnnData, norm_data_key: str, signature_varm_key: str, use_super_modules: bool
+):
+    """Hypergeometric enrichment of signatures against Hotspot modules."""
+    gene_modules_key = "gene_modules_sm" if use_super_modules else "gene_modules"
+
+    use_raw = norm_data_key == "use_raw"
+    genes = adata.raw.var.index if use_raw else adata.var_names
+
+    sig_matrix = (
+        adata.varm[signature_varm_key] if not use_raw else adata.raw.varm[signature_varm_key]
+    )
+    gene_modules = adata.uns[gene_modules_key]
+
+    signatures = {}
+    for signature in sig_matrix.columns:
+        if all(x in sig_matrix[signature].unique().tolist() for x in [-1, 1]):
+            signatures[signature + "_UP"] = sig_matrix[sig_matrix[signature] == 1].index.tolist()
+            signatures[signature + "_DOWN"] = sig_matrix[
+                sig_matrix[signature] == -1
+            ].index.tolist()
+        else:
+            signatures[signature] = sig_matrix[sig_matrix[signature] != 0].index.tolist()
+
+    pvals_df = pd.DataFrame(
+        np.nan, index=list(signatures.keys()), columns=list(gene_modules.keys())
+    )
+    stats_df = pd.DataFrame(
+        np.nan, index=list(signatures.keys()), columns=list(gene_modules.keys())
+    )
+
+    sig_mod_df = pd.DataFrame(index=genes)
+
+    universe = adata.var_names[adata.var["local_autocorrelation"]].tolist()
+    signatures = {
+        sig: [g for g in sig_genes if g in universe] for sig, sig_genes in signatures.items()
+    }
+
+    for signature, sig_genes in signatures.items():
+        for module, mod_genes in gene_modules.items():
+            sig_mod_genes = list(set(sig_genes) & set(mod_genes))
+            M = len(universe)
+            n = len(sig_genes)
+            N = len(mod_genes)
+            x = len(sig_mod_genes)
+            pval = hypergeom.sf(x - 1, M, n, N)
+            if pval < 0.05:
+                sig_mod_name = signature + "_OVERLAP_" + module
+                sig_mod_df[sig_mod_name] = 0
+                sig_mod_df.loc[sig_mod_genes, sig_mod_name] = 1.0
+            e_overlap = n * N / M if M != 0 else 0
+            stat = np.log2(x / e_overlap) if e_overlap != 0 else 0
+            pvals_df.loc[signature, module] = pval
+            stats_df.loc[signature, module] = stat
+
+    fdr_values = multipletests(pvals_df.unstack().values, method="fdr_bh")[1]
+    fdr_df = pd.Series(fdr_values, index=pvals_df.stack().index).unstack()
+
+    adata.varm["signatures_overlap"] = sig_mod_df
+
+    return pvals_df, stats_df, fdr_df
+
+
+def _compute_sig_mod_correlation(adata: AnnData, method: str, use_super_modules: bool):
+    """Pearson or Spearman correlation between signature and module scores."""
+    module_scores_key = "super_module_scores" if use_super_modules else "module_scores"
+
+    signatures = adata.obsm["vision_signatures"].columns.tolist()
+    modules = adata.obsm[module_scores_key].columns.tolist()
+
+    cor_pval_df = pd.DataFrame(index=modules)
+    cor_coef_df = pd.DataFrame(index=modules)
+
+    for signature in signatures:
+        correlation_values = []
+        pvals = []
+        for module in modules:
+            sig_scores = adata.obsm["vision_signatures"][signature]
+            mod_scores = adata.obsm[module_scores_key][module]
+            if method == "pearson":
+                corr, pval = pearsonr(sig_scores, mod_scores)
+            else:
+                corr, pval = spearmanr(sig_scores, mod_scores)
+            correlation_values.append(corr)
+            pvals.append(pval)
+        cor_coef_df[signature] = correlation_values
+        cor_pval_df[signature] = pvals
+
+    fdr_values = multipletests(cor_pval_df.unstack().values, method="fdr_bh")[1]
+    cor_fdr_df = pd.Series(fdr_values, index=cor_pval_df.stack().index).unstack()
+
+    return cor_coef_df, cor_pval_df, cor_fdr_df
+
+
 def integrate_vision_hotspot_results(
     adata: AnnData,
     cor_method: Literal["pearson", "spearman"] = "pearson",
@@ -730,8 +824,7 @@ def integrate_vision_hotspot_results(
         - ``obsm['signature_modules_overlap']``: per-cell scores for each
           significant signature–module overlap.
     """
-    from harreman.hotspot.modules import compute_sig_mod_correlation, compute_sig_mod_enrichment
-    from visionpy.signature import compute_signatures_anndata
+    from scvi.external.harreman.vision.signature import compute_vision_signatures
 
     gene_modules_key = "gene_modules_sm" if use_super_modules else "gene_modules"
 
@@ -755,7 +848,7 @@ def integrate_vision_hotspot_results(
     start = time.time()
     print("Integrating VISION and Hotspot results...")
 
-    pvals_df, stats_df, fdr_df = compute_sig_mod_enrichment(
+    pvals_df, stats_df, fdr_df = _compute_sig_mod_enrichment(
         adata, norm_data_key, signature_varm_key, use_super_modules
     )
     adata.uns["sig_mod_enrichment_stats"] = stats_df
@@ -763,19 +856,28 @@ def integrate_vision_hotspot_results(
     adata.uns["sig_mod_enrichment_FDR"] = fdr_df
 
     adata.uns["cor_method"] = cor_method
-    cor_coef_df, cor_pval_df, cor_fdr_df = compute_sig_mod_correlation(
+    cor_coef_df, cor_pval_df, cor_fdr_df = _compute_sig_mod_correlation(
         adata, cor_method, use_super_modules
     )
     adata.uns["sig_mod_correlation_coefs"] = cor_coef_df
     adata.uns["sig_mod_correlation_pvals"] = cor_pval_df
     adata.uns["sig_mod_correlation_FDR"] = cor_fdr_df
 
-    adata.obsm["signature_modules_overlap"] = compute_signatures_anndata(
+    # Score the per-module overlap genes as signatures.  We temporarily call
+    # compute_vision_signatures with a different varm key, then move the result
+    # to the correct obsm slot and restore the original vision_signatures scores.
+    _saved_vision_sigs = adata.obsm.get("vision_signatures")
+    compute_vision_signatures(
         adata,
-        norm_data_key,
+        norm_data_key=norm_data_key,
         signature_varm_key="signatures_overlap",
-        signature_names_uns_key=None,
     )
+    adata.obsm["signature_modules_overlap"] = adata.obsm.pop("vision_signatures")
+    if _saved_vision_sigs is not None:
+        adata.obsm["vision_signatures"] = _saved_vision_sigs
+    # Restore uns keys that compute_vision_signatures overwrote
+    adata.uns["norm_data_key"] = norm_data_key
+    adata.uns["signature_varm_key"] = signature_varm_key
 
     print(
         "Finished integrating VISION and Hotspot results in %.3f seconds" % (time.time() - start)
