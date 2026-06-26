@@ -1322,3 +1322,16 @@ class RESOLVAE(PyroBaseModuleClass):
             "name": "obs_plate",
             "event_dim": 1,
         }
+
+    def on_load(self, model, **kwargs):
+        """Load Pyro param store directly without a training step.
+
+        RESOLVAE uses a manually-written guide with statically known parameter
+        names and shapes, so ``pyro.get_param_store().set_state()`` is
+        self-contained and does not require a prior forward pass to register
+        parameter shapes.  Skipping ``train(max_steps=1)`` avoids loading the
+        full dataset into memory during ``RESOLVI.load()``.
+        """
+        pyro.clear_param_store()
+        if kwargs.get("pyro_param_store") is not None:
+            pyro.get_param_store().set_state(kwargs["pyro_param_store"])

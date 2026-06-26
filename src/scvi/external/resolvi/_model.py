@@ -355,7 +355,13 @@ class RESOLVI(
         if prepare_data:
             if prepare_data_kwargs is None:
                 prepare_data_kwargs = {}
-            RESOLVI._prepare_data(adata, batch_key=batch_key, **prepare_data_kwargs)
+            neighbors_valid = (
+                "index_neighbor" in adata.obsm
+                and "distance_neighbor" in adata.obsm
+                and int(adata.obsm["index_neighbor"].max()) < adata.n_obs
+            )
+            if not neighbors_valid:
+                RESOLVI._prepare_data(adata, batch_key=batch_key, **prepare_data_kwargs)
 
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
