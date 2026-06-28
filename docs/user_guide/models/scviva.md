@@ -1,6 +1,6 @@
 # scVIVA
 
-**scVIVA** (Python class {class}`~scvi.external.SCVIVA`) is a generative model of single-cell resolved spatial
+**scVIVA** {cite:p}`Levy25` (Python class {class}`~scvi.external.SCVIVA`) is a generative model of single-cell resolved spatial
 transcriptomics that can subsequently be used for many common downstream tasks.
 
 The advantages of scVIVA are:
