@@ -375,17 +375,31 @@ class PyroBaseModuleClass(nn.Module):
         return {"name": "", "in": [], "sites": {}}
 
     def on_load(self, model, **kwargs):
-        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
-
-        For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
-        """
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`."""
         pyro.clear_param_store()
         old_history = model.history_.copy() if model.history_ is not None else None
-        model.train(max_steps=1, **self.on_load_kwargs)
         model.history_ = old_history
-        if "pyro_param_store" in kwargs:
-            # For scArches shapes are changed, and we don't want to overwrite these changed shapes.
-            pyro.get_param_store().set_state(kwargs["pyro_param_store"])
+        if "pyro_param_store" in kwargs and kwargs["pyro_param_store"] is not None:
+            store_state = kwargs["pyro_param_store"]
+            # AutoGuide parameters are lazy — they only exist as nn.Module attributes
+            # after the first forward call. Run one no-grad guide pass BEFORE restoring
+            # the saved store so the CPU module always sees a device-neutral empty store.
+            # Restoring first would expose CUDA constraint tensors (e.g. AffineTransform
+            # bounds derived from CUDA buffers) that clash with the CPU batch tensors.
+            if model.adata is not None:
+                if hasattr(self.model, "n_obs"):
+                    self.model.n_obs = model.adata.n_obs
+                if hasattr(self.guide, "n_obs"):
+                    self.guide.n_obs = model.adata.n_obs
+                dl = model._make_data_loader(model.adata, batch_size=2)
+                batch = next(iter(dl))
+                args, guide_kwargs = self._get_fn_args_from_batch(batch)
+                with torch.no_grad():
+                    self.guide(*args, **guide_kwargs)
+            # Restore the saved store after warmup. For scArches the saved store
+            # carries old reference shapes — those are intentionally kept here.
+            # load_state_dict + model.to_device() handle the final device placement.
+            pyro.get_param_store().set_state(store_state)
 
     def create_predictive(
         self,

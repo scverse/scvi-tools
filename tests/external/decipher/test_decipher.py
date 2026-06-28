@@ -68,6 +68,27 @@ def test_decipher_model_methods(adata):
     assert z_cov.shape == (adata.n_vars, model.module.dim_z)
 
 
+def test_decipher_save_load(adata, save_path):
+    import os
+
+    Decipher.setup_anndata(adata)
+    model = Decipher(adata)
+    model.train(max_epochs=2, train_size=0.5)
+
+    v_before = model.get_latent_representation(give_z=False)
+    z_before = model.get_latent_representation(give_z=True)
+
+    path = os.path.join(save_path, "test_decipher")
+    model.save(path, overwrite=True, save_anndata=True)
+    model2 = Decipher.load(path)
+
+    v_after = model2.get_latent_representation(give_z=False)
+    z_after = model2.get_latent_representation(give_z=True)
+
+    np.testing.assert_array_almost_equal(v_before, v_after, decimal=4)
+    np.testing.assert_array_almost_equal(z_before, z_after, decimal=4)
+
+
 def test_decipher_trajectory(adata):
     Decipher.setup_anndata(adata)
     model = Decipher(adata)
