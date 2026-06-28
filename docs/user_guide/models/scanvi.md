@@ -1,6 +1,6 @@
 # scANVI
 
-**scANVI** [^ref1] (single-cell ANnotation using Variational Inference; Python class {class}`~scvi.model.SCANVI`) is a semi-supervised model for single-cell transcriptomics data.
+**scANVI** {cite:p}`Xu21` (single-cell ANnotation using Variational Inference; Python class {class}`~scvi.model.SCANVI`) is a semi-supervised model for single-cell transcriptomics data.
 In a sense, it can be seen as a scVI extension that can leverage the cell type knowledge for a subset of the cells present in the data sets to infer the states of the rest of the cells.
 For this reason, scANVI can help annotate a data set of unlabelled cells from manually annotated atlases, e.g., Tabula Sapiens [^refts].
 
@@ -294,11 +294,6 @@ For prediction, scANVI returns $q_\eta(c_n \mid z_n)$ in the following function:
 ```
 >>> adata.obs["scanvi_prediction"] = model.predict()
 ```
-
-[^ref1]:
-    Xu Chenling, Romain Lopez, Edouard Mehlman, Jeffrey Regier, Michael I. Jordan, Nir Yosef (2021),
-    _Probabilistic harmonization and annotation of single‐cell transcriptomics data with deep generative models_,
-    [Molecular systems biology 17.1](https://www.embopress.org/doi/epdf/10.15252/msb.20209620).
 
 [^refts]:
     Tabula Sapiens Consortium (2021),
