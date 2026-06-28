@@ -1,6 +1,6 @@
 # Amortized LDA
 
-**LDA** [^ref1] (Latent Dirichlet Allocation) posits a generative model where
+**LDA** {cite:p}`Blei03` (Latent Dirichlet Allocation) posits a generative model where
 a set of latent topics generates collections of elements. In the case of single-cell RNA sequencing, we can think
 of these topics as gene modules and each cell as a collection of UMI counts. Other features that can be ascribed to these
 topics include surface proteins and accessible chromatin regions, all of which have discrete count values.
@@ -127,11 +127,6 @@ Once the model has been fitted, one can retrieve the estimated feature-by-topic 
 
 Like the `get_latent_representation()` method, this returns a Monte Carlo estimate of the logistic-Normal expectation.
 Similarly, we can configure the number of samples with `n_samples`.
-
-[^ref1]:
-    David M. Blei, Andrew Y. Ng, Michael I. Jordan (2003),
-    _Latent Dirichlet Allocation_,
-    [Journal of Machine Learning Research](https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf).
 
 [^ref2]:
     Akash Srivastava, Charles Sutton (2017),

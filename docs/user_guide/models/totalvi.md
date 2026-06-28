@@ -1,6 +1,6 @@
 # totalVI
 
-**totalVI** [^ref1] (total Variational Inference; Python class {class}`~scvi.model.TOTALVI`) posits a flexible generative model of CITE-seq RNA and protein data that can subsequently
+**totalVI** {cite:p}`GayosoSteier21` (total Variational Inference; Python class {class}`~scvi.model.TOTALVI`) posits a flexible generative model of CITE-seq RNA and protein data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of totalVI are:
@@ -209,11 +209,6 @@ More info on the mathematics behind differential expression is in {doc}`/user_gu
 
 ### Data simulation
 
-Data can be generated from the model using the posterior predictive distribution in {func}`~scvi.model.SCVI.posterior_predictive_sample`.
+Data can be generated from the model using the posterior predictive distribution in {func}`~scvi.model.TOTALVI.posterior_predictive_sample`.
 This is equivalent to feeding a cell through the model, sampling from the posterior
 distributions of the latent variables, retrieving the likelihood parameters, and finally, sampling from this distribution.
-
-[^ref1]:
-    Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
-    _Joint probabilistic modeling of single-cell multi-omic data with totalVI_,
-    [Nature Methods](https://www.nature.com/articles/s41592-020-01050-x).

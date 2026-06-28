@@ -1,6 +1,6 @@
 # CytoVI
 
-**CytoVI** [^ref1] (Python class {class}`~scvi.external.CYTOVI`) is a generative model for cytometry data that leverages deep probabilistic latent variable modeling to enable denoising, imputation, integration, and differential analysis across technologies and batches.
+**CytoVI** {cite:p}`Ingelfinger25` (Python class {class}`~scvi.external.CYTOVI`) is a generative model for cytometry data that leverages deep probabilistic latent variable modeling to enable denoising, imputation, integration, and differential analysis across technologies and batches.
 
 The advantages of CytoVI are:
 
@@ -103,7 +103,7 @@ Since the posterior $p(z_n \mid x_n)$ is intractable, we use variational inferen
 neural network params, params for the protein observation model, etc.) and an approximate posterior distribution.
 
 ## Handling of overlapping antibody panels
-To integrate datasets with different protein panels, CytoVI employs a masking strategy inspired by {class}`~scvi.model.TOTALVI` [^ref2].
+To integrate datasets with different protein panels, CytoVI employs a masking strategy inspired by {class}`~scvi.model.TOTALVI` {cite:p}`GayosoSteier21`.
 
 Let $x_n^{(s)} \in \mathbb{R}^{P_s}$ be the observed input vector for cell $n$ in batch $s$. Denote:
 - $\mathcal{T}_s$ = set of proteins measured in batch $s$
@@ -170,7 +170,7 @@ A CytoVI model can be pre-trained on reference data and updated with query data 
 See the {doc}`/user_guide/background/transfer_learning` guide for more information.
 
 ### Label-free differential abundance
-CytoVI supports label-free differential abundance estimation via {func}`~scvi.external.CYTOVI.differential_abundance` to detect shifts in cellular composition across sample-level covariates (e.g., disease vs. control), as described in [^ref3].
+CytoVI supports label-free differential abundance estimation via {func}`~scvi.external.CYTOVI.differential_abundance` to detect shifts in cellular composition across sample-level covariates (e.g., disease vs. control), as described in {cite:p}`Boyeau24`.
 
 This method:
 - Aggregates the approximate posterior distributions $q(z \mid x_n)$ across all cells within each sample to obtain a sample-level latent density.
@@ -184,7 +184,7 @@ This approach enables cluster-free detection of condition-associated cell states
 ```
 
 ### Normalization/denoising/imputation of expression
-In {func}`~scvi.model.CYTOVI.get_normalized_expression` CytoVI returns the expected value of $x_{n}^{(s)}$ under the approximate posterior. For one cell $n$, this can be written as:
+In {func}`~scvi.external.CYTOVI.get_normalized_expression` CytoVI returns the expected value of $x_{n}^{(s)}$ under the approximate posterior. For one cell $n$, this can be written as:
 
 $$
    \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[f_x\left( z_n, s_n \right) \right]
@@ -221,20 +221,3 @@ This approach allows label-free imputation of unobserved modalities, such as gen
 ```
 >>> adata_imputed_rna = model.impute_rna_from_reference(reference_batch='CITE_seq', adata_rna = adata_rna, layer_key='rna_normalized', return_query_only = True)
 ```
-
-[^ref1]:
-    Florian Ingelfinger, Nathan Levy, Can Ergen, Artemy Bakulin, Alexander Becker, Pierre Boyeau, Martin Kim, Diana Ditz, Jan Dirks, Jonas Maaskola, Tobias Wertheimer, Robert Zeiser, Corinne C. Widmer, Ido Amit, Nir Yosef,
-    _CytoVI: Deep generative modeling of antibody-based single cell technologies_,
-    [bioRxiv](https://doi.org/).
-
-<!-- update ref as soon as it's online -->
-
-[^ref2]:
-    Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
-    _Joint probabilistic modeling of single-cell multi-omic data with totalVI_,
-    [Nature Methods](https://www.nature.com/articles/s41592-020-01050-x).
-
-[^ref3]:
-     Pierre Boyeau, Justin Hong, Adam Gayoso, Martin Kim, Jose L McFaline-Figueroa, Michael Jordan, Elham Azizi, Can Ergen, Nir Yosef (2024),
-    _Deep generative modeling of sample-level heterogeneity in single-cell genomics_,
-    [bioRxiv](https://doi.org/10.1101/2022.10.04.510898).

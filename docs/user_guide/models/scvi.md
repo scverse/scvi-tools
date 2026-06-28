@@ -1,6 +1,6 @@
 # scVI
 
-**scVI** [^ref1] (single-cell Variational Inference; Python class {class}`~scvi.model.SCVI`) posits a flexible generative model of scRNA-seq count data that can subsequently
+**scVI** {cite:p}`Lopez18` (single-cell Variational Inference; Python class {class}`~scvi.model.SCVI`) posits a flexible generative model of scRNA-seq count data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of scVI are:
@@ -185,13 +185,8 @@ distributions of the latent variables, retrieving the likelihood parameters (of 
 The standard {class}`~scvi.model.SCVI` class uses PyTorch as its computational backend.
 For users who prefer a different framework or are running on hardware where another backend offers better performance, two experimental alternatives are available:
 
-- **JAX** – {class}`~scvi.model.JaxSCVI` is a JAX-based implementation of scVI. It can be substantially faster than the PyTorch implementation on CPUs (e.g., comparable to PyTorch on a GPU on a multi-core machine) and works on any platform supported by JAX. This version is deprecated starting v1.5.
+- **JAX** – `JaxSCVI` is a JAX-based implementation of scVI. It can be substantially faster than the PyTorch implementation on CPUs (e.g., comparable to PyTorch on a GPU on a multi-core machine) and works on any platform supported by JAX. This version is deprecated starting v1.5.
 - **MLX (Apple Silicon)** – {class}`~scvi.model.mlxSCVI` is an MLX-based implementation optimized for Apple Silicon (M-series) chips via the [MLX](https://ml-explore.github.io/mlx/) framework. It is only available on macOS with Apple Silicon.
 
 Both alternatives expose the same high-level API (e.g., `setup_anndata`, `train`, `get_latent_representation`, `save`, `load`) as {class}`~scvi.model.SCVI`, though they may have reduced feature sets compared to the full PyTorch implementation.
 Saved models are not interchangeable across backends — a model saved with one class cannot be loaded by another.
-
-[^ref1]:
-    Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef (2018),
-    _Deep generative modeling for single-cell transcriptomics_,
-    [Nature Methods](https://www.nature.com/articles/s41592-018-0229-2.epdf?author_access_token=5sMbnZl1iBFitATlpKkddtRgN0jAjWel9jnR3ZoTv0P1-tTjoP-mBfrGiMqpQx63aBtxToJssRfpqQ482otMbBw2GIGGeinWV4cULBLPg4L4DpCg92dEtoMaB1crCRDG7DgtNrM_1j17VfvHfoy1cQ%3D%3D).
