@@ -381,21 +381,11 @@ class PyroBaseModuleClass(nn.Module):
         model.history_ = old_history
         if "pyro_param_store" in kwargs and kwargs["pyro_param_store"] is not None:
             store_state = kwargs["pyro_param_store"]
-            # Remap tensors to CPU so the warmup below runs consistently on a CPU
-            # module/batch. load_state_dict + model.to_device() handle final placement.
-            # (For scArches the saved store has old shapes — those are intentionally
-            # restored here; the query model's new shapes are set before load_state_dict.)
-            cpu_state = {
-                "params": {
-                    k: v.cpu() if isinstance(v, torch.Tensor) else v
-                    for k, v in store_state.get("params", {}).items()
-                },
-                "constraints": store_state.get("constraints", {}),
-            }
-            pyro.get_param_store().set_state(cpu_state)
             # AutoGuide parameters are lazy — they only exist as nn.Module attributes
-            # after the first forward call. Run one no-grad guide pass so
-            # load_state_dict finds the expected keys.
+            # after the first forward call. Run one no-grad guide pass BEFORE restoring
+            # the saved store so the CPU module always sees a device-neutral empty store.
+            # Restoring first would expose CUDA constraint tensors (e.g. AffineTransform
+            # bounds derived from CUDA buffers) that clash with the CPU batch tensors.
             if model.adata is not None:
                 if hasattr(self.model, "n_obs"):
                     self.model.n_obs = model.adata.n_obs
@@ -406,6 +396,10 @@ class PyroBaseModuleClass(nn.Module):
                 args, guide_kwargs = self._get_fn_args_from_batch(batch)
                 with torch.no_grad():
                     self.guide(*args, **guide_kwargs)
+            # Restore the saved store after warmup. For scArches the saved store
+            # carries old reference shapes — those are intentionally kept here.
+            # load_state_dict + model.to_device() handle the final device placement.
+            pyro.get_param_store().set_state(store_state)
 
     def create_predictive(
         self,
