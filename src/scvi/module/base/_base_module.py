@@ -380,10 +380,22 @@ class PyroBaseModuleClass(nn.Module):
         old_history = model.history_.copy() if model.history_ is not None else None
         model.history_ = old_history
         if "pyro_param_store" in kwargs and kwargs["pyro_param_store"] is not None:
-            # For scArches shapes are changed, and we don't want to overwrite these changed shapes.
-            pyro.get_param_store().set_state(kwargs["pyro_param_store"])
-            # AutoGuide parameters are lazy — they only exist as nn.Module attributes after the
-            # first forward call. Run one no-grad guide pass so load_state_dict finds the keys.
+            store_state = kwargs["pyro_param_store"]
+            # Remap tensors to CPU so the warmup below runs consistently on a CPU
+            # module/batch. load_state_dict + model.to_device() handle final placement.
+            # (For scArches the saved store has old shapes — those are intentionally
+            # restored here; the query model's new shapes are set before load_state_dict.)
+            cpu_state = {
+                "params": {
+                    k: v.cpu() if isinstance(v, torch.Tensor) else v
+                    for k, v in store_state.get("params", {}).items()
+                },
+                "constraints": store_state.get("constraints", {}),
+            }
+            pyro.get_param_store().set_state(cpu_state)
+            # AutoGuide parameters are lazy — they only exist as nn.Module attributes
+            # after the first forward call. Run one no-grad guide pass so
+            # load_state_dict finds the expected keys.
             if model.adata is not None:
                 if hasattr(self.model, "n_obs"):
                     self.model.n_obs = model.adata.n_obs
