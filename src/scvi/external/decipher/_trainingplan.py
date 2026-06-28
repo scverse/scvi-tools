@@ -4,10 +4,10 @@ import torch
 from scvi.module.base import (
     PyroBaseModuleClass,
 )
-from scvi.train import LowLevelPyroTrainingPlan
+from scvi.train import PyroTrainingPlan
 
 
-class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
+class DecipherTrainingPlan(PyroTrainingPlan):
     """Lightning module task to train the Decipher Pyro module.
 
     Parameters

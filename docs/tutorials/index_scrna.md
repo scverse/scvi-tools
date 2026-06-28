@@ -20,7 +20,6 @@ notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
 notebooks/scrna/JointEmbeddingSCVI_tutorial
 notebooks/scrna/Tahoe100_mrVI
-notebooks/scrna/Tahoe100_mrVI_Jax
 ```
 
 ```{customcard}
@@ -34,7 +33,7 @@ Perform integration of multiple scRNA-seq datasets both with and without cell ty
 :path: notebooks/scrna/MrVI_tutorial
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
-Analyze multi-sample scRNA-seq data with MrVI in Jax
+Analyze multi-sample scRNA-seq data with MrVI
 ```
 
 ```{customcard}
@@ -140,11 +139,4 @@ Use JointEmbeddingSCVI for improving SCVI for low-count cells through self-super
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
 Analyze Tahoe100M cells dataset with MrVI in PyTorch
-```
-
-```{customcard}
-:path: notebooks/scrna/Tahoe100_mrVI_Jax
-:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
-
-Analyze Tahoe100M cells dataset with MrVI in Jax
 ```

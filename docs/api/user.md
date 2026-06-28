@@ -68,6 +68,7 @@ import scvi
    external.SCVIVA
    external.DIAGVI
    external.JointEmbeddingSCVI
+   external.Tangram
 ```
 
 ## Data loading
