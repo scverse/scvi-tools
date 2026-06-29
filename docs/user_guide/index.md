@@ -54,6 +54,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/velovi`
      - Deep generative modeling of transcriptional dynamics for RNA velocity analysis in single cells
      - :cite:p:`GayosoWeiler23`
+   * - :doc:`/user_guide/models/jointembeddingscvi`
+     - Improving SCVI for low-count cells through self-supervised augmentation
+     - :cite:p:`Svensson26`
 ```
 
 ## ATAC-seq analysis

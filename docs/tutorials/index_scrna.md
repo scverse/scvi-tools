@@ -18,6 +18,7 @@ notebooks/scrna/AutoZI_tutorial
 notebooks/scrna/sysVI
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
+notebooks/scrna/JointEmbeddingSCVI_tutorial
 notebooks/scrna/Tahoe100_mrVI
 ```
 
@@ -124,6 +125,13 @@ Use Decipher to jointly analyze samples from distinct conditions.
 :tags: Analysis
 
 Use VeloVI to estimate RNA velocity.
+```
+
+```{customcard}
+:path: notebooks/scrna/JointEmbeddingSCVI_tutorial
+:tags: Analysis
+
+Use JointEmbeddingSCVI for improving SCVI for low-count cells through self-supervised augmentation
 ```
 
 ```{customcard}
