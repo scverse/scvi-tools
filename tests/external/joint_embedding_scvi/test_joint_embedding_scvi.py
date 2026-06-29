@@ -65,9 +65,11 @@ def test_joint_embedding_scvi_fallback():
 
 
 def _one_batch(model, adata):
-    """Return one correctly-formatted minibatch of registered tensors."""
+    """Return one correctly-formatted minibatch of registered tensors on the model's device."""
     dl = model._make_data_loader(adata=adata, indices=np.arange(adata.n_obs))
-    return next(iter(dl))
+    tensors = next(iter(dl))
+    device = next(model.module.parameters()).device
+    return {k: v.to(device) for k, v in tensors.items()}
 
 
 def test_joint_embedding_scvi_cco_branch_active_in_training():
