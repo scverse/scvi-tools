@@ -12,6 +12,10 @@ The limitations of Stereoscope include:
 
 -   Effectively requires a GPU for fast inference.
 
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
+
 ```{topic} Tutorial:
 
 -   {doc}`/tutorials/notebooks/spatial/stereoscope_heart_LV_tutorial`
