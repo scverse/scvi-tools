@@ -72,6 +72,7 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
 
    dataloaders.AnnDataLoader
    dataloaders.AnnTorchDataset
+   dataloaders.AnnbatchDataModule
    dataloaders.CollectionAdapter
    dataloaders.ConcatDataLoader
    dataloaders.DataSplitter
@@ -197,7 +198,7 @@ Module classes in the external API with respective generative and inference proc
    external.sysvi.SysVAE
    external.diagvi.DIAGVAE
    external.drvi.DRVIModule
-
+   external.JointEmbeddingVAE
 ```
 
 ## Module (Base)

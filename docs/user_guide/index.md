@@ -57,6 +57,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/drvi`
      - Unsupervised deep disentangled representation learning of single-cell omics
      - :cite:p:`Moinfar2024`
+   * - :doc:`/user_guide/models/jointembeddingscvi`
+     - Improving SCVI for low-count cells through self-supervised augmentation
+     - :cite:p:`Svensson26`
 ```
 
 ## ATAC-seq analysis

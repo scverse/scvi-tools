@@ -1,6 +1,6 @@
 # TotalANVI
 
-**TotalANVI** (Python class {class}`~scvi.external.TOTALANVI`) is a semi-supervised generative model of CITE-seq RNA and protein data.
+**TotalANVI** {cite:p}`GayosoSteier21` (Python class {class}`~scvi.external.TOTALANVI`) is a semi-supervised generative model of CITE-seq RNA and protein data.
 Similar to how {doc}`scANVI <scanvi>` extends {doc}`scVI <scvi>`, TotalANVI extends {doc}`TotalVI <totalvi>` by leveraging partial cell type annotations
 to jointly model gene expression and protein abundance, predict labels for unannotated cells, and impute missing protein measurements.
 
@@ -133,8 +133,3 @@ Integrated gradients attributions for interpretability are also available:
 ```python
 predictions, attributions = model.predict(ig_interpretability=True)
 ```
-
-[^ref1]:
-    Gayoso, A., Steier, Z., Lopez, R., Regier, J., Nazor, K. L., Streets, A., & Yosef, N. (2021).
-    Joint probabilistic modeling of single-cell multi-omic data with totalVI.
-    *Nature Methods*, 18(3), 272–282. https://doi.org/10.1038/s41592-020-01050-x
