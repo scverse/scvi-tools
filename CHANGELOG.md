@@ -14,6 +14,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     enabling memory-efficient training on large-scale datasets stored as sharded Zarr collections,
     with support for batch covariates, {pr}`3620`.
 - Add support for rapids-singlecell, {pr}`3811`.
+- Add {class}`scvi.external.JointEmbeddingSCVI`, a self-supervised SCVI variant using binomial
+    thinning and a cross-correlation objective (CCO) for robust embeddings, {pr}`3883`.
 - Add {class}`scvi.external.CYTOVI` KNN imputation backend option to be cuML, {pr}`3821`.
 
 #### Fixed

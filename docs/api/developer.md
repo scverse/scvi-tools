@@ -197,7 +197,7 @@ Module classes in the external API with respective generative and inference proc
    external.scviva.NicheLossOutput
    external.sysvi.SysVAE
    external.diagvi.DIAGVAE
-
+   external.JointEmbeddingVAE
 ```
 
 ## Module (Base)
