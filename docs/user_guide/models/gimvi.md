@@ -17,6 +17,10 @@ The limitations of gimVI include:
 -   The spatial genes must be a subset of the sequencing genes.
 -   Imputation quality depends on how well the scRNA-seq reference matches the spatial tissue.
 
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
+
 ```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/spatial/gimvi_tutorial`
