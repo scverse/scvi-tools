@@ -14,6 +14,10 @@ The limitations of resolVI include:
 -   Latent space is not interpretable, unlike that of a linear method.
 -   Assumes single cells are observed and do not work with low-resolution ST like Visium or Slide-Seq.
 
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
+
 ```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/spatial/resolVI_tutorial`
