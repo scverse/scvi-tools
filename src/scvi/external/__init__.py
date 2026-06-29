@@ -11,6 +11,7 @@ from .decipher import Decipher
 from .diagvi import DIAGVI
 from .gimvi import GIMVI
 from .harreman import HarremanAnalysis
+from .joint_embedding_scvi import JointEmbeddingSCVI, JointEmbeddingVAE
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
 from .poissonvi import POISSONVI
@@ -29,6 +30,8 @@ __all__ = [
     "SCAR",
     "SOLO",
     "GIMVI",
+    "JointEmbeddingSCVI",
+    "JointEmbeddingVAE",
     "Decipher",
     "RNAStereoscope",
     "SpatialStereoscope",

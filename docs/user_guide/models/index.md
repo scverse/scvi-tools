@@ -13,6 +13,7 @@ destvi
 diagvi
 gimvi
 harreman
+jointembeddingscvi
 linearscvi
 methylanvi
 methylvi

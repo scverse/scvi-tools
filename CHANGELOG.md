@@ -16,17 +16,22 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add support for rapids-singlecell, {pr}`3811`.
 - Add {mod}`scvi.external.harreman` for inference of metabolic exchanges in tissues using
     spatial transcriptomics {pr}`3806`.
-- Add {class}`scvi.external.CytoVI` KNN imputation backend option to be cuML, {pr}`3821`.
+- Add {class}`scvi.external.JointEmbeddingSCVI`, a self-supervised SCVI variant using binomial
+    thinning and a cross-correlation objective (CCO) for robust embeddings, {pr}`3883`.
+- Add {class}`scvi.external.CYTOVI` KNN imputation backend option to be cuML, {pr}`3821`.
 
 #### Fixed
 
 - Fix list of metrics to be recorded in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3816`.
+- Fix {class}`scvi.external.RESOLVI` preparing data for every load, {pr}`3887`.
 
 #### Changed
 
 - Changed {class}`scvi.external.Tangram` backend to be in Pytorch, {pr}`3786`.
 - Consolidate parts of the training and data loading between {class}`~scvi.external.GIMVI`
     and {class}`scvi.external.DIAGVI`, {pr}`3830`.
+- support validation set in {class}`scvi.model.DestVI` training and raise clear errors for
+    unsupported validation in {class}`scvi.external.RESOLVI`, {pr}`3881`.
 
 #### Removed
 
