@@ -33,6 +33,10 @@ The limitations of Tangram include:
 
 Tangram learns a matrix $M$ with shape ($n_{sc} \times n_{sp}$), in which each row sums to 1. Thus, this matrix can be viewed as a map from single cells to the spatial observations.
 
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
+
 ```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/spatial/tangram_scvi_tools`
