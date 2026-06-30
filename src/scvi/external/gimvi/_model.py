@@ -3,12 +3,10 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from itertools import cycle
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
@@ -24,6 +22,7 @@ from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
 from ._module import JVAE
+from ._task import CyclicMultiDataLoader as TrainDL
 from ._task import GIMVITrainingPlan
 from ._utils import _load_legacy_saved_gimvi_files, _load_saved_gimvi_files
 
@@ -689,23 +688,3 @@ class GIMVI(VAEMixin, RNASeqMixin, BaseModelClass):
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-
-
-class TrainDL(DataLoader):
-    """Train data loader."""
-
-    def __init__(self, data_loader_list, **kwargs):
-        self.data_loader_list = data_loader_list
-        self.largest_train_dl_idx = np.argmax([len(dl.indices) for dl in data_loader_list])
-        self.largest_dl = self.data_loader_list[self.largest_train_dl_idx]
-        super().__init__(self.largest_dl, **kwargs)
-
-    def __len__(self):
-        return len(self.largest_dl)
-
-    def __iter__(self):
-        train_dls = [
-            dl if i == self.largest_train_dl_idx else cycle(dl)
-            for i, dl in enumerate(self.data_loader_list)
-        ]
-        return zip(*train_dls, strict=True)

@@ -57,7 +57,6 @@ jobs:
           python -m pip install --upgrade pip wheel uv
           python -m pip install "scvi-tools[tests]"
           python -m pip install mlx
-          python -m pip install jax-metal
           python -m pip install mlx-metal
           python -m pip install coverage
           python -m pip install pytest
@@ -74,7 +73,8 @@ jobs:
           coverage run -m pytest -v --color=yes --accelerator mps --devices auto
           coverage report
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v6
         with:
+          fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: mps

@@ -12,6 +12,7 @@ decipher
 destvi
 diagvi
 gimvi
+jointembeddingscvi
 linearscvi
 methylanvi
 methylvi

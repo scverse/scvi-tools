@@ -10,7 +10,7 @@ import torch.nn.init as init
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import NegativeBinomial
-from scvi.external.mrvi_torch._components import (
+from scvi.external.mrvi._components import (
     AttentionBlock,
     ConditionalNormalization,
     NormalDistOutputNN,
@@ -361,7 +361,7 @@ class EncoderXU(nn.Module):
         return self.output_nn(inputs)
 
 
-class TorchMRVAE(BaseModuleClass):
+class MRVAE(BaseModuleClass):
     """Multi-resolution Variational Inference (MrVI) module.
 
     Parameters

@@ -1,6 +1,6 @@
 # Stereoscope
 
-**Stereoscope** [^ref1] posits a probabilistic model of spatial transcriptomics and an associated
+**Stereoscope** {cite:p}`Andersson20` (Python classes {class}`~scvi.external.RNAStereoscope` and {class}`~scvi.external.SpatialStereoscope`) posits a probabilistic model of spatial transcriptomics and an associated
 method for the deconvoluton of cell type profiles using a single-cell RNA sequencing reference dataset.
 
 The advantages of Stereoscope are:
@@ -11,6 +11,10 @@ The advantages of Stereoscope are:
 The limitations of Stereoscope include:
 
 -   Effectively requires a GPU for fast inference.
+
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
 
 ```{topic} Tutorial:
 
@@ -179,8 +183,3 @@ Subsequently, for a given cell type, users can plot a heatmap of the cell type p
 >>> import scanpy as sc
 >>> sc.p1.embedding(st_adata, basis="location", color="B cells")
 ```
-
-[^ref1]:
-    Alma Andersson, Joseph Bergenstråhle, Michaela Asp, Ludvig Bergenstråhle, Aleksandra Jurek, José Fernández Navarro & Joakim Lundeberg (2020),
-    _Single-cell and spatial transcriptomics enables probabilistic inference of cell type topography_,
-    [Communications Biology](https://www.nature.com/articles/s42003-020-01247-y).
