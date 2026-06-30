@@ -36,6 +36,27 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _set_datamodule_split(
+    datamodule,
+    train_size: float | None,
+    validation_size: float | None,
+    shuffle_set_split: bool,
+    batch_size: int | None = None,
+) -> None:
+    """Forward split settings to custom datamodules that implement splitting."""
+    if train_size is None and validation_size is None:
+        train_size = 0.9
+    if datamodule is not None and hasattr(datamodule, "set_batch_size"):
+        datamodule.set_batch_size(batch_size)
+    if datamodule is not None and hasattr(datamodule, "set_split"):
+        datamodule.set_split(
+            train_size=train_size,
+            validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
+            batch_size=batch_size,
+        )
+
+
 class UnsupervisedTrainingMixin:
     """General purpose unsupervised train method."""
 
@@ -142,15 +163,24 @@ class UnsupervisedTrainingMixin:
                 load_sparse_tensor=load_sparse_tensor,
                 **datasplitter_kwargs,
             )
-        elif self.module is None:
-            self.module = self._module_cls(
-                datamodule.n_vars,
-                n_batch=datamodule.n_batch,
-                n_labels=getattr(datamodule, "n_labels", 1),
-                n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
-                n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
-                **self._module_kwargs,
+        else:
+            _set_datamodule_split(
+                datamodule,
+                train_size,
+                validation_size,
+                shuffle_set_split,
+                batch_size=batch_size if batch_size != 128 else None,
             )
+            self._datamodule = datamodule
+            if self.module is None:
+                self.module = self._module_cls(
+                    datamodule.n_vars,
+                    n_batch=datamodule.n_batch,
+                    n_labels=getattr(datamodule, "n_labels", 1),
+                    n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
+                    n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
+                    **self._module_kwargs,
+                )
 
         plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
@@ -186,12 +216,22 @@ class SemisupervisedTrainingMixin:
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
         if datamodule is None:
-            self.labels_ = get_anndata_attribute(
-                self.adata,
-                self.adata_manager.data_registry.labels.attr_name,
-                self.original_label_key,
-                mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
-            ).ravel()
+            if self.adata is None:
+                # Load path with no adata — use categorical_mapping without the unlabeled
+                # category so n_labels is computed the same way as during training
+                # (where actual cell labels never contain the unlabeled_category value).
+                cat_mapping = labels_state_registry.categorical_mapping
+                unlabeled = labels_state_registry.unlabeled_category
+                if unlabeled is not None:
+                    cat_mapping = cat_mapping[cat_mapping != unlabeled]
+                self.labels_ = cat_mapping
+            else:
+                self.labels_ = get_anndata_attribute(
+                    self.adata,
+                    self.adata_manager.data_registry.labels.attr_name,
+                    self.original_label_key,
+                    mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
+                ).ravel()
         else:
             if datamodule.registry["setup_method_name"] == "setup_datamodule":
                 self.labels_ = datamodule.labels_.ravel()
@@ -345,10 +385,11 @@ class SemisupervisedTrainingMixin:
                     return np.array(predictions)
             else:
                 n_labels = len(pred[0])
+                index = None if dataloader is not None else adata.obs_names[indices]
                 pred = pd.DataFrame(
                     y_pred,
                     columns=self._label_mapping[:n_labels],
-                    index=adata.obs_names[indices],
+                    index=index,
                 )
                 if ig_interpretability:
                     return pred, attributions
@@ -464,6 +505,14 @@ class SemisupervisedTrainingMixin:
                 **datasplitter_kwargs,
             )
         else:
+            _set_datamodule_split(
+                datamodule,
+                train_size,
+                validation_size,
+                shuffle_set_split,
+                batch_size=batch_size if batch_size != 128 else None,
+            )
+            self._datamodule = datamodule
             Warning("Warning: SCANVI sampler is not available with custom dataloader")
             sampler_callback = []
 

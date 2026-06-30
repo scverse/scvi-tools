@@ -1,13 +1,16 @@
 import os
 import pickle
+from itertools import islice
 
 import numpy as np
 import pytest
 import torch
+from torch.utils.data import DataLoader, TensorDataset
 
 import scvi
 from scvi.data import synthetic_iid
 from scvi.external import GIMVI
+from scvi.external.gimvi._task import CyclicMultiDataLoader
 
 
 def test_saving_and_loading(save_path):
@@ -183,3 +186,47 @@ def test_gimvi_reinit():
     model.train(max_epochs=1)
     model = GIMVI(adata_seq, adata_spatial)
     model.train(max_epochs=1)
+
+
+def _loader(values: list[int]) -> DataLoader:
+    loader = DataLoader(TensorDataset(torch.tensor(values)), batch_size=1, shuffle=False)
+    loader.indices = list(range(len(values)))
+    return loader
+
+
+def _batch_value(batch) -> int:
+    return batch[0].item()
+
+
+def test_cyclic_multi_data_loader_sequence_cycles_shorter_loaders():
+    short_loader = _loader([1, 2])
+    long_loader = _loader([10, 11, 12])
+
+    loader = CyclicMultiDataLoader([short_loader, long_loader])
+
+    assert len(loader) == 3
+    batches = list(islice(loader, 3))
+    assert [(_batch_value(left), _batch_value(right)) for left, right in batches] == [
+        (1, 10),
+        (2, 11),
+        (1, 12),
+    ]
+
+
+def test_cyclic_multi_data_loader_mapping_preserves_modality_names():
+    loader = CyclicMultiDataLoader(
+        {
+            "rna": _loader([1]),
+            "spatial": _loader([10, 11]),
+        }
+    )
+
+    assert len(loader) == 2
+    batches = list(islice(loader, 2))
+    assert [
+        {name: _batch_value(batch) for name, batch in modality_batches.items()}
+        for modality_batches in batches
+    ] == [
+        {"rna": 1, "spatial": 10},
+        {"rna": 1, "spatial": 11},
+    ]

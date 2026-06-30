@@ -1,6 +1,6 @@
 # PeakVI
 
-**peakVI** [^ref1] (Python class {class}`~scvi.model.PEAKVI`) is a generative model of scATAC-seq data that can subsequently
+**peakVI** {cite:p}`Ashuach22` (Python class {class}`~scvi.model.PEAKVI`) is a generative model of scATAC-seq data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of peakVI are:
@@ -147,8 +147,3 @@ Notably, this function also has the `transform_batch` parameter that allows coun
 ### Differential accessibility
 
 Differential accessibility analysis is achieved with {func}`~scvi.model.PEAKVI.differential_accessibility`. PeakVI tests differences in accessibility of $g_z\left( z_i, s_i \right)$.
-
-[^ref1]:
-    Tal Ashuach, Daniel A. Reidenbach, Nir Yosef (2021),
-    _PeakVI: A Deep Generative Model For Single Cell Chromatin Accessibility Analysis_,
-    [BioRxiv](https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1).

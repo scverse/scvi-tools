@@ -1,6 +1,6 @@
 # ResolVI
 
-**resolVI** (Python class {class}`~scvi.external.RESOLVI`) is a generative model of single-cell resolved spatial
+**resolVI** {cite:p}`Ergen25` (Python class {class}`~scvi.external.RESOLVI`) is a generative model of single-cell resolved spatial
 transcriptomics that can subsequently be used for many common downstream tasks.
 
 The advantages of resolVI are:
@@ -13,6 +13,10 @@ The limitations of resolVI include:
 -   Effectively requires a GPU for fast inference.
 -   Latent space is not interpretable, unlike that of a linear method.
 -   Assumes single cells are observed and do not work with low-resolution ST like Visium or Slide-Seq.
+
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
 
 ```{topic} Tutorials:
 

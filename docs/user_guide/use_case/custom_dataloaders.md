@@ -18,6 +18,7 @@ Without dataloader large data can be on disk but inefficient. We increase effici
 -   {doc}`/tutorials/notebooks/custom_dl/tiledb`
 -   {doc}`/tutorials/notebooks/custom_dl/lamin`
 -   {doc}`/tutorials/notebooks/custom_dl/ann_collection`
+-   {doc}`/tutorials/notebooks/custom_dl/api_overview_annbatch`
 
 ```
 
@@ -140,11 +141,19 @@ This API is intended for training models on a set of AnnData files. AnnCollectio
 This wrapper mimics the standard API; so in practice, users wrap their collection objects then proceed with the scvi-tools workflow as normal and not using the custom dataloader workflow.
 Note that to use it, count data should be in sparse form (sparse.csr_matrix).
 
-Key Differences between Lamin and TileDb in terms of Custom Dataloaders:
+4. [annbatch](https://github.com/scverse/annbatch) is a custom dataloader backend for streaming AnnData-like datasets at very large scale {cite:p}`Gold2026b`.
+It builds a zarr-backed `DatasetCollection` from one or more AnnData files and exposes an `annbatch.Loader` that can feed scvi-tools models without materializing the full dataset in memory.
+In scvi-tools, model classes expose this path through `setup_annbatch`, which returns an `AnnbatchDataModule` and a registry that can be passed directly to model constructors.
+
+annbatch is most useful when the input data already lives in AnnData files and the target workflow needs disk-backed or terabyte-scale training while preserving the familiar scvi-tools training API.
+For a full worked example, see {doc}`/tutorials/notebooks/custom_dl/api_overview_annbatch`.
+
+Key differences between custom dataloader options:
 1. Data Format:
 
 - TileDB is more flexible for handling complex, multidimensional datasets (like sparse matrices with many dimensions), making it ideal for large-scale genomics data that don’t fit neatly into a simple table format.
 - LamindDB is optimized for tabular datasets (rows and columns), so it's better suited for single-cell RNA-seq data already structured in this way.
+- annbatch is optimized for AnnData-native workflows where data can remain on disk while batches are streamed into scvi-tools models.
 
 2. Efficiency:
 
@@ -159,6 +168,7 @@ Key Differences between Lamin and TileDb in terms of Custom Dataloaders:
 When to Use Each:
 - TileDB is ideal when your data is large, multidimensional, and potentially sparse, requiring advanced indexing and querying capabilities.
 - LamindDB is a better choice when you're working with large, structured tabular data and need fast, efficient access to machine learning models like SCVI.
+- annbatch is a good fit when you have one or many AnnData files and want a direct scvi-tools setup path for large disk-backed training.
 
 Writing custom dataloaders requires a good understanding of PyTorch’s DataLoader class and how to integrate it with SCVI, which may be challenging for beginners.
 It will also requite maintenance: If the data format or preprocessing needs change, you’ll have to modify and maintain the custom dataloader code, But it can be a great addition to the model pipeline, in terms of runtime and how much data we can digest.
@@ -166,5 +176,5 @@ It will also requite maintenance: If the data format or preprocessing needs chan
 See relevant tutorials on this subject for further examples.
 
 :::{note}
-As for SCVI-Tools v1.3.0 Custom Dataloaders are experimental and only supported for SCVI and SCANVI models (although extension should be straightforward)
+As of scvi-tools v1.3.0+, custom dataloaders are experimental. Backend and model support varies by integration; see each tutorial for the currently supported workflows.
 :::
