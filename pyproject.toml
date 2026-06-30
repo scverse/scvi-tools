@@ -47,6 +47,7 @@ dependencies = [
     "scikit-learn",
     "scipy",
     "sparse>=0.14.0",
+    "stacked-linear>=0.2.0",
     "tensorboard",
     "torch",
     "torchmetrics",
