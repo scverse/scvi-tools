@@ -86,7 +86,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         ambient_profile: str | np.ndarray | pd.DataFrame | torch.tensor | None = None,
         n_hidden: int = 150,
         n_latent: int = 15,
@@ -98,23 +99,45 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         sparsity: float = 0.9,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+        use_size_factor_key = (
+            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+            if adata is not None
+            else bool(self.registry["field_registries"]["size_factor"]["data_registry"])
+        )
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
-            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
+            if adata is not None:
+                library_log_means, library_log_vars = _init_library_size(
+                    self.adata_manager, n_batch
+                )
+            else:
+                library_log_means = np.zeros((1, n_batch))
+                library_log_vars = np.ones((1, n_batch))
 
         # self.summary_stats provides information about anndata dimensions and other tensor info
         if not torch.is_tensor(ambient_profile):
             if isinstance(ambient_profile, str):
+                if adata is None:
+                    raise ValueError(
+                        "Cannot resolve ambient_profile string key without AnnData. "
+                        "Pass a numpy array instead."
+                    )
                 ambient_profile = np.nan_to_num(adata.varm[ambient_profile])
             elif isinstance(ambient_profile, pd.DataFrame):
                 ambient_profile = ambient_profile.fillna(0).values
             elif isinstance(ambient_profile, np.ndarray):
                 ambient_profile = np.nan_to_num(ambient_profile)
-            elif not ambient_profile:
+            elif ambient_profile is None:
+                if adata is None:
+                    raise ValueError(
+                        "ambient_profile must be provided as a numpy array when using "
+                        "the registry path (no AnnData). "
+                        "Compute it from your data first, e.g.: "
+                        "X.sum(axis=0) / X.sum(axis=0).sum()"
+                    )
                 ambient_profile = adata.X.sum(axis=0) / adata.X.sum(axis=0).sum()
                 ambient_profile = np.nan_to_num(ambient_profile)
             else:
@@ -179,10 +202,10 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    @staticmethod
     def get_ambient_profile(
-        adata: AnnData,
-        raw_adata: AnnData,
+        self_or_adata,
+        raw_adata: AnnData | None = None,
+        dataloader=None,
         prob: float = 0.995,
         min_raw_counts: int = 2,
         iterations: int = 3,
@@ -220,6 +243,40 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         -------
         The relevant ambient profile is added in `adata.varm`
         """
+        if hasattr(self_or_adata, "module"):
+            model = self_or_adata
+            if dataloader is None and model.adata is None:
+                raise ValueError("Pass `dataloader` when calling on a model without AnnData.")
+            if dataloader is not None:
+
+                def _as_numpy(x):
+                    if isinstance(x, torch.Tensor):
+                        if x.is_sparse:
+                            x = x.to_dense()
+                        return x.detach().cpu().numpy()
+                    if hasattr(x, "toarray"):
+                        return x.toarray()
+                    return np.asarray(x)
+
+                counts = []
+                for batch in dataloader:
+                    counts.append(_as_numpy(batch["X"]))
+                raw_counts = np.concatenate(counts, axis=0)
+                raw_adata = None
+                adata = None
+                ambient_prof = raw_counts.sum(axis=0) / raw_counts.sum()
+                return ambient_prof[:, None]
+            adata = model.adata
+            if raw_adata is None:
+                raw_adata = adata
+        else:
+            adata = self_or_adata
+            if raw_adata is None:
+                raise ValueError(
+                    "raw_adata must be provided when calling SCAR.get_ambient_profile "
+                    "on AnnData inputs."
+                )
+
         # take subset genes to save memory
         raw_adata = raw_adata[:, raw_adata.var_names.isin(adata.var_names)]
         raw_adata = raw_adata[raw_adata.X.sum(axis=1) >= min_raw_counts]
@@ -267,6 +324,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata.varm["ambient_profile"] = np.asarray(
             emptydrops.X.sum(axis=0).reshape(-1, 1) / emptydrops.X.sum()
         )
+        return adata.varm["ambient_profile"]
 
     @torch.no_grad()
     def get_denoised_counts(

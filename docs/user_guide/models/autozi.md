@@ -1,6 +1,6 @@
 # AUTOZI
 
-**AUTOZI** [^ref1] (Python class {class}`scvi.model.AUTOZI`)
+**AUTOZI** {cite:p}`Clivio19` (Python class {class}`scvi.model.AUTOZI`)
 is a model for assessing gene-specific levels of zero-inflation in scRNA-seq data.
 
 ```{topic} Tutorials:
@@ -71,5 +71,3 @@ is $q(\delta_g < 0.5)$.
 >>> threshold = 0.5
 >>> zi_probs = beta.cdf(0.5, alpha_posterior, beta_posterior)
 ```
-
-[^ref1]: Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef (2019), _Detecting zero-inflated genes in single-cell transcriptomics data_, [Machine Learning in Computational Biology (MLCB)](https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf).

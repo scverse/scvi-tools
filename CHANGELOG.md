@@ -9,15 +9,35 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add scvi-tools MCP package that gives any MCP-compatible LLM access to scvi-tools knowledge
+- Add {class}`~scvi.dataloaders.AnnbatchDataModule` for out-of-core dataloading via `annbatch`,
+    enabling memory-efficient training on large-scale datasets stored as sharded Zarr collections,
+    with support for batch covariates, {pr}`3620`.
 - Add support for rapids-singlecell, {pr}`3811`.
+- Add {class}`scvi.external.JointEmbeddingSCVI`, a self-supervised SCVI variant using binomial
+    thinning and a cross-correlation objective (CCO) for robust embeddings, {pr}`3883`.
+- Add {class}`scvi.external.CYTOVI` KNN imputation backend option to be cuML, {pr}`3821`.
 
 #### Fixed
 
 - Fix list of metrics to be recorded in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3816`.
+- Fix {class}`scvi.external.RESOLVI` preparing data for every load, {pr}`3887`.
+- Fix scArches query mapping for models using a batch embedding, {pr}`3879`.
 
 #### Changed
 
+- Changed {class}`scvi.external.Tangram` backend to be in Pytorch, {pr}`3786`.
+- Consolidate parts of the training and data loading between {class}`~scvi.external.GIMVI`
+    and {class}`scvi.external.DIAGVI`, {pr}`3830`.
+- Support validation set in {class}`scvi.model.DestVI` training and raise clear errors for
+    unsupported validation in {class}`scvi.external.RESOLVI`, {pr}`3881`.
+- Extract {meth}`~scvi.nn.FCLayers._build_layer`, {meth}`~scvi.nn.FCLayers._is_linear_layer`,
+    {meth}`~scvi.nn.FCLayers._apply_batch_norm`, and {meth}`~scvi.nn.FCLayers._apply_layer`
+    from {class}`~scvi.nn.FCLayers` as overridable methods for easier inheritance, {pr}`3880`.
+
 #### Removed
+
+- Removed Jax support from SCVI-Tools, {pr}`3786`.
 
 ## Version 1.4
 
