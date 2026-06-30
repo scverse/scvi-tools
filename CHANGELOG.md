@@ -29,8 +29,11 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Changed {class}`scvi.external.Tangram` backend to be in Pytorch, {pr}`3786`.
 - Consolidate parts of the training and data loading between {class}`~scvi.external.GIMVI`
     and {class}`scvi.external.DIAGVI`, {pr}`3830`.
-- support validation set in {class}`scvi.model.DestVI` training and raise clear errors for
+- Support validation set in {class}`scvi.model.DestVI` training and raise clear errors for
     unsupported validation in {class}`scvi.external.RESOLVI`, {pr}`3881`.
+- Extract {meth}`~scvi.nn.FCLayers._build_layer`, {meth}`~scvi.nn.FCLayers._is_linear_layer`,
+    {meth}`~scvi.nn.FCLayers._apply_batch_norm`, and {meth}`~scvi.nn.FCLayers._apply_layer`
+    from {class}`~scvi.nn.FCLayers` as overridable methods for easier inheritance, {pr}`3880`.
 
 #### Removed
 
