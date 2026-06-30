@@ -92,7 +92,12 @@ def test_drvi_gene_likelihoods(gene_likelihood):
     assert model.get_latent_representation().shape == (adata.n_obs, 8)
     # reconstruction loss must be finite for every likelihood
     rec = model.get_reconstruction_error()
-    assert all(np.isfinite(np.asarray(v)).all() for v in rec.values())
+    assert all(
+        torch.isfinite(v).all().item()
+        if isinstance(v, torch.Tensor)
+        else np.isfinite(np.asarray(v)).all()
+        for v in rec.values()
+    )
 
 
 def test_drvi_registry_init():
