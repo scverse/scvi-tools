@@ -144,6 +144,7 @@ class DRVIModule(VAE):
         n_latent: int = 128,
         n_hidden: int = 256,
         n_layers: int = 1,
+        dropout_rate: float = 0.1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Iterable[int] | None = None,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
@@ -173,6 +174,7 @@ class DRVIModule(VAE):
             n_cats_per_cov=n_cats_per_cov,
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
+            dropout_rate=dropout_rate,
             deeply_inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
@@ -222,7 +224,7 @@ class DRVIModule(VAE):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            dropout_rate=0.0,
+            dropout_rate=dropout_rate,
             model_cell_dispersion=dispersion == "gene-cell",
             model_zero_inflation=gene_likelihood == "zinb",
             **decoder_extra_kwargs,
@@ -261,6 +263,12 @@ class DRVIModule(VAE):
             batch_index = torch.ones_like(batch_index) * transform_batch
         if not self.use_size_factor_key:
             size_factor = library
+        elif size_factor is None:
+            raise ValueError(
+                "DRVIModule was initialized with use_size_factor_key=True, but no size_factor "
+                "tensor was provided to generative(). Ensure setup_anndata received a "
+                "size_factor_key and that the tensor dictionary includes it."
+            )
 
         # batch handling: one-hot batch is injected via the decoder's n_cat_list; the embedding
         # batch representation is concatenated to each split as a continuous covariate.

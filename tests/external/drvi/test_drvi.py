@@ -3,11 +3,12 @@ import os
 
 import numpy as np
 import pytest
+import torch
 from anndata import AnnData
 from torch import nn
 
 import scvi
-from scvi.external import DRVI
+from scvi.external.drvi import DRVI, DRVIModule, SplitFCLayers
 
 
 def mock_adata(n_genes: int = 50, n_batches: int = 2, n_labels: int = 3) -> AnnData:
@@ -214,6 +215,63 @@ def test_drvi_decoder_reuse_weights(decoder_reuse_weights, n_body_per_split, hea
     assert model.get_latent_representation().shape == (adata.n_obs, 8)
 
 
+def test_drvi_module_decoder_regularization_options_follow_user_settings():
+    """Decoder layer norm and dropout follow the user's DRVI module settings."""
+    module = DRVIModule(
+        n_input=10,
+        n_batch=1,
+        n_labels=1,
+        n_latent=4,
+        n_hidden=8,
+        n_split_latent=2,
+        use_layer_norm="none",
+        dropout_rate=0.25,
+    )
+
+    decoder_modules = list(module.decoder.px_decoder.modules())
+    assert not any(isinstance(m, nn.LayerNorm) for m in decoder_modules)
+
+    dropouts = [m for m in decoder_modules if isinstance(m, nn.Dropout)]
+    assert dropouts
+    assert all(m.p == 0.25 for m in dropouts)
+
+
+def test_split_fc_layers_batch_norm_is_per_split():
+    """SplitFCLayers uses one feature BatchNorm per split, not one fused split-feature norm."""
+    n_split = 3
+    n_hidden = 2
+    layers = SplitFCLayers(
+        n_in=4,
+        n_out=n_hidden,
+        n_layers=1,
+        n_hidden=n_hidden,
+        n_split=n_split,
+        reuse_weights=True,
+        use_batch_norm=True,
+        use_layer_norm=False,
+        dropout_rate=0.0,
+    )
+
+    split_batch_norms = [m for m in layers.fc_layers[0] if hasattr(m, "batch_norms")]
+    assert len(split_batch_norms) == 1
+    split_batch_norm = split_batch_norms[0]
+    assert len(split_batch_norm.batch_norms) == n_split
+    assert all(bn.num_features == n_hidden for bn in split_batch_norm.batch_norms)
+
+    x = torch.tensor(
+        [
+            [[0.0, 0.0], [100.0, 100.0], [1000.0, 1000.0]],
+            [[2.0, 4.0], [102.0, 104.0], [1002.0, 1004.0]],
+            [[4.0, 8.0], [104.0, 108.0], [1004.0, 1008.0]],
+            [[6.0, 12.0], [106.0, 112.0], [1006.0, 1012.0]],
+        ]
+    )
+    out = split_batch_norm(x)
+
+    assert out.shape == x.shape
+    assert torch.allclose(out.mean(dim=0), torch.zeros(n_split, n_hidden), atol=1e-6)
+
+
 def test_drvi_size_factor_key():
     """size_factor_key is registered (full SCVI setup_anndata) and toggles use_size_factor_key."""
     adata = mock_adata()
@@ -225,6 +283,27 @@ def test_drvi_size_factor_key():
     assert model.module.use_size_factor_key
     model.train(max_epochs=2, batch_size=adata.n_obs)
     assert model.get_latent_representation().shape == (adata.n_obs, 8)
+
+
+def test_drvi_module_requires_size_factor_when_configured():
+    """A module configured with size_factor_key fails clearly if the tensor is missing."""
+    module = DRVIModule(
+        n_input=10,
+        n_batch=1,
+        n_labels=1,
+        n_latent=4,
+        n_hidden=8,
+        n_split_latent=2,
+        use_size_factor_key=True,
+    )
+
+    with pytest.raises(ValueError, match="use_size_factor_key=True"):
+        module.generative(
+            z=torch.randn(3, 4),
+            library=torch.zeros(3, 1),
+            batch_index=torch.zeros(3, 1, dtype=torch.long),
+            y=torch.zeros(3, 1, dtype=torch.long),
+        )
 
 
 def test_drvi_minified():
