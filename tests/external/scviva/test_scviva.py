@@ -5,6 +5,7 @@ import pytest
 from anndata import AnnData
 from sklearn.gaussian_process import GaussianProcessClassifier
 
+import scvi
 from scvi.data import synthetic_iid
 from scvi.external import SCVIVA
 from scvi.external.scviva.differential_expression import DifferentialExpressionResults
@@ -418,6 +419,51 @@ def test_scviva_scarches_same_features(split_ref_query_adata):
         ).shape[0]
         == query_adata.shape[0]
     )
+
+
+def test_scviva_scarches_batch_embedding(split_ref_query_adata):
+    """scArches with batch_representation='embedding':
+    batch embedding must have requires_grad=True."""
+    ref_adata, query_adata = split_ref_query_adata
+
+    SCVIVA.preprocessing_anndata(ref_adata, k_nn=K_NN, **setup_kwargs)
+    SCVIVA.setup_anndata(ref_adata, layer="counts", batch_key="batch", **setup_kwargs)
+
+    nichevae = SCVIVA(
+        ref_adata,
+        prior_mixture=False,
+        semisupervised=True,
+        linear_classifier=True,
+        batch_representation="embedding",
+    )
+    nichevae.train(
+        max_epochs=N_EPOCHS_SCVIVA,
+        train_size=0.8,
+        validation_size=0.2,
+        early_stopping=True,
+        check_val_every_n_epoch=1,
+        accelerator="cpu",
+    )
+
+    nichevae.preprocessing_query_anndata(
+        query_adata, reference_model=nichevae, k_nn=K_NN, **setup_kwargs
+    )
+    query_nichevae = nichevae.load_query_data(query_adata, reference_model=nichevae)
+
+    emb = query_nichevae.module.get_embedding(scvi.REGISTRY_KEYS.BATCH_KEY)
+    assert emb.weight.requires_grad, "batch embedding must be trainable during scArches surgery"
+
+    query_nichevae.train(
+        max_epochs=N_EPOCHS_SCVIVA,
+        train_size=0.8,
+        validation_size=0.2,
+        early_stopping=True,
+        check_val_every_n_epoch=1,
+        accelerator="cpu",
+    )
+
+    assert query_nichevae.get_latent_representation(query_adata).shape[0] == query_adata.n_obs
+    assert query_nichevae.get_latent_representation(ref_adata).shape[0] == ref_adata.n_obs
 
 
 @pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-label", "gene-cell"])

@@ -84,7 +84,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         layers in the encoder(s) (if ``encoder_covariates`` is ``True``) and the decoder prior to
         passing through the next layer.
     batch_representation
-        ``EXPERIMENTAL`` Method for encoding batch information. One of the following:
+        Method for encoding batch information. One of the following:
 
         * ``"one-hot"``: represent batches with one-hot encodings.
         * ``"embedding"``: represent batches with continuously-valued embeddings using
