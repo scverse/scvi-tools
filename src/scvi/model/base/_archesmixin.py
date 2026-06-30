@@ -439,7 +439,8 @@ def _set_params_online_update(
             and "decoder" in key
             and (not freeze_batchnorm_decoder)
         )
-        if one or two or three or four or five:
+        six = "_embeddings_dict." in key
+        if one or two or three or four or five or six:
             return True
         else:
             return False

@@ -114,7 +114,7 @@ class nicheVAE(VAE):
         layers in the encoder(s) (if ``encoder_covariates`` is ``True``) and the decoder prior to
         passing through the next layer.
     batch_representation
-        ``EXPERIMENTAL`` Method for encoding batch information. One of the following:
+        Method for encoding batch information. One of the following:
 
         * ``"one-hot"``: represent batches with one-hot encodings.
         * ``"embedding"``: represent batches with continuously-valued embeddings using
@@ -256,12 +256,8 @@ class nicheVAE(VAE):
         self.prior_mixture = prior_mixture
         self.semisupervised = semisupervised
 
-        self.batch_representation = batch_representation
         if self.batch_representation == "embedding":
-            self.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batch, **(batch_embedding_kwargs or {}))
             batch_dim = self.get_embedding(REGISTRY_KEYS.BATCH_KEY).embedding_dim
-        elif self.batch_representation != "one-hot":
-            raise ValueError("`batch_representation` must be one of 'one-hot', 'embedding'.")
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
