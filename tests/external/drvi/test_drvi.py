@@ -390,14 +390,39 @@ def test_drvi_query_to_reference_mapping(model_kwargs):
     assert query_change > 1e-3
 
 
-# def test_drvi_query_to_reference_mapping_embedding_batch():
-#     """With ``batch_representation="embedding"`` the reference stays intact but the query is NOT
-#     updated: scvi's scArches freezes the whole batch-embedding parameter (incl. the new query
-#     row). This is a core-scvi limitation (identical in :class:`~scvi.model.SCVI`), inherited by
-#     DRVI; use one-hot batches for query adaptation."""
-#     reference_change, query_change = _run_query_to_reference(batch_representation="embedding")
-#     assert reference_change < 1e-6  # reference embeddings intact
-#     assert query_change < 1e-6  # query frozen too (documented core-scvi limitation)
+def test_drvi_query_to_reference_mapping_embedding_batch():
+    """With ``batch_representation="embedding"``, scArches keeps the reference latent intact
+    while updating the query."""
+    reference_change, query_change = _run_query_to_reference(batch_representation="embedding")
+    assert reference_change < 1e-6  # reference embeddings intact
+    assert query_change > 1e-3  # query updated by transfer training
+
+
+def test_drvi_query_to_reference_freezes_reference_embedding_rows():
+    """With ``batch_representation="embedding"``, scArches trains only the new query row."""
+    adata = mock_adata(n_batches=3)
+    ref = adata[adata.obs["batch"] != "batch_0"].copy()
+    query = adata[adata.obs["batch"] == "batch_0"].copy()
+
+    DRVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    model = DRVI(ref, n_latent=8, encode_covariates=True, batch_representation="embedding")
+    model.train(max_epochs=2, batch_size=ref.n_obs)
+    n_old = model.summary_stats.n_batch
+
+    DRVI.prepare_query_anndata(query, model)
+    transfer = DRVI.load_query_data(query, model)
+    emb = transfer.module.get_embedding(scvi.REGISTRY_KEYS.BATCH_KEY)
+    assert emb.num_embeddings == n_old + 1
+    assert emb.weight.requires_grad
+
+    before = emb.weight.detach().clone()
+    transfer.train(
+        max_epochs=3, batch_size=query.n_obs, plan_kwargs={"lr": 0.1, "weight_decay": 0.0}
+    )
+    after = emb.weight.detach()
+
+    assert ((after[:n_old] - before[:n_old]) ** 2).sum().item() < 1e-8
+    assert ((after[n_old:] - before[n_old:]) ** 2).sum().item() > 1e-3
 
 
 @pytest.mark.parametrize("deeply_inject_covariates", [True, False])
