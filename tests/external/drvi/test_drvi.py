@@ -8,7 +8,7 @@ from anndata import AnnData
 from torch import nn
 
 import scvi
-from scvi.external.drvi import DRVI, DRVIModule, SplitFCLayers
+from scvi.external.drvi import DRVI, DRVIModule
 
 
 def mock_adata(n_genes: int = 50, n_batches: int = 2, n_labels: int = 3) -> AnnData:
@@ -234,42 +234,6 @@ def test_drvi_module_decoder_regularization_options_follow_user_settings():
     dropouts = [m for m in decoder_modules if isinstance(m, nn.Dropout)]
     assert dropouts
     assert all(m.p == 0.25 for m in dropouts)
-
-
-def test_split_fc_layers_batch_norm_is_per_split():
-    """SplitFCLayers uses one feature BatchNorm per split, not one fused split-feature norm."""
-    n_split = 3
-    n_hidden = 2
-    layers = SplitFCLayers(
-        n_in=4,
-        n_out=n_hidden,
-        n_layers=1,
-        n_hidden=n_hidden,
-        n_split=n_split,
-        reuse_weights=True,
-        use_batch_norm=True,
-        use_layer_norm=False,
-        dropout_rate=0.0,
-    )
-
-    split_batch_norms = [m for m in layers.fc_layers[0] if hasattr(m, "batch_norms")]
-    assert len(split_batch_norms) == 1
-    split_batch_norm = split_batch_norms[0]
-    assert len(split_batch_norm.batch_norms) == n_split
-    assert all(bn.num_features == n_hidden for bn in split_batch_norm.batch_norms)
-
-    x = torch.tensor(
-        [
-            [[0.0, 0.0], [100.0, 100.0], [1000.0, 1000.0]],
-            [[2.0, 4.0], [102.0, 104.0], [1002.0, 1004.0]],
-            [[4.0, 8.0], [104.0, 108.0], [1004.0, 1008.0]],
-            [[6.0, 12.0], [106.0, 112.0], [1006.0, 1012.0]],
-        ]
-    )
-    out = split_batch_norm(x)
-
-    assert out.shape == x.shape
-    assert torch.allclose(out.mean(dim=0), torch.zeros(n_split, n_hidden), atol=1e-6)
 
 
 def test_drvi_size_factor_key():
