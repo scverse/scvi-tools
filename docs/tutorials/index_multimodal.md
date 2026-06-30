@@ -8,6 +8,7 @@ notebooks/multimodal/scarches_scvi_tools
 notebooks/multimodal/totalVI_reference_mapping
 notebooks/multimodal/cite_scrna_integration_w_totalVI
 notebooks/multimodal/MultiVI_tutorial
+notebooks/multimodal/totalanvi
 notebooks/multimodal/DiagVI_spatial_proteomics.ipynb
 notebooks/multimodal/DiagVI_spatial_transcriptomics.ipynb
 ```
@@ -33,7 +34,6 @@ Map cells from a query dataset to the latent space of a reference dataset with t
 Use totalVI to train a reference model and map CITE-seq query data
 ```
 
-
 ```{customcard}
 :path: notebooks/multimodal/cite_scrna_integration_w_totalVI
 :tags: Analysis, Integration, Modality-imputation
@@ -46,6 +46,13 @@ Use totalVI to integrate CITE-seq and scRNA-seq datasets
 :tags: Analysis, Integration, Modality-imputation
 
 Go through the MultiVI workflow to perform joint analysis of paired and unpaired multi omic data
+```
+
+```{customcard}
+:path: notebooks/multimodal/totalanvi
+:tags: Analysis, Semi-supervised, Cell-type-annotation, Modality-imputation, Differential-comparison
+
+Use TotalANVI to perform semi-supervised analysis of CITE-seq data, leveraging partial cell type annotations for label prediction, protein imputation, and differential abundance
 ```
 
 ```{customcard}
