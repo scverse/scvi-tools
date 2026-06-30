@@ -42,7 +42,7 @@ DiagVI takes as input expression matrices $\mathbf{X}_1 \in \mathbb{R}^{N \times
 
 For **count data**, such as scRNA-seq, DiagVI expects a raw count expression matrix, where rows correspond to individual cells and columns correspond to features (e.g., genes).
 
-For **continuous data**, such as antibody-based single-cell or spatial proteomics, DiagVI expects a transformed (and optionally scaled) protein expression matrix, where rows correspond to cells and columns to features (e.g., marker proteins). Because antibody-based measurements are inherently relative, preprocessing is required. Typically, transformations such as arcsinh or log1p are applied to compress dynamic range and stabilize variance, followed by feature-wise scaling (e.g., z-score or min–max scaling) to ensure comparability across markers. This results in approximately normal-like feature distributions, which can be effectively modeled using a normal likelihood. Empirically, we found this approach performs better than modeling raw intensities (see also {class}`~scvi.external.CYTOVI` and the corresponding preprint[^ref3]).
+For **continuous data**, such as antibody-based single-cell or spatial proteomics, DiagVI expects a transformed (and optionally scaled) protein expression matrix, where rows correspond to cells and columns to features (e.g., marker proteins). Because antibody-based measurements are inherently relative, preprocessing is required. Typically, transformations such as arcsinh or log1p are applied to compress dynamic range and stabilize variance, followed by feature-wise scaling (e.g., z-score or min–max scaling) to ensure comparability across markers. This results in approximately normal-like feature distributions, which can be effectively modeled using a normal likelihood. Empirically, we found this approach performs better than modeling raw intensities (see also {class}`~scvi.external.CYTOVI` and the corresponding preprint {cite:p}`Ingelfinger25`).
 
 For integration with DiagVI, we recommend a simple two-step preprocessing strategy inspired by {class}`~scvi.external.CYTOVI`:
 
@@ -87,7 +87,7 @@ To ensure robust alignment of cells from different modalities within the shared 
 
 #### Classifier
 
-Inspired by {class}`~scvi.external.RESOLVI`[^ref5], a simple cell type classifier predicting labels $c_n$ and $c_m$ from cell latent vectors $\mathbf{z}_n$ and $\mathbf{z}_m$, respectively, is integrated into the model in the semi-supervised setting. This classifier is trained jointly with the generative model.
+Inspired by {class}`~scvi.external.RESOLVI` {cite:p}`Ergen25`, a simple cell type classifier predicting labels $c_n$ and $c_m$ from cell latent vectors $\mathbf{z}_n$ and $\mathbf{z}_m$, respectively, is integrated into the model in the semi-supervised setting. This classifier is trained jointly with the generative model.
 
 
 ## Descriptive model
@@ -118,7 +118,7 @@ $L$ is set to the number of unique cell types in the labeled data.
 
 ### Generative model
 
-The generative model follows the formulations used in GLUE[^ref1], scVI[^ref6], and CytoVI[^ref3], and adapts depending on whether the observed data consist of discrete counts or continuous measurements. In both cases, the specific form of the data likelihood varies with the distribution used to model the observed data in each modality.
+The generative model follows the formulations used in GLUE[^ref1], scVI {cite:p}`Lopez18`, and CytoVI {cite:p}`Ingelfinger25`, and adapts depending on whether the observed data consist of discrete counts or continuous measurements. In both cases, the specific form of the data likelihood varies with the distribution used to model the observed data in each modality.
 
 Regardless of the data type and likelihood choice, the inner product between cell and feature
 latent embeddings parametrizes the decoder together with batch-specific versions of scaling ($\alpha_{s_n,g}$) and bias ($\beta_{s_n,g}$) parameters:
@@ -471,22 +471,7 @@ Data can be generated from the model using the posterior predictive distribution
     _Sinkhorn Divergences for Unbalanced Optimal Transport_,
     [arXiv](https://arxiv.org/abs/1910.12958).
 
-[^ref3]:
-    Ingelfinger, Florian; Levy, Nathan; Ergen, Can; Bakulin, Artemy; Becker, Alexander; Boyeau, Pierre; Kim, Martin; Ditz, Diana; Dirks, Jan; Maaskola, Jonas; Wertheimer, Tobias; Zeiser, Robert; Widmer, Corinne C.; Amit, Ido; Yosef, Nir (2025),
-    _CytoVI: Deep generative modeling of antibody-based single cell technologies_,
-    [bioRxiv](https://www.biorxiv.org/content/10.1101/2025.09.07.674699v1).
-
 [^ref4]:
     Feydy, Jean; Séjourné, Thibault; Vialard, François‑Xavier; Amari, Shun‑ichi; Trouvé, Alain; Peyré, Gabriel (2019)
     _Interpolating between Optimal Transport and MMD using Sinkhorn Divergences_
     [The 22nd International Conference on Artificial Intelligence and Statistics](https://arxiv.org/abs/1810.08278).
-
-[^ref5]:
-    Ergen, Can; Yosef, Nir (2025),
-    _ResolVI - addressing noise and bias in spatial transcriptomics_,
-    [bioRxiv](https://www.biorxiv.org/content/10.1101/2025.01.20.634005v1).
-
-[^ref6]:
-    Lopez, Romain; Regier, Jeffrey; Cole, Michael B.; Jordan, Michael I., Yosef, Nir (2018),
-    _Deep generative modeling for single-cell transcriptomics_,
-    [Nature Methods](https://www.nature.com/articles/s41592-018-0229-2).

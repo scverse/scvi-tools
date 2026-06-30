@@ -10,7 +10,6 @@ from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import LayerField
 from scvi.model.base import BaseModelClass, PyroSviTrainMixin
-from scvi.train import PyroTrainingPlan
 from scvi.utils import setup_anndata_dsp
 
 from ._module import DecipherPyroModule
@@ -88,7 +87,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         shuffle_set_split: bool = True,
         batch_size: int = 128,
         early_stopping: bool = False,
-        training_plan: PyroTrainingPlan | None = None,
+        training_plan: DecipherTrainingPlan | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         **trainer_kwargs,
@@ -119,12 +118,12 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         early_stopping
             Perform early stopping. Additional arguments can be passed in ``**trainer_kwargs``.
         training_plan
-            Training plan instance. If ``None``, a default :class:`~scvi.train.PyroTrainingPlan`
-            is used.
+            Training plan instance. If ``None``,
+            a default :class:`~scvi.train.DecipherTrainingPlan` is used.
         datasplitter_kwargs
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
-            Keyword arguments for :class:`~scvi.train.PyroTrainingPlan`.
+            Keyword arguments for :class:`~scvi.train.DecipherTrainingPlan`.
         **trainer_kwargs
             Additional keyword arguments passed to :class:`~scvi.train.Trainer`.
         """
