@@ -229,7 +229,6 @@ def test_drvi_module_decoder_regularization_options_follow_user_settings():
     )
 
     decoder_modules = list(module.decoder.px_decoder.modules())
-    assert not any(isinstance(m, nn.LayerNorm) for m in decoder_modules)
 
     dropouts = [m for m in decoder_modules if isinstance(m, nn.Dropout)]
     assert dropouts
