@@ -1,6 +1,6 @@
 # gimVI
 
-**gimVI** (Generative Imputation Model with Variational Inference; Python class {class}`~scvi.external.GIMVI`) is a deep generative model for the joint analysis of an scRNA-seq dataset and a spatial transcriptomics dataset that measures only a subset of the genes :cite:p:`Lopez19`. gimVI learns a single shared latent space for the two modalities and uses it to **impute the genes that are missing from the spatial assay** by transferring information from the (genome-wide) sequencing reference.
+**gimVI** {cite:p}`Lopez19` (Generative Imputation Model with Variational Inference; Python class {class}`~scvi.external.GIMVI`) is a deep generative model for the joint analysis of an scRNA-seq dataset and a spatial transcriptomics dataset that measures only a subset of the genes. gimVI learns a single shared latent space for the two modalities and uses it to **impute the genes that are missing from the spatial assay** by transferring information from the (genome-wide) sequencing reference.
 
 The two datasets are modeled by a single joint variational autoencoder ({class}`~scvi.external.gimvi.JVAE`) with modality-specific encoder and decoder heads but a shared latent representation. Because the spatial panel is a subset of the genes captured by scRNA-seq, the decoder reconstructs into the full sequencing gene space, and each modality's reconstruction loss is masked to only the genes it actually observes. Alignment of the two modalities in the shared latent space is encouraged by an adversarial classifier that is trained to predict the modality of origin from a cell's latent code, while the generative model is trained to fool it.
 
@@ -16,6 +16,10 @@ The limitations of gimVI include:
 -   Supports exactly two datasets (one sequencing, one spatial).
 -   The spatial genes must be a subset of the sequencing genes.
 -   Imputation quality depends on how well the scRNA-seq reference matches the spatial tissue.
+
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
 
 ```{topic} Tutorials:
 

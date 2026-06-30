@@ -1,6 +1,7 @@
 fail_fast: false
 default_language_version:
   python: python3
+  node: 22.20.0
 default_stages:
   - pre-commit
   - pre-push
@@ -41,7 +42,7 @@ repos:
           )$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.18
+    rev: v0.15.20
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]

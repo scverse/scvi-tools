@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -8,6 +9,7 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
+from scvi import settings
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model._utils import parse_device_args
@@ -78,6 +80,13 @@ class Tangram(BaseModelClass):
         target_count: int | None = None,
         **model_kwargs,
     ):
+        warnings.warn(
+            "Tangram is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         super().__init__(sc_adata)
         self.n_obs_sc = self.adata_manager.get_from_registry(TANGRAM_REGISTRY_KEYS.SC_KEY).shape[0]
         self.n_obs_sp = self.adata_manager.get_from_registry(TANGRAM_REGISTRY_KEYS.SP_KEY).shape[0]
