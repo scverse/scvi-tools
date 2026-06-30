@@ -11,6 +11,7 @@ from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
 from .scbasset import SCBASSET
+from .scpoli import ScPoli
 from .scviva import SCVIVA
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
@@ -31,6 +32,7 @@ __all__ = [
     "CellAssign",
     "Tangram",
     "TOTALANVI",
+    "ScPoli",
     "SCBASSET",
     "POISSONVI",
     "ContrastiveVI",
