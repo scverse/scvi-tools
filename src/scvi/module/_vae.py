@@ -369,11 +369,18 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         """Run the regular inference process."""
         x_ = x
         if self.use_observed_lib_size:
-            library = torch.log(x.sum(1)).unsqueeze(1)
+            # keepdim avoids the unsupported keepdim=False reduction on sparse CSR
+            # inputs (INPUT_CSR mode); identical to x.sum(1).unsqueeze(1) for dense x.
+            x_sum = x.sum(dim=1, keepdim=True)
+            if x_sum.layout is not torch.strided:
+                x_sum = x_sum.to_dense()
+            library = torch.log(x_sum)
         if self.log_variational:
             x_ = torch.log1p(x_)
 
         if cont_covs is not None and self.encode_covariates:
+            if x_.layout is not torch.strided:
+                x_ = x_.to_dense()
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
         else:
             encoder_input = x_
@@ -384,6 +391,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.batch_representation == "embedding" and self.encode_covariates:
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+            if encoder_input.layout is not torch.strided:
+                encoder_input = encoder_input.to_dense()
             encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
             qz, z = self.z_encoder(encoder_input, *categorical_input)
         else:
@@ -560,6 +569,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         from torch.distributions import kl_divergence
 
         x = tensors[REGISTRY_KEYS.X_KEY]
+        if x.layout is not torch.strided:
+            # INPUT_CSR mode keeps x sparse for the encoder; the ZINB reconstruction
+            # target requires dense x (sparse reconstruction loss is future work, #1038).
+            x = x.to_dense()
         kl_divergence_z = kl_divergence(
             inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
         ).sum(dim=-1)

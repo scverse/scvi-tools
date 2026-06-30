@@ -133,6 +133,7 @@ omit = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 xfail_strict = true
 markers = [
     "internet: mark tests that requires internet access",
