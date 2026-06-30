@@ -570,6 +570,10 @@ class AdversarialTrainingPlan(TrainingPlan):
         Minimum learning rate allowed
     adversarial_classifier
         Whether to use adversarial classifier in the latent space
+    adversarial_key
+        Key in setup args to use for adversarial training.
+    adversarial_steps
+        Number of steps to train the adversarial classifier for each training step.
     scale_adversarial_loss
         Scaling factor on the adversarial components of the loss.
         By default, adversarial loss is scaled from 1 to 0 following the opposite of
@@ -600,6 +604,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         ] = "elbo_validation",
         lr_min: float = 0,
         adversarial_classifier: bool | Classifier = False,
+        adversarial_key: str = "batch",
+        adversarial_steps: int = 1,
         scale_adversarial_loss: float | Literal["auto"] = "auto",
         compile: bool = False,
         compile_kwargs: dict | None = None,
@@ -623,43 +629,68 @@ class AdversarialTrainingPlan(TrainingPlan):
             compile_kwargs=compile_kwargs,
             **loss_kwargs,
         )
+        self.adversarial_key = adversarial_key
         if adversarial_classifier is True:
-            if self.module.n_batch == 1:
+            self.adversarial_steps = adversarial_steps
+            self.n_adversarial_name = f"n_{adversarial_key}"
+            if hasattr(self.module, self.n_adversarial_name):
+                self.n_output_classifier = getattr(self.module, self.n_adversarial_name)
+            else:
+                raise ValueError(
+                    f"Adversarial key {adversarial_key} not found in module setup args."
+                )
+            if self.n_output_classifier == 1:
                 warnings.warn(
-                    "Disabling adversarial classifier.",
+                    "Disabling adversarial classifier as there is only one class.",
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
                 self.adversarial_classifier = False
             else:
-                self.n_output_classifier = self.module.n_batch
                 self.adversarial_classifier = Classifier(
-                    n_input=self.module.n_latent,
-                    n_hidden=32,
+                    n_input=self.module.n_latent + getattr(self.module, "n_adversarial_group", 0),
+                    n_hidden=128,
                     n_labels=self.n_output_classifier,
                     n_layers=2,
                     logits=True,
+                    use_batch_norm=False,
+                    use_layer_norm=True,
                 )
+
         else:
             self.adversarial_classifier = adversarial_classifier
         self.scale_adversarial_loss = scale_adversarial_loss
         self.automatic_optimization = False
 
-    def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
+    def loss_adversarial_classifier(
+        self, z, adversarial_group, batch_index, predict_true_class=True
+    ):
         """Loss for adversarial classifier."""
         n_classes = self.n_output_classifier
-        cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
+        n_adv_group = getattr(self.module, "n_adversarial_group", 0)
+        if n_adv_group > 0:
+            adversarial_group_ = torch.nn.functional.one_hot(
+                adversarial_group, num_classes=n_adv_group
+            ).float()
+            z_cls = torch.cat([z, adversarial_group_], dim=1)
+        else:
+            z_cls = z
+        if predict_true_class:  # train classifier
+            z_cls = z_cls.detach()
+        z = z_cls
+        cls_logits = self.adversarial_classifier(z)
 
         if predict_true_class:
-            cls_target = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
+            cls_target = batch_index.squeeze(-1)
+            loss = torch.nn.functional.cross_entropy(cls_logits, cls_target)
         else:
-            one_hot_batch = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
-            # place zeroes where the true label is
-            cls_target = (~one_hot_batch.bool()).float()
-            cls_target = cls_target / (n_classes - 1)
-
-        l_soft = cls_logits * cls_target
-        loss = -l_soft.sum(dim=1).mean()
+            one_hot_batch = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes).float()
+            cls_target = (1 - one_hot_batch) / (n_classes - 1)
+            loss = (
+                -(cls_target * torch.nn.functional.log_softmax(cls_logits, dim=1))
+                .sum(dim=1)
+                .mean()
+            )
 
         return loss
 
@@ -673,7 +704,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             if self.scale_adversarial_loss == "auto"
             else self.scale_adversarial_loss
         )
-        batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
+        batch_tensor = batch[self.adversarial_key].long()
 
         opts = self.optimizers()
         if not isinstance(opts, list):
@@ -684,11 +715,16 @@ class AdversarialTrainingPlan(TrainingPlan):
 
         inference_outputs, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         z = inference_outputs["z"]
+        adversarial_group = inference_outputs.get("adversarial_group", None)
+        if adversarial_group is None:
+            adversarial_group = torch.zeros(z.size(0)).to(z.device).long()
+        else:
+            adversarial_group = adversarial_group.squeeze(-1).long()
         loss = scvi_loss.loss
         orig_loss = loss
         # fool classifier if doing adversarial training
         if kappa > 0 and self.adversarial_classifier is not False:
-            fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
+            fool_loss = self.loss_adversarial_classifier(z, adversarial_group, batch_tensor, False)
             loss += fool_loss * kappa
 
         self.log("train_loss", loss, on_step=self.on_step, on_epoch=self.on_epoch, prog_bar=True)
@@ -705,11 +741,19 @@ class AdversarialTrainingPlan(TrainingPlan):
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
         if opt2 is not None:
-            loss = self.loss_adversarial_classifier(z.detach(), batch_tensor, True)
-            loss *= kappa
-            opt2.zero_grad()
-            self.manual_backward(loss)
-            opt2.step()
+            loss = 0.0
+            for i in range(self.adversarial_steps):
+                qz = inference_outputs["qz"]
+                z = qz.sample()
+                loss_ = kappa * self.loss_adversarial_classifier(
+                    z, adversarial_group, batch_tensor, True
+                )
+                if i > 1 and (loss - loss_) / loss < 1e-3:
+                    break
+                loss = loss_
+                opt2.zero_grad()
+                self.manual_backward(loss)
+                opt2.step()
 
         # next part is for the usage of scib-metrics autotune with scvi
         if scvi_loss.extra_metrics is not None and len(scvi_loss.extra_metrics.keys()) > 0:
@@ -758,9 +802,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
         if self.adversarial_classifier is not False:
             params2 = filter(lambda p: p.requires_grad, self.adversarial_classifier.parameters())
-            optimizer2 = torch.optim.Adam(
-                params2, lr=1e-3, eps=0.01, weight_decay=self.weight_decay
-            )
+            optimizer2 = torch.optim.Adam(params2, lr=3e-4, eps=1e-4, weight_decay=1e-9)
             config2 = {"optimizer": optimizer2}
 
             # pytorch lightning requires this way to return

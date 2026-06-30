@@ -12,6 +12,7 @@ from .resolvi import RESOLVI
 from .scar import SCAR
 from .scbasset import SCBASSET
 from .scviva import SCVIVA
+from .scvix import SCVIX
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .sysvi import SysVI
@@ -20,6 +21,7 @@ from .totalanvi import TOTALANVI
 from .velovi import VELOVI
 
 __all__ = [
+    "SCVIX",
     "SCAR",
     "SOLO",
     "GIMVI",
