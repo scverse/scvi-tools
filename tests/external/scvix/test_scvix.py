@@ -129,6 +129,17 @@ def test_scvix_scarches_one_hot(save_path):
     new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
     adata4.var_names = new_var_names
 
+    SCVIX.prepare_query_anndata(adata4, dir_path)
+    # should be padded 0s
+    assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
+    SCVIX_query3 = SCVIX.load_query_data(adata4, dir_path)
+    SCVIX_query3.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    adata5 = SCVIX.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCVIX_query4 = SCVIX.load_query_data(adata5, dir_path)
+    SCVIX_query4.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
 
 def test_scvix_scarches_embedding(save_path):
     # test transfer_anndata_setup + view
@@ -156,8 +167,20 @@ def test_scvix_scarches_embedding(save_path):
     new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
     adata4.var_names = new_var_names
 
+    SCVIX.prepare_query_anndata(adata4, dir_path)
+    # should be padded 0s
+    assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
+    SCVIX_query3 = SCVIX.load_query_data(adata4, dir_path)
+    SCVIX_query3.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    adata5 = SCVIX.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCVIX_query4 = SCVIX.load_query_data(adata5, dir_path)
+    SCVIX_query4.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
 
 def test_scvix_minified():
+    n_samples = 200
     adata = synthetic_iid()
     SCVIX.setup_anndata(adata, batch_key="batch", assay_key="batch", labels_key="labels")
     model = SCVIX(adata, batch_representation="embedding", gene_likelihood="zinb")
@@ -169,7 +192,7 @@ def test_scvix_minified():
     lib_size = np.squeeze(np.asarray(adata.X.sum(axis=-1)))
 
     scvi.settings.seed = 1
-    params_orig = model.get_likelihood_parameters(n_samples=200, give_mean=True)
+    params_orig = model.get_likelihood_parameters(n_samples=n_samples, give_mean=True)
     adata_orig = adata.copy()
 
     model.minify_adata()
@@ -187,7 +210,10 @@ def test_scvix_minified():
 
     scvi.settings.seed = 1
     keys = ["mean", "dispersions", "dropout"]
-    params_latent = model.get_likelihood_parameters(n_samples=200, give_mean=True)
+    # The full-data path draws one unused encoder sample before the requested samples.
+    # Draw and discard one cached sample so the stochastic latent and batch-embedding draws align.
+    params_latent = model.get_likelihood_parameters(n_samples=n_samples + 1, give_mean=False)
+    params_latent = {key: value[1:].mean(0) for key, value in params_latent.items()}
     for k in keys:
         assert params_latent[k].shape == params_orig[k].shape
 

@@ -26,6 +26,7 @@ scar
 scbasset
 scvi
 scviva
+scvix
 solo
 stereoscope
 sysvi
