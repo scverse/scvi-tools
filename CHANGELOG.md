@@ -22,6 +22,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Fix list of metrics to be recorded in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3816`.
 - Fix {class}`scvi.external.RESOLVI` preparing data for every load, {pr}`3887`.
+- Fix scArches query mapping for models using a batch embedding, {pr}`3879`.
 
 #### Changed
 
