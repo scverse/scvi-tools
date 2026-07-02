@@ -1,3 +1,4 @@
+import logging
 import warnings
 from math import ceil, floor
 
@@ -19,6 +20,8 @@ from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
+
+logger = logging.getLogger(__name__)
 
 
 def validate_data_split(
@@ -207,6 +210,11 @@ class DataSplitter(pl.LightningDataModule):
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.
+    share_memory
+        ``EXPERIMENTAL`` If ``True``, uses POSIX shared memory to deduplicate ``adata.X``
+        across DDP ranks on the same node. If ``None`` (default), auto-enables when DDP
+        is detected. If ``False``, disables shared memory. Only applies to dense numpy
+        or scipy sparse ``adata.X``; backed and dask arrays are skipped.
     **kwargs
         Keyword args for data loader. If adata has labeled data, the data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -233,6 +241,7 @@ class DataSplitter(pl.LightningDataModule):
         load_sparse_tensor: bool = False,
         pin_memory: bool = False,
         external_indexing: list[np.array, np.array, np.array] | None = None,
+        share_memory: bool | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -246,6 +255,8 @@ class DataSplitter(pl.LightningDataModule):
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
+        self.share_memory = share_memory
+        self._shm_registry = None
 
         if self.external_indexing is not None:
             self.n_train, self.n_val = validate_data_split_with_external_indexing(
@@ -263,6 +274,25 @@ class DataSplitter(pl.LightningDataModule):
                 self.drop_last,
                 self.train_size_is_none,
             )
+
+    def _should_share_memory(self) -> bool:
+        """Determine whether to use shared memory for adata.X."""
+        if self.share_memory is False:
+            return False
+
+        try:
+            import torch.distributed as dist
+
+            if not dist.is_initialized() or dist.get_world_size() <= 1:
+                return False
+        except ImportError:
+            return False
+
+        if self.share_memory is True:
+            return True
+
+        # share_memory is None (auto): enable for DDP
+        return True
 
     def setup(self, stage: str | None = None):
         """Split indices in train/test/val sets."""
@@ -285,6 +315,18 @@ class DataSplitter(pl.LightningDataModule):
             self.val_idx = indices[:n_val]
             self.train_idx = indices[n_val : (n_val + n_train)]
             self.test_idx = indices[(n_val + n_train) :]
+
+        # Shared memory for DDP data deduplication
+        if self._should_share_memory():
+            from scvi.dataloaders._shared_memory import setup_shared_memory
+
+            self._shm_registry = setup_shared_memory(self.adata_manager)
+
+    def teardown(self, stage: str | None = None):
+        """Clean up shared memory if used."""
+        if self._shm_registry is not None:
+            self._shm_registry.cleanup()
+            self._shm_registry = None
 
     def train_dataloader(self):
         """Create a train data loader."""
