@@ -1,6 +1,6 @@
 # DRVI
 
-**DRVI** (Disentangled Representation Variational Inference,
+**DRVI** {cite:p}`Moinfar2024` (Disentangled Representation Variational Inference,
 Python class {class}`~scvi.external.DRVI`)
 is an unsupervised deep generative model that learns an **interpretable, disentangled**
 latent representation of single-cell omics data.
@@ -17,14 +17,9 @@ The advantages of DRVI are:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/drvi`
+-   {doc}`/tutorials/notebooks/scrna/DRVI_pipeline`
 ```
 
-```{topic} References:
-
--  Paper: Disentangling cellular heterogeneity into interpretable biological factors through structured latent representations.
-bioRxiv (2024): https://doi.org/10.1101/2024.11.06.622266
-```
 
 ## Method background
 
