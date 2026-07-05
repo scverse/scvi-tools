@@ -188,7 +188,6 @@ class DecoderDRVI(nn.Module):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
-        dropout_rate: float = 0.0,
         model_cell_dispersion: bool = False,
         model_zero_inflation: bool = False,
         **kwargs,
@@ -238,7 +237,8 @@ class DecoderDRVI(nn.Module):
             n_hidden=n_hidden,
             n_split=n_split,
             reuse_weights=hidden_reuse,
-            dropout_rate=dropout_rate,
+            # DRVI's decoder uses no dropout
+            dropout_rate=0,
             inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,

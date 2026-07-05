@@ -100,6 +100,8 @@ class DRVIModule(VAE):
         :class:`DecoderDRVI`.
     n_latent
         Dimensionality of the latent space.
+    dropout_rate
+        Dropout rate for the **encoder** hidden layers. The decoder uses no dropout.
     gene_likelihood
         Reconstruction likelihood. One of:
 
@@ -224,7 +226,6 @@ class DRVIModule(VAE):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            dropout_rate=dropout_rate,
             model_cell_dispersion=dispersion == "gene-cell",
             model_zero_inflation=gene_likelihood == "zinb",
             **decoder_extra_kwargs,

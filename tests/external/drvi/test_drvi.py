@@ -220,8 +220,9 @@ def test_drvi_decoder_reuse_weights(decoder_reuse_weights, n_body_per_split, hea
     assert model.get_latent_representation().shape == (adata.n_obs, 8)
 
 
-def test_drvi_module_decoder_regularization_options_follow_user_settings():
-    """Decoder layer norm and dropout follow the user's DRVI module settings."""
+def test_drvi_module_regularization_options_follow_user_settings():
+    """Regularization follows the user's settings: the encoder gets the requested ``dropout_rate``,
+    while the decoder uses no dropout regardless of the encoder setting."""
     module = DRVIModule(
         n_input=10,
         n_batch=1,
@@ -229,15 +230,16 @@ def test_drvi_module_decoder_regularization_options_follow_user_settings():
         n_latent=4,
         n_hidden=8,
         n_split_latent=2,
-        use_layer_norm="none",
-        dropout_rate=0.25,
+        dropout_rate=0.5,
     )
 
-    decoder_modules = list(module.decoder.px_decoder.modules())
+    # the encoder gets the requested dropout.
+    encoder_dropouts = [m for m in module.z_encoder.modules() if isinstance(m, nn.Dropout)]
+    assert encoder_dropouts
+    assert all(m.p == 0.5 for m in encoder_dropouts)
 
-    dropouts = [m for m in decoder_modules if isinstance(m, nn.Dropout)]
-    assert dropouts
-    assert all(m.p == 0.25 for m in dropouts)
+    # the encoder ``dropout_rate`` must not leak into the decoder: it carries no dropout.
+    assert [m for m in module.decoder.modules() if isinstance(m, nn.Dropout)] == []
 
 
 def test_drvi_size_factor_key():
