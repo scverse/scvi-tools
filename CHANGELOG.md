@@ -1177,6 +1177,7 @@ This release features a refactor of {class}`~scvi.model.DestVI` ([#1457]):
 1. We changed the weighting of the loss on the variances of beta and the prior of eta.
 
 ::: {note}
+
 Due to bug fixes listed above this version of {class}`~scvi.model.DestVI` is not backwards
 compatible. Despite instability in training in the outdated version, we were able to reproduce
 results generated with this code. We therefore do not strictly encourage it to rerun old experiments.
