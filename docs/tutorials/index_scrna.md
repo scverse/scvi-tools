@@ -17,7 +17,7 @@ notebooks/scrna/amortized_lda
 notebooks/scrna/AutoZI_tutorial
 notebooks/scrna/sysVI
 notebooks/scrna/JointEmbeddingSCVI_tutorial
-notebooks/scrna/drvi_pipeline
+notebooks/scrna/DRVI_pipeline
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
 notebooks/scrna/Tahoe100_mrVI
@@ -109,7 +109,7 @@ Integrate scRNA-seq datasets with substantial batch effects.
 ```
 
 ```{customcard}
-:path: notebooks/scrna/drvi_pipeline
+:path: notebooks/scrna/DRVI_pipeline
 :tags: Analysis, Dimensionality-reduction, Interpretability, Factor Analysis
 
 Learn an interpretable, disentangled representation of scRNA-seq data with DRVI and link latent dimensions to genes.
