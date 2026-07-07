@@ -19,7 +19,7 @@ Perform basic Python operations in an R environment
 ```
 
 ```{customcard}
-:path: notebooks/quick_start/api_overview_in_R
+:path: notebooks/r/api_overview_in_R
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance, Dev, Integration
 
 Go through the typical steps of an scvi-tools workflow in R

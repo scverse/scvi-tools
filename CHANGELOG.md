@@ -5,21 +5,24 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
-### 1.5.0 (2026-XX-XX)
+### 1.5.0 (2026-07-07)
 
 #### Added
 
-- Add scvi-tools MCP package that gives any MCP-compatible LLM access to scvi-tools knowledge
 - Add `sparse_mode` to {class}`~scvi.dataloaders.DataSplitter` (`"OFF"`, `"TRANSPORT"`,
     `"INPUT_CSR"`, `"AUTO"`). When `load_sparse_tensor=True`, `"INPUT_CSR"` keeps the count
     matrix as a sparse CSR tensor through `log1p` and the first encoder linear layer
     ({class}`~scvi.nn.FCLayers`) before densifying, and `"AUTO"` selects `"INPUT_CSR"` or
     `"TRANSPORT"` from the measured per-batch density. Default `"TRANSPORT"` preserves prior
     behavior, {pr}`3840`.
+- Add [scvi-tools MCP](https://scvi-tools-mcp.readthedocs.io/en/latest/index.html) package
+    that gives any MCP-compatible LLM access to scvi-tools knowledge.
 - Add {class}`~scvi.dataloaders.AnnbatchDataModule` for out-of-core dataloading via `annbatch`,
     enabling memory-efficient training on large-scale datasets stored as sharded Zarr collections,
     with support for batch covariates, {pr}`3620`.
 - Add support for rapids-singlecell, {pr}`3811`.
+- Add {class}`scvi.external.DRVI` for unsupervised disentangled representation learning of
+    single-cell omics, {pr}`3866`.
 - Add {class}`scvi.external.JointEmbeddingSCVI`, a self-supervised SCVI variant using binomial
     thinning and a cross-correlation objective (CCO) for robust embeddings, {pr}`3883`.
 - Add {class}`scvi.external.CYTOVI` KNN imputation backend option to be cuML, {pr}`3821`.
@@ -1183,6 +1186,7 @@ This release features a refactor of {class}`~scvi.model.DestVI` ([#1457]):
 1. We changed the weighting of the loss on the variances of beta and the prior of eta.
 
 ::: {note}
+
 Due to bug fixes listed above this version of {class}`~scvi.model.DestVI` is not backwards
 compatible. Despite instability in training in the outdated version, we were able to reproduce
 results generated with this code. We therefore do not strictly encourage it to rerun old experiments.
