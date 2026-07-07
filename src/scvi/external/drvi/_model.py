@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from scvi.external.drvi._generative_mixin import GenerativeMixin
 from scvi.external.drvi._interpretability_mixin import InterpretabilityMixin
 from scvi.external.drvi._module import DRVIModule
+from scvi.external.drvi._trainingplan import DRVITrainingPlan
 from scvi.model import SCVI
 
 if TYPE_CHECKING:
@@ -68,6 +69,7 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
     """
 
     _module_cls = DRVIModule
+    _training_plan_cls = DRVITrainingPlan
 
     def __init__(
         self,
