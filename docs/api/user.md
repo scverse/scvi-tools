@@ -67,6 +67,7 @@ import scvi
    external.SysVI
    external.SCVIVA
    external.DIAGVI
+   external.DRVI
    external.JointEmbeddingSCVI
    external.Tangram
 ```
