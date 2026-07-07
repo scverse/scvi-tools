@@ -16,10 +16,10 @@ notebooks/scrna/linear_decoder
 notebooks/scrna/amortized_lda
 notebooks/scrna/AutoZI_tutorial
 notebooks/scrna/sysVI
-notebooks/scrna/drvi
+notebooks/scrna/JointEmbeddingSCVI_tutorial
+notebooks/scrna/drvi_pipeline
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
-notebooks/scrna/JointEmbeddingSCVI_tutorial
 notebooks/scrna/Tahoe100_mrVI
 ```
 
@@ -37,12 +37,6 @@ Perform integration of multiple scRNA-seq datasets both with and without cell ty
 Analyze multi-sample scRNA-seq data with MrVI
 ```
 
-```{customcard}
-:path: notebooks/scrna/MrVI_tutorial_torch
-:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
-
-Analyze multi-sample scRNA-seq data with MrVI in PyTorch
-```
 
 ```{customcard}
 :path: notebooks/scrna/scanvi_fix
@@ -115,7 +109,7 @@ Integrate scRNA-seq datasets with substantial batch effects.
 ```
 
 ```{customcard}
-:path: notebooks/scrna/drvi
+:path: notebooks/scrna/drvi_pipeline
 :tags: Analysis, Dimensionality-reduction, Interpretability, Factor Analysis
 
 Learn an interpretable, disentangled representation of scRNA-seq data with DRVI and link latent dimensions to genes.
