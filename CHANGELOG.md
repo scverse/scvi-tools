@@ -5,17 +5,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
-### 1.5.1 (2026-XX-XX)
-
-#### Added
-
-#### Fixed
-
-#### Changed
-
-#### Removed
-
-### 1.5.0 (2026-07-07)
+### 1.5.0 (2026-07-08)
 
 #### Added
 
