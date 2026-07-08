@@ -90,12 +90,18 @@ It has many optional dependencies which expand its capabilities:
 - _parallel_ - for parallelization engine
 - _interpretability_ - for supervised models interpretability
 - _dataloaders_ - for custom dataloaders use
+- _diagvi_ - for DiagVI model (requires torch_geometric and geomloss)
 - _mlflow_ - for MLflow support
 - _tests_ - in order to be able to perform tests
 - _editing_ - for code editing
 - _dev_ - for development purposes
-- _cuda_ - for Linux-based OS GPU support
+- _cuda_ - for Linux-based OS CUDA 12 GPU support
+- _cuda13_ - for Linux-based OS CUDA 13 GPU support
+- _tpu_ - for Google TPU support (via torch_xla)
 - _metal_ - for Apple Silicon metal (MPS) support
+- _rapids_ - for RAPIDS-accelerated single-cell analysis (GPU)
+- _rapids-cuda12_ - for RAPIDS with CUDA 12 (cuGraph, cuML, cupy-cuda12x)
+- _rapids-cuda13_ - for RAPIDS with CUDA 13 (cuGraph, cuML, cupy-cuda13x)
 - _docsbuild_ - in order to create docs
 
 The easiest way to install this is with `pip`.

@@ -37,7 +37,6 @@ def run_autotune(
     scib_subsample_rows: int | None = 5000,
     scib_indices_list: list | None = None,
     log_to_driver: bool = False,
-    local_mode: bool = False,
     ignore_reinit_error: bool = False,
     n_jobs: int = 1,
     solver: str = "arpack",
@@ -124,8 +123,6 @@ def run_autotune(
     ignore_reinit_error
         If true, Ray suppresses errors from calling
         ray.init() a second time. Ray won't be restarted.
-    local_mode
-        Deprecated: consider using the Ray Debugger instead.
     n_jobs
         Number of jobs to use for parallelization of neighbor search.
     solver
@@ -177,7 +174,8 @@ def run_autotune(
     # See: https://github.com/ray-project/ray/issues/49454
     os.environ.setdefault("RAY_AIR_NEW_OUTPUT", "0")
     init(
-        log_to_driver=log_to_driver, ignore_reinit_error=ignore_reinit_error, local_mode=local_mode
+        log_to_driver=log_to_driver,
+        ignore_reinit_error=ignore_reinit_error,
     )
     experiment.result_grid = experiment.get_tuner().fit()
     return experiment
