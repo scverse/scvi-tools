@@ -94,7 +94,7 @@ parallel = ["dask[array]", "zarr"]
 # for models interpretability
 interpretability = ["captum", "shap", "decoupler"]
 # for custom dataloders
-dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata","annbatch[zarrs]>=0.2.0"]
+dataloaders = ["lamindb>=1.12.1,<2.0", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata","annbatch[zarrs]>=0.2.0"]
 # for diagvi
 diagvi = ["torch_geometric", "geomloss"]
 # for mlflow
