@@ -82,7 +82,7 @@ docs = [
 docsbuild = ["scvi-tools[docs,autotune,hub,diagvi]","mlx"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
+autotune = ["hyperopt>=0.2", "setuptools>=77.0.3,<82",  "ray[tune]", "scib-metrics", "muon"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
