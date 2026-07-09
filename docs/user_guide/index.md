@@ -155,36 +155,6 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```
 
-## Spatial transcriptomics analysis
-
-```{eval-rst}
-.. list-table::
-   :widths: 15 100 25
-   :header-rows: 1
-
-   * - Model
-     - Tasks
-     - Reference
-   * - :doc:`/user_guide/models/destvi`
-     - Multi-resolution deconvolution, cell-type-specific gene expression imputation, comparative analysis
-     - :cite:p:`Lopez22`
-   * - :doc:`/user_guide/models/stereoscope`
-     - Deconvolution
-     - :cite:p:`Andersson20`
-   * - :doc:`/user_guide/models/gimvi`
-     - Imputation of missing spatial genes
-     - :cite:p:`Lopez19`
-   * - :doc:`/user_guide/models/tangram`
-     - Deconvolution, single cell spatial mapping
-     - :cite:p:`Biancalani21`
-   * - :doc:`/user_guide/models/resolvi`
-     - Generative model of single-cell resolved spatial transcriptomics
-     - :cite:p:`Ergen25`
-   * - :doc:`/user_guide/models/scviva`
-     - Representation of cells and their environments in spatial transcriptomics
-     - :cite:p:`Levy25`
-```
-
 ## General purpose analysis
 
 ```{eval-rst}
