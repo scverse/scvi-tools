@@ -54,7 +54,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m pip install nvidia-nccl-cu13
-          python -m pip install setuptools==70.0.0
+          python -m pip install "setuptools>=77.0.3,<82"
           python -m uv pip install --system "scvi-tools[tests, autotune, cuda] @ ."
 
       - name: Run pytest
