@@ -38,7 +38,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix scArches query mapping for models using a batch embedding, {pr}`3879`.
 - Fix autotune CI installing a `setuptools` version that removed `pkg_resources`, breaking
     `hyperopt` imports; pin `setuptools>=77.0.3,<82`, {pr}`3909`.
--
 
 #### Changed
 
