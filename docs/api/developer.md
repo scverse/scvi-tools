@@ -154,7 +154,6 @@ Existing module classes with respective generative and inference procedures.
    module.AutoZIVAE
    module.Classifier
    module.LDVAE
-   module.MRDeconv
    module.PEAKVAE
    module.MULTIVAE
    module.SCANVAE

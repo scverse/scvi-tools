@@ -87,7 +87,7 @@ To ensure robust alignment of cells from different modalities within the shared 
 
 #### Classifier
 
-Inspired by {class}`~scvi.external.RESOLVI` {cite:p}`Ergen25`, a simple cell type classifier predicting labels $c_n$ and $c_m$ from cell latent vectors $\mathbf{z}_n$ and $\mathbf{z}_m$, respectively, is integrated into the model in the semi-supervised setting. This classifier is trained jointly with the generative model.
+Inspired by ResolVI {cite:p}`Ergen25`, a simple cell type classifier predicting labels $c_n$ and $c_m$ from cell latent vectors $\mathbf{z}_n$ and $\mathbf{z}_m$, respectively, is integrated into the model in the semi-supervised setting. This classifier is trained jointly with the generative model.
 
 
 ## Descriptive model

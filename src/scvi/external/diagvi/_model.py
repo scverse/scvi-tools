@@ -18,11 +18,13 @@ from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.external.diagvi._utils import (
+    CyclicMultiDataLoader as TrainDL,
+)
+from scvi.external.diagvi._utils import (
     _check_guidance_graph_consistency,
     _construct_guidance_graph,
     _load_saved_diagvi_files,
 )
-from scvi.external.gimvi._task import CyclicMultiDataLoader as TrainDL
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args, use_distributed_sampler
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS

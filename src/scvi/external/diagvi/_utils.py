@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Mapping
+from itertools import cycle
 from typing import TYPE_CHECKING
 
 import anndata as ad
@@ -11,18 +13,62 @@ import numpy as np
 import scipy.spatial
 import torch
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
 from scvi.data._download import _download
 from scvi.utils import dependencies
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from collections.abc import Sequence
+    from typing import Any, Literal
 
     import pandas as pd
     from anndata import AnnData
     from torch_geometric.data import Data
 
 logger = logging.getLogger(__name__)
+
+
+class CyclicMultiDataLoader(DataLoader):
+    """Combine multiple data loaders by cycling shorter loaders to match the longest one."""
+
+    def __init__(
+        self,
+        data_loaders: Mapping[str, DataLoader] | Sequence[DataLoader],
+        **data_loader_kwargs: Any,
+    ):
+        self._returns_mapping = isinstance(data_loaders, Mapping)
+        if self._returns_mapping:
+            self.input_names = list(data_loaders.keys())
+            self.data_loader_list = list(data_loaders.values())
+        else:
+            self.input_names = None
+            self.data_loader_list = list(data_loaders)
+
+        if not self.data_loader_list:
+            raise ValueError("At least one data loader is required.")
+
+        self.largest_train_dl_idx = max(
+            range(len(self.data_loader_list)),
+            key=lambda idx: len(self.data_loader_list[idx].indices),
+        )
+        self.largest_dl = self.data_loader_list[self.largest_train_dl_idx]
+        super().__init__(self.largest_dl, **data_loader_kwargs)
+
+    def __len__(self):
+        return len(self.largest_dl)
+
+    def __iter__(self):
+        data_loaders = [
+            dl if i == self.largest_train_dl_idx else cycle(dl)
+            for i, dl in enumerate(self.data_loader_list)
+        ]
+
+        if self._returns_mapping:
+            for batches in zip(*data_loaders, strict=False):
+                yield dict(zip(self.input_names, batches, strict=False))
+        else:
+            yield from zip(*data_loaders, strict=False)
 
 
 @dependencies("torch_geometric")
