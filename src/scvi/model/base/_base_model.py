@@ -159,8 +159,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             # Suffix a registry instance variable with _ to include it when saving the model.
             self.registry_ = registry
             self.summary_stats = AnnDataManager._get_summary_stats_from_registry(registry)
-        elif self.__class__.__name__ in ("SCVI", "DIAGVI"):
-            # note some models do accept empty registry/adata (e.g: diagvi)
+        elif self.__class__.__name__ in ("SCVI"):
+            # note some models do accept empty registry/adata
             pass
         else:
             raise ValueError("adata or registry must be provided.")

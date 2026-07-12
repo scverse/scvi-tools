@@ -2,7 +2,6 @@ from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .cytovi import CYTOVI
 from .decipher import Decipher
-from .diagvi import DIAGVI
 from .drvi import DRVI
 from .joint_embedding_scvi import JointEmbeddingSCVI, JointEmbeddingVAE
 from .methylvi import METHYLANVI, METHYLVI
@@ -32,6 +31,5 @@ __all__ = [
     "METHYLVI",
     "METHYLANVI",
     "CYTOVI",
-    "DIAGVI",
     "DRVI",
 ]

@@ -60,7 +60,6 @@ import scvi
    external.Decipher
    external.TOTALANVI
    external.SysVI
-   external.DIAGVI
    external.DRVI
    external.JointEmbeddingSCVI
 ```

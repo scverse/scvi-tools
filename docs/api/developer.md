@@ -189,7 +189,6 @@ Module classes in the external API with respective generative and inference proc
    external.decipher.DecipherPyroModule
    external.totalanvi.TOTALANVAE
    external.sysvi.SysVAE
-   external.diagvi.DIAGVAE
    external.drvi.DRVIModule
    external.JointEmbeddingVAE
 ```

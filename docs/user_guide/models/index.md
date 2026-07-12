@@ -9,7 +9,6 @@ cellassign
 contrastivevi
 cytovi
 decipher
-diagvi
 drvi
 jointembeddingscvi
 linearscvi
