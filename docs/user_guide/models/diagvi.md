@@ -19,6 +19,10 @@ The limitations of DiagVI include:
 -   May require tuning of loss weights for optimal performance (for more information, see [Practical guidance](#practical-guidance)).
 -   Effectively requires a GPU for fast inference.
 
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
+
 ```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/multimodal/DiagVI_spatial_transcriptomics`
