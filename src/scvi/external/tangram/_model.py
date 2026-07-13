@@ -1,42 +1,28 @@
-from __future__ import annotations
-
 import logging
 import warnings
-from typing import TYPE_CHECKING
+from typing import Literal
 
-import flax
-import jax
 import numpy as np
 import pandas as pd
 import scipy
+import torch
 from anndata import AnnData
+from mudata import MuData
 
 from scvi import settings
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
-from scvi.train import JaxTrainingPlan
-from scvi.train._config import merge_kwargs
+from scvi.train import TrainingPlan
 from scvi.utils import setup_anndata_dsp, track
 from scvi.utils._docstrings import devices_dsp
-
-if TYPE_CHECKING:
-    from typing import Literal
-
-    import jax.numpy as jnp
-    from jaxlib.xla_extension import Device
-    from mudata import MuData
 
 logger = logging.getLogger(__name__)
 
 
-def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
-    return jax.device_put(x, device=device)
-
-
 class Tangram(BaseModelClass):
-    """Reimplementation of Tangram :cite:p:`Biancalani21`.
+    """Torch reimplementation of Tangram :cite:p:`Biancalani21`.
 
     Maps single-cell RNA-seq data to spatial data. Original implementation:
     https://github.com/broadinstitute/Tangram.
@@ -83,8 +69,8 @@ class Tangram(BaseModelClass):
     Notes
     -----
     See further usage examples in the following tutorials:
-
     1. :doc:`/tutorials/notebooks/spatial/tangram_scvi_tools`
+    2. The JAX version is deprecated starting v1.5 and replaced by torch backend.
     """
 
     def __init__(
@@ -97,8 +83,7 @@ class Tangram(BaseModelClass):
         warnings.warn(
             "Tangram is a spatial transcriptomics model that will be moved to the "
             "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
-            "will change its backend to pyTorch over Jax. "
-            "It will be deprecated from scvi-tools in v1.6.",
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
             FutureWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -124,7 +109,7 @@ class Tangram(BaseModelClass):
         )
         self._model_summary_string = (
             f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, "
-            "n_obs_sp: {self.n_obs_sp}"
+            f"n_obs_sp: {self.n_obs_sp}"
         )
         self.init_params_ = self._get_init_params(locals())
 
@@ -133,9 +118,9 @@ class Tangram(BaseModelClass):
 
         Returns
         -------
-        Mapping matrix of shape (n_obs_sp, n_obs_sc)
+        Mapping matrix of shape (n_obs_sc, n_obs_sp)
         """
-        return jax.device_get(jax.nn.softmax(self.module.params["mapper_unconstrained"], axis=1))
+        return torch.softmax(self.module.mapper_unconstrained, dim=1).detach().cpu().numpy()
 
     @devices_dsp.dedent
     def train(
@@ -155,50 +140,51 @@ class Tangram(BaseModelClass):
         %(param_accelerator)s
         %(param_devices)s
         lr
-            Optimiser learning rate (default optimiser is :class:`~pyro.optim.ClippedAdam`).
-            Specifying optimiser via plan_kwargs overrides this choice of lr.
+            Optimizer learning rate (default optimizer is :class:`~torch.optim.Adam`).
+            Specifying optimizer via plan_kwargs overrides this choice of lr.
         plan_kwargs
-            Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         """
         update_dict = {
-            "optim_kwargs": {
-                "learning_rate": lr,
-                "eps": 1e-8,
-                "weight_decay": 0,
-            }
+            "lr": lr,
+            "eps": 1e-8,
+            "weight_decay": 0,
         }
-        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
-        plan_kwargs.update(update_dict)
+        if plan_kwargs is not None:
+            if "optim_kwargs" in plan_kwargs:
+                plan_kwargs = plan_kwargs.copy()
+                optim_kwargs = {
+                    "lr" if key == "learning_rate" else key: value
+                    for key, value in plan_kwargs.pop("optim_kwargs").items()
+                }
+                plan_kwargs.update(optim_kwargs)
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = update_dict
 
         _, _, device = parse_device_args(
             accelerator,
             devices,
-            return_device="jax",
+            return_device="torch",
             validate_single_device=True,
         )
-        try:
-            self.module.to(device)
-            logger.info(
-                f"Jax module moved to {device}."
-                "Note: Pytorch lightning will show GPU is not being used for the Trainer."
-            )
-        except RuntimeError:
-            logger.debug("No GPU available to Jax.")
+        self.module.to(device)
+        logger.info(f"Tangram torch module moved to {device}.")
 
         tensor_dict = self._get_tensor_dict(device=device)
-        training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
-        module_init = self.module.init(self.module.rngs, tensor_dict)
-        state, params = flax.core.pop(module_init, "params")
-        training_plan.set_train_state(params, state)
-        train_step_fn = JaxTrainingPlan.jit_training_step
+        training_plan = TrainingPlan(self.module, **plan_kwargs)
+        self._training_plan = training_plan
+        optimizer = training_plan.configure_optimizers()["optimizer"]
         pbar = track(range(max_epochs), style="tqdm", description="Training")
         history = pd.DataFrame(index=np.arange(max_epochs), columns=["loss"])
         for i in pbar:
-            self.module.train_state, loss, _ = train_step_fn(
-                self.module.train_state, tensor_dict, self.module.rngs
-            )
-            loss = jax.device_get(loss)
+            training_plan.train()
+            optimizer.zero_grad()
+            _, _, loss_output = training_plan(tensor_dict)
+            loss_output.loss.backward()
+            optimizer.step()
+            loss = loss_output.loss.detach().cpu().item()
             history.iloc[i] = loss
             pbar.set_description(f"Training... Loss: {loss}")
         self.history_ = {}
@@ -286,12 +272,12 @@ class Tangram(BaseModelClass):
 
     def _get_tensor_dict(
         self,
-        device: Device,
-    ) -> dict[str, jnp.ndarray]:
+        device: torch.device,
+    ) -> dict[str, torch.Tensor]:
         """Get training data for Tangram model.
 
         Tangram does not minibatch, so we just make a dictionary of
-        jnp arrays here.
+        torch tensors here.
         """
         tensor_dict = {}
         for key in TANGRAM_REGISTRY_KEYS:
@@ -306,7 +292,9 @@ class Tangram(BaseModelClass):
                 tensor_dict[key] = tensor_dict[key].values
             else:
                 tensor_dict[key] = tensor_dict[key]
-            tensor_dict[key] = _asarray(tensor_dict[key], device=device)
+            tensor_dict[key] = torch.as_tensor(
+                tensor_dict[key], dtype=torch.float32, device=device
+            )
 
         return tensor_dict
 

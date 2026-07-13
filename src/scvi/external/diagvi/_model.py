@@ -5,14 +5,12 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from itertools import cycle
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import scipy.sparse
 import torch
 from mudata import MuData
-from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
@@ -24,6 +22,7 @@ from scvi.external.diagvi._utils import (
     _construct_guidance_graph,
     _load_saved_diagvi_files,
 )
+from scvi.external.gimvi._task import CyclicMultiDataLoader as TrainDL
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args, use_distributed_sampler
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
@@ -99,6 +98,13 @@ class DIAGVI(BaseModelClass, VAEMixin):
         dropout_rate: float = 0.1,
         **model_kwargs,
     ):
+        warnings.warn(
+            "DiagVI is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         super().__init__()
         # Handle MuData input by extracting modalities as dict
         if isinstance(adatas, MuData):
@@ -284,8 +290,13 @@ class DIAGVI(BaseModelClass, VAEMixin):
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
 
-        train_dl = TrainDL(train_dls)
-        val_dl = TrainDL(val_dls)
+        data_loader_kwargs = {
+            "num_workers": settings.dl_num_workers,
+            "persistent_workers": getattr(settings, "dl_persistent_workers", False),
+            "pin_memory": getattr(settings, "dl_pin_memory_gpu_training", False),
+        }
+        train_dl = TrainDL(train_dls, **data_loader_kwargs)
+        val_dl = TrainDL(val_dls, **data_loader_kwargs)
 
         # Initialize and run training plan
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
@@ -958,7 +969,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         if save_anndata:
             for key in self.input_names:
                 ad = adatas[key]
-                save_path = os.path.join(dir_path, f"adata_{key}.h5ad")
+                save_path = os.path.join(dir_path, f"{file_name_prefix}adata_{key}.h5ad")
                 ad.write(save_path)
 
         model_state_dict = self.module.state_dict()
@@ -1224,54 +1235,3 @@ class DIAGVI(BaseModelClass, VAEMixin):
             "probabilities": probabilities,
             "confidence": confidence,
         }
-
-
-class TrainDL(DataLoader):
-    """DataLoader that creates batch structure for training by combining multiple data loaders.
-
-    The data loaders for each modality are zipped together, and smaller datasets are cycled
-    to match the size of the largest dataset. Each yielded batch is a dictionary mapping
-    modality names to their respective batches.
-
-    Parameters
-    ----------
-    data_loader_dict
-        Dictionary mapping modality names to their respective DataLoaders.
-    """
-
-    def __init__(self, data_loader_dict: dict[str, DataLoader]):
-        self.data_loader_dict = data_loader_dict
-        self.input_names = list(data_loader_dict.keys())
-        self.data_loader_list = list(data_loader_dict.values())
-
-        # Identify the largest dataset
-        self.largest_train_dl_idx = np.argmax([len(dl.indices) for dl in self.data_loader_list])
-
-        # DataLoader corresponding to the largest dataset
-        self.largest_dl = self.data_loader_list[self.largest_train_dl_idx]
-
-        super().__init__(
-            self.largest_dl,
-            num_workers=settings.dl_num_workers,
-            persistent_workers=getattr(settings, "dl_persistent_workers", False),
-            pin_memory=getattr(settings, "dl_pin_memory_gpu_training", False),
-        )
-
-    # Number of batches per epoch is determined by the larger dataset
-    def __len__(self):
-        return len(self.largest_dl)
-
-    # Cyclic iteration
-    def __iter__(self):
-        # Produces batches by zipping together
-        # Ensures that smaller datasets are repeated indefinitely
-        train_dls = [
-            (
-                dl if i == self.largest_train_dl_idx else cycle(dl)
-            )  # Repeat smaller dataset indefinitely
-            for i, dl in enumerate(self.data_loader_list)
-        ]
-
-        # Return a dict of modality_name -> batch for each step
-        for batches in zip(*train_dls, strict=False):
-            yield dict(zip(self.input_names, batches, strict=False))

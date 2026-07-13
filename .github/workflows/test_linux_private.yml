@@ -46,7 +46,7 @@ jobs:
       PYTHON: ${{ matrix.python }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -55,7 +55,7 @@ jobs:
           aws-region: eu-west-1
           role-duration-seconds: 3600 # generous upper limit for the duration of the test
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
@@ -77,7 +77,8 @@ jobs:
           coverage run -m pytest -v --color=yes --private
           coverage report
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v6
         with:
+          fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: private

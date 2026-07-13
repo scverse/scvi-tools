@@ -1,6 +1,6 @@
 # MethylVI
 
-**methylVI** [^ref1] (Python class {class}`~scvi.external.METHYLVI`) is a generative model of scBS-seq data that can subsequently
+**methylVI** {cite:p}`Weinberger2023a` (Python class {class}`~scvi.external.METHYLVI`) is a generative model of scBS-seq data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of methylVI are:
@@ -154,8 +154,3 @@ As the expectation can be expensive to compute, by default, MethylVI uses the me
 
 Differential methylation analysis is achieved with {meth}`~scvi.external.METHYLVI.differential_methylation`.
 MethylVI tests differences in methylation levels $\mu^{C}_{i} = f_{\theta^{C}}\left(z_{i}, s_i)\right)$.
-
-[^ref1]:
-    Ethan Weinberger and Su-In Lee (2021),
-    _A deep generative model of single-cell methylomic data_,
-    [OpenReview](https://openreview.net/forum?id=Mg2DM0F3AY).

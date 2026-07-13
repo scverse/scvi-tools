@@ -42,9 +42,9 @@ jobs:
       PYTHON: ${{ matrix.python }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
@@ -54,8 +54,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m pip install nvidia-nccl-cu13
-          python -m pip install setuptools==70.0.0
-          python -m uv pip install --system "scvi-tools[tests, cuda] @ ."
+          python -m pip install "setuptools>=77.0.3,<82"
+          python -m uv pip install --system "scvi-tools[tests, autotune, cuda] @ ."
 
       - name: Run pytest
         env:
@@ -67,7 +67,8 @@ jobs:
           coverage run -m pytest -v --color=yes --autotune-tests --accelerator cuda --devices auto
           coverage report
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v6
         with:
+          fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: autotune
