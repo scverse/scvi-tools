@@ -90,7 +90,6 @@ It has many optional dependencies which expand its capabilities:
 - _parallel_ - for parallelization engine
 - _interpretability_ - for supervised models interpretability
 - _dataloaders_ - for custom dataloaders use
-- _diagvi_ - for DiagVI model (requires torch_geometric and geomloss)
 - _mlflow_ - for MLflow support
 - _tests_ - in order to be able to perform tests
 - _editing_ - for code editing

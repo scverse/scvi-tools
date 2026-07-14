@@ -154,7 +154,6 @@ Existing module classes with respective generative and inference procedures.
    module.AutoZIVAE
    module.Classifier
    module.LDVAE
-   module.MRDeconv
    module.PEAKVAE
    module.MULTIVAE
    module.SCANVAE
@@ -178,12 +177,9 @@ Module classes in the external API with respective generative and inference proc
    :template: class_no_inherited.rst
    :nosignatures:
 
-   external.gimvi.JVAE
    external.cytovi.CytoVAE
    external.cellassign.CellAssignModule
    external.contrastivevi.ContrastiveDataSplitter
-   external.stereoscope.RNADeconv
-   external.stereoscope.SpatialDeconv
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
@@ -191,12 +187,8 @@ Module classes in the external API with respective generative and inference proc
    external.methylvi.METHYLVAE
    external.methylvi.METHYLANVAE
    external.decipher.DecipherPyroModule
-   external.resolvi.RESOLVAE
    external.totalanvi.TOTALANVAE
-   external.scviva.nicheVAE
-   external.scviva.NicheLossOutput
    external.sysvi.SysVAE
-   external.diagvi.DIAGVAE
    external.drvi.DRVIModule
    external.JointEmbeddingVAE
 ```

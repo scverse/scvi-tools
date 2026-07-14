@@ -25,7 +25,6 @@ import scvi
 
    model.AUTOZI
    model.CondSCVI
-   model.DestVI
    model.LinearSCVI
    model.PEAKVI
    model.SCANVI
@@ -49,9 +48,6 @@ import scvi
 
    external.CellAssign
    external.CYTOVI
-   external.GIMVI
-   external.RNAStereoscope
-   external.SpatialStereoscope
    external.SOLO
    external.SCAR
    external.SCBASSET
@@ -63,13 +59,9 @@ import scvi
    external.METHYLANVI
    external.Decipher
    external.TOTALANVI
-   external.RESOLVI
    external.SysVI
-   external.SCVIVA
-   external.DIAGVI
    external.DRVI
    external.JointEmbeddingSCVI
-   external.Tangram
 ```
 
 ## Data loading

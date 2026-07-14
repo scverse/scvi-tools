@@ -15,6 +15,11 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Removed
 
+- Remove {class}`scvi.external.DestVI`, {class}`scvi.external.GimVI`, {class}`scvi.external.ResolVI`,
+    {class}`scvi.external.SCVIVA`, {class}`scvi.external.DiagVI`, {class}`scvi.external.Stereoscope`,
+    and {class}`scvi.external.Tangram` spatial models, along with their associated tutorials and
+    documentation, {pr}`3908`.
+
 ### 1.5.0 (2026-07-08)
 
 #### Added

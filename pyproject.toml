@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.5.0.post1"
+version = "1.5.0"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -78,10 +78,10 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub,diagvi]","mlx"]
+docsbuild = ["scvi-tools[docs,autotune,hub]","mlx"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "setuptools>=77.0.3,<82", "ray[tune]", "scib-metrics", "muon"]
+autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
@@ -94,8 +94,6 @@ parallel = ["dask[array]", "zarr"]
 interpretability = ["captum", "shap", "decoupler"]
 # for custom dataloders
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata","annbatch[zarrs]>=0.2.0"]
-# for diagvi
-diagvi = ["torch_geometric", "geomloss"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 # for rapids
@@ -104,12 +102,11 @@ rapids-cuda12 = [ "cugraph-cu12>=24", "cuml-cu12>=24", "cupy-cuda12x", "rapids-s
 rapids-cuda13 = [ "cugraph-cu13>=24", "cuml-cu13>=24", "cupy-cuda13x", "rapids-singlecell-cu13[rapids]" ]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,file_sharing,regseq,parallel,interpretability,diagvi]",
+    "scvi-tools[autotune,mlflow,hub,file_sharing,regseq,parallel,interpretability]",
     "igraph","leidenalg","pynndescent",
 ]
 tutorials = [
     "biomart",
-    "cell2location",
     "jupyter",
     "seaborn",
     "matplotlib",

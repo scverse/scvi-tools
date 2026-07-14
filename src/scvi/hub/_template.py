@@ -39,15 +39,10 @@ This model can be used for fine tuning on new data using our Arches framework:
 
 condscvi_pretext = """
 CondSCVI is a variational inference model for single-cell RNA-seq data that can learn an underlying
-latent space. The predictions of the model are meant to be afterward
-used for deconvolution of a second spatial transcriptomics dataset in DestVI. DestVI predicts the
-cell-type proportions as well as cell type-specific activation state
-in the spatial data.
+latent space conditioned on cell-type labels.
 
 CondSCVI takes as input a scRNA-seq gene expression matrix with cells and genes as well as a
 cell-type annotation for all cells.
-We provide an extensive [user guide](https://docs.scvi-tools.org/en/stable/user_guide/models/destvi.html)
-for DestVI including a description of CondSCVI.
 
 - See our original manuscript for further details of the model:
 [DestVI manuscript](https://www.nature.com/articles/s41587-022-01272-8).
