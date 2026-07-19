@@ -619,6 +619,7 @@ class MULTIVI(
                     else adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask],
                 )
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -950,6 +951,7 @@ class MULTIVI(
 
         return result
 
+    @de_dsp.dedent
     @torch.no_grad()
     def get_protein_foreground_probability(
         self,
