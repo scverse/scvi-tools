@@ -90,11 +90,16 @@
     margin-bottom: 0.25rem; /* Reduce spacing below group name */
 }
 
-#tab-menu {
+.tab-menu {
     display: flex;
+    flex-wrap: wrap;
     row-gap: 0.5rem; /* Use relative spacing */
     column-gap: 1rem;
     justify-content: center; /* Center align tabs */
+    max-width: 100%; /* Restrict width to page */
+    margin: 0 auto; /* Center the menu */
+    padding: 0 1rem; /* Add padding for spacing */
+    overflow: hidden;
 }
 
 .tab {
@@ -117,8 +122,23 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Enhance shadow on hover */
 }
 
-.tab.tab-selected {
+.tab.selected {
     border-bottom: none;
     font-weight: bold; /* Highlight selected tab */
     color: var(--pst-color-secondary); /* Use secondary color for emphasis */
+}
+
+/* Highlight the all button when selected */
+.tab-menu.all-group-selected .tab-btn[data-group="all"] {
+    border-bottom: none;
+    font-weight: bold; /* Highlight selected tab */
+    color: var(--pst-color-secondary); /* Use secondary color for emphasis */
+}
+
+.filter-subtitle {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0.5rem 0;
+    color: var(--pst-color-text-base);
 }

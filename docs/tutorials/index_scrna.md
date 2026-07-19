@@ -25,7 +25,7 @@ notebooks/scrna/Tahoe100_mrVI
 
 ```{customcard}
 :path: notebooks/scrna/harmonization
-:tags: Analysis, Integration
+:tags: Analysis, Integration, Semi-supervised, Cell-type-annotation
 
 Perform integration of multiple scRNA-seq datasets both with and without cell type annotation (scVI and scANVI)
 ```
@@ -40,21 +40,21 @@ Analyze multi-sample scRNA-seq data with MrVI
 
 ```{customcard}
 :path: notebooks/scrna/scanvi_fix
-:tags: Analysis
+:tags: Analysis, Semi-supervised, Cell-type-annotation
 
 Compare scANVI to other models following a bug fix in scvi-tools 1.1.0
 ```
 
 ```{customcard}
 :path: notebooks/scrna/seed_labeling
-:tags: Transfer-learning
+:tags: Transfer-learning, Semi-supervised, Cell-type-annotation
 
 Create seed labels and transfer cell type annotations to an entire dataset
 ```
 
 ```{customcard}
 :path: notebooks/scrna/tabula_muris
-:tags: Integration, Transfer-learning, Analysis
+:tags: Integration, Transfer-learning, Analysis, Semi-supervised, Cell-type-annotation
 
 Perform de novo integration of a labeled reference dataset with an unlabeled query dataset (label transfer)
 ```
@@ -68,7 +68,7 @@ Perform DE analysis on C. elegans data with scVI to quantify differences in gene
 
 ```{customcard}
 :path: notebooks/scrna/cellassign_tutorial
-:tags: Analysis
+:tags: Analysis, Cell-type-annotation
 
 Use CellAssign to assign cell types using only knowledge of marker genes
 ```
@@ -110,7 +110,7 @@ Integrate scRNA-seq datasets with substantial batch effects.
 
 ```{customcard}
 :path: notebooks/scrna/DRVI_pipeline
-:tags: Analysis, Dimensionality-reduction, Interpretability, Factor Analysis
+:tags: Analysis, Dimensionality-reduction, Interpretability, Factor-Analysis
 
 Learn an interpretable, disentangled representation of scRNA-seq data with DRVI and link latent dimensions to genes.
 ```
