@@ -15,7 +15,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     literally in several public model methods (e.g.
     {meth}`~scvi.model.SCVI.get_normalized_expression`,
     {meth}`~scvi.model.TOTALVI.get_protein_foreground_probability`) by applying the
-    missing `de_dsp` docstring processor, {pr}`XXXX`.
+    missing `de_dsp` docstring processor, {pr}`3921`.
 
 #### Changed
 
