@@ -80,8 +80,8 @@ docs = [
 ]
 docsbuild = ["scvi-tools[docs,autotune,hub,diagvi]","mlx"]
 
-# scvi.autotune
-autotune = ["hyperopt>=0.2", "setuptools>=77.0.3,<82",  "ray[tune]", "scib-metrics", "muon"]
+# scvi.autotune (TODO: New autotune not suppoorted on Windows yet)
+autotune = ["hyperopt>=0.2", "setuptools>=77.0.3,<82", "ray[tune]; sys_platform != 'win32'", "scib-metrics", "muon"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
@@ -97,7 +97,7 @@ dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_
 # for diagvi
 diagvi = ["torch_geometric", "geomloss"]
 # for mlflow
-mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
+mlflow = ["mlflow>=3.9.0","psutil","GPUtil","nvidia-ml-py"]
 # for rapids
 rapids = [ "cupy", "rapids-singlecell[rapids]" ]
 rapids-cuda12 = [ "cugraph-cu12>=24", "cuml-cu12>=24", "cupy-cuda12x", "rapids-singlecell-cu12[rapids]" ]
