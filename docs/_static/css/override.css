@@ -136,8 +136,8 @@
 }
 
 .filter-subtitle {
-    text-align: center;
-    font-size: 1.1rem;
+    text-align: left;
+    font-size: calc(1.1rem + 2pt);
     font-weight: 600;
     margin: 0.5rem 0;
     color: var(--pst-color-text-base);
