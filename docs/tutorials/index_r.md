@@ -41,7 +41,7 @@ Use scvi-tools functionality in R to analyze CITE-seq data
 
 ```{customcard}
 :path: notebooks/r/peakvi_in_R
-:tags: Analysis, Integration, Differential-comparison, Modality-imputation, Dimensionality-reduction
+:tags: Analysis, Integration, Differential-comparison, Modality-imputation, Dimensionality-reduction, Semi-supervised, Cell-type-annotation
 
 Use scvi-tools functionality in R to analyze scATAC-seq data
 ```

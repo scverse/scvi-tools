@@ -12,7 +12,7 @@ notebooks/use_cases/multiGPU
 
 ```{customcard}
 :path: notebooks/use_cases/preprocessing
-:tags:
+:tags: Dev
 
 Learn how to preprocess various types of data for use with scvi-tools models.
 ```
@@ -33,7 +33,7 @@ Minify a dataset by replacing count data with the model’s estimated parameters
 
 ```{customcard}
 :path: notebooks/use_cases/interpretability
-:tags: Analysis
+:tags: Analysis, Interpretability, Semi-supervised, Cell-type-annotation
 
 Use integrated gradient or SHAP values for model explainability
 ```

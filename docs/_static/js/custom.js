@@ -50,7 +50,7 @@ function populateTabs() {
 
     groups.forEach(item => {
         $(".tab-menu")
-        .append("<div class='tab' data-group='" + item + "'>" + item + "</div>")
+        .append("<div class='tab tab-btn' data-group='" + item + "'>" + item + "</div>")
     });
 }
 
@@ -100,13 +100,15 @@ function filterCards() {
         let groupName = $(this).attr("data-group");
 
         let matchesTags = selectedTagSet.size === 0 || [...selectedTagSet].every(tag => cardTags.includes(tag));
-        let matchesGroup = selectedGroup === "all" || groupName === selectedGroup;
+        // A card only has one group, so multi-select here means "matches any of
+        // the selected groups" (OR), unlike tags where a card can carry many tags (AND).
+        let matchesGroup = selectedGroupSet.size === 0 || selectedGroupSet.has(groupName);
 
         $(this).toggleClass("hidden", !(matchesTags && matchesGroup));
 
         // Find the .model-name inside the card and toggle it
         let modelName = $(this).find(".model-group-name");
-        if (selectedGroup !== "all") {
+        if (selectedGroupSet.size === 1) {
             modelName.addClass("hidden");
         } else {
             modelName.removeClass("hidden");
@@ -114,17 +116,33 @@ function filterCards() {
     });
 }
 
-// Add similar filtering functionality to the model group tabs (but only single select)
-let selectedGroup = "all"
+// Add similar (multi-select) filtering functionality to the model group tabs
+let selectedGroupSet = new Set();
 
-// Handle tab selection and filtering
-$(document).on("click", ".tab", function () {
+// Handle tab button selection and filtering
+$(document).on("click", ".tab-btn", function () {
+    let parent = $(this).closest(".tab-menu");
     let group = $(this).attr("data-group");
 
-    if (group !== selectedGroup) {
-        $(".tab").removeClass("tab-selected"); // deselect current tab
-        $(this).addClass("tab-selected");
-        selectedGroup = group
+    if (group === "all") {
+        if (!parent.hasClass("all-group-selected")) {
+            selectedGroupSet.clear();
+            parent.addClass("all-group-selected");
+            $(".tab-btn").removeClass("selected"); // Deselect all buttons
+        }
+    } else {
+        if (selectedGroupSet.has(group)) {
+            selectedGroupSet.delete(group);
+            $(this).removeClass("selected"); // Deselect button
+
+            if (selectedGroupSet.size === 0) {
+                parent.addClass("all-group-selected");
+            }
+        } else {
+            parent.removeClass("all-group-selected");
+            selectedGroupSet.add(group);
+            $(this).addClass("selected"); // Highlight selected button
+        }
     }
 
     filterCards(); // Trigger filtering immediately
