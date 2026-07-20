@@ -89,6 +89,7 @@ class nicheVAE(VAE):
 
         * ``"poisson"``: :class:`~torch.distributions.Poisson`.
         * ``"gaussian"``: :class:`~torch.distributions.Normal`.
+
         Default is ``"gaussian"`` and Poisson should be used if the niche state is count data.
     cell_rec_weight
         Weight of the cell reconstruction loss.

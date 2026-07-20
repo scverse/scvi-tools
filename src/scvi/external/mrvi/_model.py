@@ -119,7 +119,7 @@ class MRVI(
 
     See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial_torch`
+    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial`
 
     See the user guide for this model:
 

@@ -609,17 +609,17 @@ class GIMVI(VAEMixin, RNASeqMixin, BaseModelClass):
 
         Parameters
         ----------
-         dir_path
-             Path to directory where legacy model is saved.
-         output_dir_path
-             Path to save converted save files.
-         overwrite
-             Overwrite existing data or not. If ``False`` and directory
-             already exists at ``output_dir_path``, error will be raised.
-         prefix
-             Prefix of saved file names.
+        dir_path
+            Path to directory where legacy model is saved.
+        output_dir_path
+            Path to save converted save files.
+        overwrite
+            Overwrite existing data or not. If ``False`` and directory
+            already exists at ``output_dir_path``, error will be raised.
+        prefix
+            Prefix of saved file names.
         **save_kwargs
-             Keyword arguments passed into :func:`~torch.save`.
+            Keyword arguments passed into :func:`~torch.save`.
         """
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
