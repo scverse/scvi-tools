@@ -209,6 +209,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         datasplitter_kwargs
             Additional keyword arguments for the DataSplitter and DataLoaders.
             Can be either:
+
             - A dict of shared kwargs applied to all modalities
             - A nested dict mapping modality names to their specific kwargs,
               e.g., ``{"rna": {"external_indexing": [train, val, test]}, "protein": {...}}``
