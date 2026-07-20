@@ -241,6 +241,7 @@ html_theme_options = {
     "use_repository_button": True,
     "logo_only": True,
     "show_toc_level": 1,
+    "navbar_persistent": [],
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
     "path_to_docs": "docs/",
     "repository_branch": version,
