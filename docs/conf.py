@@ -139,7 +139,6 @@ myst_enable_extensions = [
 myst_url_schemes = ("http", "https", "mailto")
 # Auto-generate #slug anchors for headings so in-page links like
 # [prerequisites](#prerequisites) resolve (up to h4, the deepest level used in docs).
-myst_heading_anchors = 4
 nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
@@ -246,13 +245,6 @@ html_theme_options = {
     "repository_branch": version,
 }
 
-# On Read the Docs, sphinx-book-theme's default sidebar template list includes
-# search-button-field.html, a second search box shown alongside RTD's own search UI.
-# Keep the default sidebar templates for local builds so they retain a search box.
-if os.environ.get("READTHEDOCS") == "True":
-    html_sidebars = {
-        "**": ["navbar-logo.html", "icon-links.html", "sbt-sidebar-nav.html"],
-    }
 
 pygments_style = "default"
 
