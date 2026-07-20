@@ -71,7 +71,6 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    :nosignatures:
 
    dataloaders.AnnDataLoader
-   dataloaders.AnnTorchDataset
    dataloaders.AnnbatchDataModule
    dataloaders.CollectionAdapter
    dataloaders.ConcatDataLoader

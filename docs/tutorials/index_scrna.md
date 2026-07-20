@@ -5,7 +5,6 @@
 
 notebooks/scrna/harmonization
 notebooks/scrna/MrVI_tutorial
-notebooks/scrna/MrVI_tutorial_torch
 notebooks/scrna/scanvi_fix
 notebooks/scrna/seed_labeling
 notebooks/scrna/tabula_muris
