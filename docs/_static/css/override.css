@@ -142,3 +142,7 @@
     margin: 0.5rem 0;
     color: var(--pst-color-text-base);
 }
+
+.bd-header-article .search-button {
+    display: none !important;
+}
