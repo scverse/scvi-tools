@@ -289,6 +289,17 @@ def test_sysvi_warnings():
         model.module.sample()
 
 
+def test_sysvi_differential_expression():
+    """Quick smoke test for differential expression."""
+    adata = mock_adata()
+    SysVI.setup_anndata(adata, batch_key="batch")
+    model = SysVI(adata=adata, prior="standard_normal")
+    model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
+
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(groupby="batch", group1="a", group2="b")
+
+
 def test_sysvi_scarches_errors():
     # reference adata
     adata = mock_adata()

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from mudata import MuData
-from scipy.sparse import issparse
+from scipy.sparse import csr_matrix, issparse
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import (
     average_precision_score,
@@ -105,7 +105,8 @@ class PosteriorPredictiveCheck:
 
         # check if raw counts are indeed int (required for std computation trick)
         if np.issubdtype(raw_counts.dtype, np.floating):
-            self.is_float_data = not np.all(raw_counts == raw_counts.astype(int))
+            _data = raw_counts.data if issparse(raw_counts) else np.asarray(raw_counts).ravel()
+            self.is_float_data = not np.all(_data == _data.astype(int))
         else:
             self.is_float_data = False
 
@@ -201,11 +202,11 @@ class PosteriorPredictiveCheck:
             # we use a trick to compute the std to speed it up: std = E[X^2] - E[X]^2
             # a square followed by a sqrt is ok here because
             # this is counts data (no negative values)
-            self.samples_dataset = np.square(self.samples_dataset)
-            std = np.sqrt(self.samples_dataset.mean(dim=dim, skipna=False) - np.square(mean))
-            self.samples_dataset = np.sqrt(self.samples_dataset)
+            self.samples_dataset = self.samples_dataset**2
+            std = (self.samples_dataset.mean(dim=dim, skipna=False) - mean**2) ** 0.5
+            self.samples_dataset = self.samples_dataset**0.5
 
-        # now compute the CV
+            # now compute the CV
         cv = std / mean
         # It's ok to make things dense here
         cv = _make_dataset_dense(cv)
@@ -323,16 +324,24 @@ class PosteriorPredictiveCheck:
             )
         # run DE with the raw counts
         adata_de = AnnData(
-            X=self.raw_counts.to_scipy_sparse().tocsr().copy(),
+            X=csr_matrix(self.raw_counts.to_scipy_sparse()).copy(),
             obs=self.adata.obs,
             var=self.adata.var,
         )
         sc.pp.normalize_total(adata_de, target_sum=cell_scale_factor)
         sc.pp.log1p(adata_de)
         if de_groupby is None:
-            sc.tl.pca(adata_de)
-            sc.pp.neighbors(adata_de)
-            sc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
+            try:
+                import rapids_singlecell as rsc
+
+                print("RAPIDS SingleCell is installed and can be imported")
+                rsc.pp.pca(adata_de)
+                rsc.pp.neighbors(adata_de)
+                rsc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
+            except ImportError:
+                sc.tl.pca(adata_de)
+                sc.pp.neighbors(adata_de)
+                sc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
             de_groupby = "leiden_scvi_criticism"
         with warnings.catch_warnings():
             warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
@@ -359,7 +368,7 @@ class PosteriorPredictiveCheck:
                 # overwrite X with the posterior predictive sample
                 # This allows us to save all the DE results in the same adata object
                 one_sample_data = (
-                    one_sample.data.to_scipy_sparse().tocsr()
+                    csr_matrix(one_sample.data.to_scipy_sparse())
                     if isinstance(one_sample.data, SparseArray)
                     else one_sample
                 )

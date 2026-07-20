@@ -1,7 +1,6 @@
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable, Iterable
-from functools import partial
 from inspect import signature
 from typing import Any, Literal
 
@@ -518,7 +517,7 @@ class TrainingPlan(pl.LightningModule):
 
     @property
     def kl_weight(self):
-        """Scaling factor on KL divergence during training. Consider Jax"""
+        """Scaling factor on KL divergence during training"""
         klw = _compute_kl_weight(
             self.current_epoch,
             self.global_step,
@@ -527,9 +526,7 @@ class TrainingPlan(pl.LightningModule):
             self.max_kl_weight,
             self.min_kl_weight,
         )
-        return (
-            klw if type(self).__name__ == "JaxTrainingPlan" else torch.tensor(klw).to(self.device)
-        )
+        return torch.tensor(klw).to(self.device)
 
 
 class AdversarialTrainingPlan(TrainingPlan):
@@ -853,6 +850,23 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
         self.n_classes = n_classes
 
+    @staticmethod
+    def _split_semisupervised_batch(batch):
+        if isinstance(batch, list | tuple) and len(batch) == 2:
+            return batch[0], batch[1]
+        if isinstance(batch, dict) and all(
+            key in batch
+            for key in (
+                REGISTRY_KEYS.X_KEY,
+                REGISTRY_KEYS.BATCH_KEY,
+                REGISTRY_KEYS.LABELS_KEY,
+                REGISTRY_KEYS.CAT_COVS_KEY,
+                REGISTRY_KEYS.CONT_COVS_KEY,
+            )
+        ):
+            return batch, batch
+        return batch, None
+
     def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
         """Log with mode."""
         # TODO: Include this with a base training plan
@@ -927,23 +941,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
         # Potentially dangerous if the batch is from a single dataloader with two keys
-        if len(batch) == 2:
-            full_dataset = batch[0]
-            labelled_dataset = batch[1]
-        else:
-            if list(batch.keys())[:5] == [
-                "X",
-                "batch",
-                "labels",
-                "extra_categorical_covs",
-                "extra_continuous_covs",
-            ]:
-                # mean we are on batch loading from custom dataloader, TODO: IS THERE BETTER WAY?
-                full_dataset = batch
-                labelled_dataset = batch
-            else:
-                full_dataset = batch
-                labelled_dataset = None
+        full_dataset, labelled_dataset = self._split_semisupervised_batch(batch)
 
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
@@ -977,12 +975,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def validation_step(self, batch, batch_idx):
         """Validation step for semi-supervised training."""
         # Potentially dangerous if the batch is from a single dataloader with two keys
-        if len(batch) == 2:
-            full_dataset = batch[0]
-            labelled_dataset = batch[1]
-        else:
-            full_dataset = batch
-            labelled_dataset = None
+        full_dataset, labelled_dataset = self._split_semisupervised_batch(batch)
 
         input_kwargs = {
             "labelled_tensors": labelled_dataset,
@@ -1318,6 +1311,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 1e-6,
     ):
         super().__init__()
         self.module = pyro_module
@@ -1338,8 +1333,11 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         elif callable(self.module.model):
             self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
         self.scale_elbo = scale_elbo
-        self.scale_fn = (
-            lambda obj: pyro.poutine.scale(obj, self.scale_elbo) if self.scale_elbo != 1 else obj
+        self.max_kl_weight = max_kl_weight
+        self.min_kl_weight = min_kl_weight
+
+        self.scale_fn = lambda obj: (
+            pyro.poutine.scale(obj, self.scale_elbo) if self.scale_elbo != 1 else obj
         )
         self.differentiable_loss_fn = self.loss_fn.differentiable_loss
         self.training_step_outputs = []
@@ -1391,7 +1389,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
-            min_kl_weight=1e-3,
+            self.max_kl_weight,
+            self.min_kl_weight,
         )
 
     @property
@@ -1443,6 +1442,10 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
     blocked
         A list of Pyro parameters to block during training.
         If `None`, defaults to train all parameters.
+    min_kl_weight
+        Minimum KL weight during warmup. Defaults to `1e-6`.
+    max_kl_weight
+        Maximum KL weight during warmup. Defaults to `1.0`.
     """
 
     def __init__(
@@ -1455,6 +1458,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
         blocked: list | None = None,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 1e-6,
     ):
         super().__init__(
             pyro_module=pyro_module,
@@ -1462,6 +1467,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_steps_kl_warmup=n_steps_kl_warmup,
             scale_elbo=scale_elbo,
+            max_kl_weight=max_kl_weight,
+            min_kl_weight=min_kl_weight,
         )
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():
@@ -1469,8 +1476,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         self.optim = pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization
         self.automatic_optimization = False
-        self.block_fn = (
-            lambda obj: pyro.poutine.block(obj, hide=blocked) if blocked is not None else obj
+        self.block_fn = lambda obj: (
+            pyro.poutine.block(obj, hide=blocked) if blocked is not None else obj
         )
 
         self.svi = pyro.infer.SVI(
@@ -1600,224 +1607,252 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return optimizer
 
 
-if is_package_installed("jax") and is_package_installed("optax"):
-    import jax
-    import jax.numpy as jnp
-    import optax
+if is_package_installed("mlx"):
+    import mlx
 
-    from scvi.module.base._base_module import JaxBaseModuleClass, TrainStateWithState
+    class MlxTrainingPlan(TrainingPlan):
+        """Training plan for MLX modules.
 
-    JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
-
-    class JaxTrainingPlan(TrainingPlan):
-        """Lightning module task to train Jax scvi-tools modules.
+        This training plan handles the optimization process for MLX models,
+        including forward passes, loss computation, and parameter updates.
 
         Parameters
         ----------
         module
-            An instance of :class:`~scvi.module.base.JaxBaseModuleClass`.
-        optimizer
-            One of "Adam", "AdamW", or "Custom", which requires a custom
-            optimizer creator callable to be passed via `optimizer_creator`.
-        optimizer_creator
-            A callable returning a :class:`~optax.GradientTransformation`.
-            This allows using any optax optimizer with custom hyperparameters.
+            MLX module instance.
         lr
-            Learning rate used for optimization when `optimizer_creator` is None.
+            Learning rate.
         weight_decay
-            Weight decay used in optimization, when `optimizer_creator` is None.
-        eps
-            eps used for optimization, when `optimizer_creator` is None.
-        max_norm
-            Max global norm of gradients for gradient clipping.
-        n_steps_kl_warmup
-            Number of training steps (minibatches) to scale weight on KL divergences from
-            `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
-            set to None.
+            Weight decay coefficient.
         n_epochs_kl_warmup
-            Number of epochs to scale weight on KL divergences from `min_kl_weight` to
-            `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
+            Number of epochs over which to scale KL weight from min_kl_weight to max_kl_weight.
+        n_steps_kl_warmup
+            Number of steps over which to scale KL weight from min_kl_weight to max_kl_weight.
+        max_kl_weight
+            Maximum scaling factor for KL divergence during training.
+        min_kl_weight
+            Minimum scaling factor for KL divergence during training.
+        **loss_kwargs
+            Additional keyword arguments passed to the model's loss method.
         """
 
         def __init__(
             self,
-            module: JaxBaseModuleClass,
-            *,
-            optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-            optimizer_creator: JaxOptimizerCreator | None = None,
+            module,
             lr: float = 1e-3,
             weight_decay: float = 1e-6,
-            eps: float = 0.01,
-            max_norm: float | None = None,
-            n_steps_kl_warmup: int | None = None,
             n_epochs_kl_warmup: int | None = 400,
+            n_steps_kl_warmup: int | None = None,
+            max_kl_weight: float = 1.0,
+            min_kl_weight: float = 0.0,
+            eps: float = 1e-8,
+            kl_weight: float = 1.0,
             **loss_kwargs,
         ):
+            # Create MLX optimizer (AdamW includes weight decay)
+            import mlx.optimizers as optim
+
+            self.optimizer = optim.AdamW(
+                learning_rate=lr,
+                weight_decay=weight_decay,
+                eps=eps,
+                betas=[0.9, 0.999],
+                bias_correction=True,
+            )
+            self.kl_weight = kl_weight
             super().__init__(
                 module=module,
                 lr=lr,
                 weight_decay=weight_decay,
                 eps=eps,
-                optimizer=optimizer,
-                optimizer_creator=optimizer_creator,
+                optimizer=self.optimizer,
                 n_steps_kl_warmup=n_steps_kl_warmup,
                 n_epochs_kl_warmup=n_epochs_kl_warmup,
+                max_kl_weight=max_kl_weight,
+                min_kl_weight=min_kl_weight,
                 **loss_kwargs,
             )
-            self.max_norm = max_norm
-            self.automatic_optimization = False
-            self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+            self.module = module
+            self.lr = lr
+            self.weight_decay = weight_decay
+            self.n_epochs_kl_warmup = n_epochs_kl_warmup
+            self.n_steps_kl_warmup = n_steps_kl_warmup
+            self.loss_kwargs = loss_kwargs
+            self.max_kl_weight = max_kl_weight
+            self.min_kl_weight = min_kl_weight
 
-        def get_optimizer_creator(self) -> JaxOptimizerCreator:
-            """Get the optimizer creator for the model."""
-            clip_by = (
-                optax.clip_by_global_norm(self.max_norm) if self.max_norm else optax.identity()
-            )
-            if self.optimizer_name == "Adam":
-                # Replicates PyTorch Adam defaults
-                optim = optax.chain(
-                    clip_by,
-                    optax.add_decayed_weights(weight_decay=self.weight_decay),
-                    optax.adam(self.lr, eps=self.eps),
-                )
-            elif self.optimizer_name == "AdamW":
-                optim = optax.chain(
-                    clip_by,
-                    optax.clip_by_global_norm(self.max_norm),
-                    optax.adamw(self.lr, eps=self.eps, weight_decay=self.weight_decay),
-                )
-            elif self.optimizer_name == "Custom":
-                optim = self._optimizer_creator
-            else:
-                raise ValueError("Optimizer not understood.")
+            # Initialize step and epoch counters
+            self.current_step = 0
+            self.current_epoch = 0
 
-            return lambda: optim
+        @property
+        def current_epoch(self) -> int:
+            return self._current_epoch
 
-        def set_train_state(self, params, state=None):
-            """Set the state of the module."""
-            if self.module.train_state is not None:
-                return
-            optimizer = self.get_optimizer_creator()()
-            train_state = TrainStateWithState.create(
-                apply_fn=self.module.apply,
-                params=params,
-                tx=optimizer,
-                state=state,
-            )
-            self.module.train_state = train_state
+        @current_epoch.setter
+        def current_epoch(self, value: int) -> None:
+            self._current_epoch = value
 
-        @staticmethod
-        @jax.jit
-        def jit_training_step(
-            state: TrainStateWithState,
-            batch: dict[str, np.ndarray],
-            rngs: dict[str, jnp.ndarray],
-            **kwargs,
-        ):
-            """Jit training step."""
+        @property
+        def kl_weight(self) -> float:
+            return self._kl_weight
 
-            def loss_fn(params):
-                # state can't be passed here
-                vars_in = {"params": params, **state.state}
-                outputs, new_model_state = state.apply_fn(
-                    vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
-                )
-                loss_output = outputs[2]
-                loss = loss_output.loss
-                return loss, (loss_output, new_model_state)
+        @kl_weight.setter
+        def kl_weight(self, value: float) -> None:
+            self._kl_weight = value
 
-            (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
-                loss_fn, has_aux=True
-            )(state.params)
-            new_state = state.apply_gradients(grads=grads, state=new_model_state)
-            return new_state, loss, loss_output
+        def _set_module_training(self, is_training):
+            """Set the training state of the module.
 
-        def training_step(self, batch, batch_idx):
-            """Training step for Jax."""
-            if "kl_weight" in self.loss_kwargs:
-                self.loss_kwargs.update({"kl_weight": self.kl_weight})
-            self.module.train()
-            self.module.train_state, _, loss_output = self.jit_training_step(
-                self.module.train_state,
-                batch,
-                self.module.rngs,
-                loss_kwargs=self.loss_kwargs,
-            )
-            loss_output = jax.tree_util.tree_map(
-                lambda x: torch.tensor(jax.device_get(x)),
-                loss_output,
-            )
-            # TODO: Better way to get batch size
-            self.log(
-                "train_loss",
-                loss_output.loss,
-                on_epoch=True,
-                batch_size=loss_output.n_obs_minibatch,
-                prog_bar=True,
-            )
-            self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
-            # Update the dummy optimizer to update the global step
-            _opt = self.optimizers()
-            _opt.step()
+            Used when standard train() and eval() methods are not available.
 
-        @partial(jax.jit, static_argnums=(0,))
-        def jit_validation_step(
-            self,
-            state: TrainStateWithState,
-            batch: dict[str, np.ndarray],
-            rngs: dict[str, jnp.ndarray],
-            **kwargs,
-        ):
-            """Jit validation step."""
-            vars_in = {"params": state.params, **state.state}
-            outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
-            loss_output = outputs[2]
-
-            return loss_output
-
-        def validation_step(self, batch, batch_idx):
-            """Validation step for Jax."""
-            self.module.eval()
-            loss_output = self.jit_validation_step(
-                self.module.train_state,
-                batch,
-                self.module.rngs,
-                loss_kwargs=self.loss_kwargs,
-            )
-            loss_output = jax.tree_util.tree_map(
-                lambda x: torch.tensor(jax.device_get(x)),
-                loss_output,
-            )
-            self.log(
-                "validation_loss",
-                loss_output.loss,
-                on_epoch=True,
-                batch_size=loss_output.n_obs_minibatch,
-            )
-            self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
-
-        @staticmethod
-        def transfer_batch_to_device(batch, device, dataloader_idx):
-            """Bypass Pytorch Lightning device management."""
-            return batch
-
-        def configure_optimizers(self):
-            """Shim optimizer for PyTorch Lightning.
-
-            PyTorch Lightning wants to take steps on an optimizer
-            returned by this function in order to increment the global
-            step count. See PyTorch Lightning optimizer manual loop.
-
-            Here we provide a shim optimizer that we can take steps on
-            at minimal computational cost in order to keep Lightning happy :).
+            Parameters
+            ----------
+            is_training : bool
+                Whether the module is in training mode.
             """
-            return torch.optim.Adam([self._dummy_param])
+            # Try different possible attributes to be compatible
+            # with different module implementations
+            if callable(self.module._is_training):
+                self.module._is_training = is_training
+            elif hasattr(self.module, "_training"):
+                self.module._training = is_training
+            else:
+                Warning("Unable to set module training state, may affect training performance")
 
-        def optimizer_step(self, *args, **kwargs):
-            pass
+        def get_kl_weight(self) -> float:
+            """Compute the KL weight for the current step or epoch.
 
-        def backward(self, *args, **kwargs):
-            pass
+            Returns
+            -------
+            float
+                Current KL weight value.
+            """
+            if self.n_steps_kl_warmup is not None:
+                kl_weight = min(
+                    self.max_kl_weight,
+                    self.min_kl_weight
+                    + (self.max_kl_weight - self.min_kl_weight)
+                    * (self.current_step / max(1, self.n_steps_kl_warmup)),
+                )
+            elif self.n_epochs_kl_warmup is not None:
+                kl_weight = min(
+                    self.max_kl_weight,
+                    self.min_kl_weight
+                    + (self.max_kl_weight - self.min_kl_weight)
+                    * (self.current_epoch / max(1, self.n_epochs_kl_warmup)),
+                )
+            else:
+                kl_weight = self.max_kl_weight
 
-        def forward(self, *args, **kwargs):
-            pass
+            return kl_weight
+
+        def _loss_fn(self, model, tensors, kl_weight):
+            """Loss function returning scalar loss and auxiliary LossOutput."""
+            _, _, loss_output = model(tensors, kl_weight=kl_weight)
+            return loss_output.loss, loss_output
+
+        def train_step(self, batch_dict):
+            """Execute a single training step.
+
+            Parameters
+            ----------
+            batch_dict
+                Dictionary containing batch data.
+
+            Returns
+            -------
+            dict
+                Dictionary containing loss and component metric arrays (not
+                yet evaluated — call ``mlx.core.eval`` on the returned arrays to
+                materialise them on the GPU).
+            """
+            # Ensure module is in training mode (validate_step switches to eval)
+            if hasattr(self.module, "train"):
+                self.module.train(True)
+            else:
+                self._set_module_training(True)
+
+            # Convert batch data to MLX arrays
+            mlx_batch = {
+                k: mlx.core.array(v) if isinstance(v, np.ndarray) else v
+                for k, v in batch_dict.items()
+            }
+
+            # Compute KL weight
+            kl_weight = self.get_kl_weight()
+
+            # Single forward+backward: value_and_grad with aux returns
+            # (loss, aux), grads — we get LossOutput in one pass
+            loss_and_grad_fn = mlx.nn.value_and_grad(self.module, self._loss_fn)
+            (loss, loss_output), grads = loss_and_grad_fn(self.module, mlx_batch, kl_weight)
+
+            # Global-norm gradient clipping (vectorised, no per-tensor loops)
+            grads, _ = mlx.optimizers.clip_grad_norm(grads, max_norm=5.0)
+
+            # Update parameters
+            self.optimizer.update(self.module, grads)
+
+            # Single mlx.core.eval at the end — materialises the whole lazy graph
+            # (parameters, optimizer state, and the metrics we want to read)
+            mlx.core.eval(
+                self.module.parameters(),
+                self.optimizer.state,
+                loss,
+                loss_output.reconstruction_loss_sum,
+                loss_output.kl_local_sum,
+                loss_output.kl_global_sum,
+            )
+
+            return {
+                "loss": loss.item(),
+                "reconstruction_loss": loss_output.reconstruction_loss_sum.item(),
+                "kl_local": loss_output.kl_local_sum.item(),
+                "kl_global": loss_output.kl_global_sum.item(),
+                "n_obs": loss_output.n_obs_minibatch,
+            }
+
+        def validate_step(self, batch_dict):
+            """Execute a validation step.
+
+            Parameters
+            ----------
+            batch_dict
+                Dictionary containing batch data.
+
+            Returns
+            -------
+            dict
+                Dictionary containing validation loss values.
+            """
+            # Set module to evaluation mode on first call
+            if hasattr(self.module, "eval"):
+                self.module.eval()
+            else:
+                self._set_module_training(False)
+
+            # Convert batch data to MLX arrays
+            mlx_batch = {
+                k: mlx.core.array(v) if isinstance(v, np.ndarray) else v
+                for k, v in batch_dict.items()
+            }
+
+            kl_weight = self.get_kl_weight()
+
+            _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
+
+            # Single eval for all metrics
+            mlx.core.eval(
+                loss_output.loss,
+                loss_output.reconstruction_loss_sum,
+                loss_output.kl_local_sum,
+                loss_output.kl_global_sum,
+            )
+
+            return {
+                "validation_loss": loss_output.loss.item(),
+                "reconstruction_loss": loss_output.reconstruction_loss_sum.item(),
+                "kl_local": loss_output.kl_local_sum.item(),
+                "kl_global": loss_output.kl_global_sum.item(),
+                "n_obs": loss_output.n_obs_minibatch,
+            }

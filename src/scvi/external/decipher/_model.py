@@ -10,7 +10,6 @@ from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import LayerField
 from scvi.model.base import BaseModelClass, PyroSviTrainMixin
-from scvi.train import PyroTrainingPlan
 from scvi.utils import setup_anndata_dsp
 
 from ._module import DecipherPyroModule
@@ -88,11 +87,46 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         shuffle_set_split: bool = True,
         batch_size: int = 128,
         early_stopping: bool = False,
-        training_plan: PyroTrainingPlan | None = None,
+        training_plan: DecipherTrainingPlan | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
+        """Train the model.
+
+        Wraps :meth:`~scvi.model.base.PyroSviTrainMixin.train` with Decipher-specific
+        defaults (``early_stopping_monitor="nll_validation"`` and ``drop_last=True``).
+
+        Parameters
+        ----------
+        max_epochs
+            Number of passes through the dataset.
+        accelerator
+            Supports passing different accelerator types ``("cpu", "gpu", "tpu", "ipu",
+            "hpu", "mps", "auto")`` as well as custom accelerator instances.
+        device
+            The device to use. Can be set to a non-negative index (int or str) or ``"auto"``
+            for automatic selection.
+        train_size
+            Size of training set in the range ``[0.0, 1.0]``.
+        validation_size
+            Size of the validation set. If ``None``, defaults to ``1 - train_size``.
+        shuffle_set_split
+            Whether to shuffle indices before splitting.
+        batch_size
+            Minibatch size to use during training.
+        early_stopping
+            Perform early stopping. Additional arguments can be passed in ``**trainer_kwargs``.
+        training_plan
+            Training plan instance. If ``None``,
+            a default :class:`~scvi.train.DecipherTrainingPlan` is used.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
+        plan_kwargs
+            Keyword arguments for :class:`~scvi.train.DecipherTrainingPlan`.
+        **trainer_kwargs
+            Additional keyword arguments passed to :class:`~scvi.train.Trainer`.
+        """
         if "early_stopping_monitor" not in trainer_kwargs:
             trainer_kwargs["early_stopping_monitor"] = "nll_validation"
         datasplitter_kwargs = datasplitter_kwargs or {}
@@ -292,6 +326,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         -------
         The gene patterns for the trajectory.
         Dictionary keys:
+
             - `mean`: the mean gene expression pattern
             - `q25`: the 25% quantile of the gene expression pattern
             - `q75`: the 75% quantile of the gene expression pattern

@@ -8,6 +8,9 @@ notebooks/multimodal/scarches_scvi_tools
 notebooks/multimodal/totalVI_reference_mapping
 notebooks/multimodal/cite_scrna_integration_w_totalVI
 notebooks/multimodal/MultiVI_tutorial
+notebooks/multimodal/totalanvi
+notebooks/multimodal/DiagVI_spatial_proteomics.ipynb
+notebooks/multimodal/DiagVI_spatial_transcriptomics.ipynb
 ```
 
 ```{customcard}
@@ -19,7 +22,7 @@ Go through the totalVI workflow to analyze CITE-seq datasets
 
 ```{customcard}
 :path: notebooks/multimodal/scarches_scvi_tools
-:tags: Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance, Analysis, Modality-imputation
+:tags: Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance, Analysis, Modality-imputation, Semi-supervised, Cell-type-annotation
 
 Map cells from a query dataset to the latent space of a reference dataset with the scArches method
 ```
@@ -30,7 +33,6 @@ Map cells from a query dataset to the latent space of a reference dataset with t
 
 Use totalVI to train a reference model and map CITE-seq query data
 ```
-
 
 ```{customcard}
 :path: notebooks/multimodal/cite_scrna_integration_w_totalVI
@@ -44,4 +46,25 @@ Use totalVI to integrate CITE-seq and scRNA-seq datasets
 :tags: Analysis, Integration, Modality-imputation
 
 Go through the MultiVI workflow to perform joint analysis of paired and unpaired multi omic data
+```
+
+```{customcard}
+:path: notebooks/multimodal/totalanvi
+:tags: Analysis, Semi-supervised, Cell-type-annotation, Modality-imputation, Differential-comparison
+
+Use TotalANVI to perform semi-supervised analysis of CITE-seq data, leveraging partial cell type annotations for label prediction, protein imputation, and differential abundance
+```
+
+```{customcard}
+:path: notebooks/multimodal/DiagVI_spatial_proteomics
+:tags: Analysis, Integration, Modality-imputation, Dimensionality-reduction
+
+Perform integration of spatial proteomics and single-cell transcriptomics data with DiagVI
+```
+
+```{customcard}
+:path: notebooks/multimodal/DiagVI_spatial_transcriptomics
+:tags: Analysis, Integration, Modality-imputation, Dimensionality-reduction
+
+Perform integration of spatial and single-cell transcriptomics data with DiagVI
 ```

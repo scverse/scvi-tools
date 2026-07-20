@@ -33,6 +33,7 @@ from scvi.model.base import (
 )
 from scvi.model.base._de_core import _de_core
 from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils import de_dsp, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -101,7 +102,7 @@ class CYTOVI(
         required when analyzing overlapping panels with missing values.
     encoder_marker_list
         Optional list of markers to use for encoding. Must be a subset of backbone markers
-          if `encode_backbone_only` is True.
+        if `encode_backbone_only` is True.
     prior_mixture
         If True, uses a mixture of Gaussians as a prior in the latent space (MoG prior).
     prior_mixture_k
@@ -125,7 +126,7 @@ class CYTOVI(
     An adversarial classifier loss can be used to encourage batch-invariance in the latent space.
     If the data includes missing values, ensure that `nan_layer` is correctly registered using
     :meth:`~scvi.external.CYTOVI.setup_anndata`. This is handled automatically when using
-     scvi.external.cytovi.merge_batches().
+    scvi.external.cytovi.merge_batches().
 
     See further usage examples in the following tutorials:
 
@@ -428,12 +429,8 @@ class CYTOVI(
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
             "n_steps_kl_warmup": n_steps_kl_warmup,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,

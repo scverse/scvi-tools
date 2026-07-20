@@ -153,6 +153,13 @@ class SCVIVA(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **kwargs,
     ):
+        warnings.warn(
+            "SCVIVA is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         super().__init__(adata)
 
         self.n_labels = self.summary_stats.n_labels
@@ -1140,7 +1147,7 @@ def _pad_and_sort_query_anndata(
         padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
         adata_padding = AnnData(
             X=padding_mtx.copy(),
-            layers={layer: padding_mtx.copy() for layer in adata.layers},
+            layers={layer: padding_mtx.copy() for layer in adata.layers if layer is not None},
         )
         adata_padding.var_names = genes_to_add
         adata_padding.obs_names = adata.obs_names

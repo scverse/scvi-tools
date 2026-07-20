@@ -19,6 +19,7 @@ from scvi.external.velovi._constants import VELOVI_REGISTRY_KEYS
 from scvi.external.velovi._module import VELOVAE
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.train import TrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
 
 if TYPE_CHECKING:
@@ -172,7 +173,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        user_plan_kwargs = plan_kwargs.copy() if isinstance(plan_kwargs, dict) else {}
+        user_plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         plan_kwargs = {"lr": lr, "weight_decay": weight_decay, "optimizer": "AdamW"}
         plan_kwargs.update(user_plan_kwargs)
 
@@ -900,6 +901,15 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     @torch.inference_mode()
     def get_rates(self):
+        """Return the learned splicing, degradation, and transcription rates.
+
+        Returns
+        -------
+        dict with keys ``"beta"`` (splicing), ``"gamma"`` (degradation),
+        ``"alpha"`` (transcription on-state), ``"alpha_1"`` (transcription off-state),
+        and ``"lambda_alpha"`` (switching rate), each as a numpy array of shape
+        ``(n_genes,)``.
+        """
         gamma, beta, alpha, alpha_1, lambda_alpha = self.module._get_rates()
 
         return {
@@ -949,6 +959,27 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         gene_list: Iterable[str] = None,
         n_jobs: int = -1,
     ):
+        """Compute directional uncertainty of RNA velocity.
+
+        Estimates the uncertainty of the velocity vector direction for each cell
+        by sampling from the posterior and computing pairwise cosine similarities.
+
+        Parameters
+        ----------
+        adata
+            AnnData object. If ``None``, uses the AnnData passed during model initialization.
+        n_samples
+            Number of posterior samples for estimating uncertainty.
+        gene_list
+            List of genes to use. If ``None``, uses all genes.
+        n_jobs
+            Number of parallel jobs for cosine similarity computation.
+            ``-1`` uses all available cores.
+
+        Returns
+        -------
+        Tuple of (DataFrame of directional statistics per cell, cosine similarity matrix).
+        """
         adata = self._validate_anndata(adata)
 
         logger.info("Sampling from model...")

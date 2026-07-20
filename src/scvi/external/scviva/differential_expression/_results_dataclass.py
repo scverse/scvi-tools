@@ -44,6 +44,7 @@ class DifferentialExpressionResults:
         fontsize: int = 10,
         chosen_colormap: str = "seismic",
         path_to_save: str | None = None,
+        show_plot: bool = True,
         dpi: int = 1000,
         margin: float = 0.1,
         manual_limits: tuple | None = None,
@@ -71,6 +72,8 @@ class DifferentialExpressionResults:
             Colormap to use for the decision boundary.
         path_to_save
             Path to save the plot.
+        show_plot
+            Whether to show the plot. Default: True.
         dpi
             Resolution of the saved plot.
         margin
@@ -251,4 +254,7 @@ class DifferentialExpressionResults:
                 dpi=dpi,
             )
 
-        plt.show()
+        if show_plot:
+            plt.show()
+        else:
+            plt.close()

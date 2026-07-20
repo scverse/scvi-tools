@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "scvi-tools"
-version = "1.4.1"
+version = "1.5.0.post1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -15,7 +15,7 @@ maintainers = [
 authors = [
   { name = "The scvi-tools development team" },
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
@@ -24,14 +24,13 @@ classifiers = [
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-  "anndata>=0.11",
+  "anndata",
   "docrep>=0.3.2",
   "lightning>=2",
   "ml-collections",
@@ -53,11 +52,19 @@ dependencies = [
 ]
 
 optional-dependencies.all = [ "scvi-tools[dev,docs,tutorials]" ]
-# scvi.autotune
-optional-dependencies.autotune = [ "hyperopt>=0.2", "muon", "ray[tune]", "scib-metrics" ]
-optional-dependencies.cuda = [ "jax[cuda12]", "torchaudio", "torchvision" ]
+# scvi.autotune (TODO: New autotune not suppoorted on Windows yet)
+optional-dependencies.autotune = [
+  "hyperopt>=0.2",
+  "muon",
+  "ray[tune]; sys_platform!='win32'",
+  "scib-metrics",
+  "setuptools>=77.0.3,<82",
+]
+optional-dependencies.cuda = [ "cupy-cuda12x", "torchaudio", "torchvision" ]
+optional-dependencies.cuda13 = [ "cupy-cuda13x", "torchaudio", "torchvision" ]
 # for custom dataloders
 optional-dependencies.dataloaders = [
+  "annbatch[zarrs]>=0.2",
   "cellxgene-census",
   "lamindb>=1.12.1",
   "tiledbsoma",
@@ -65,12 +72,14 @@ optional-dependencies.dataloaders = [
   "torchdata",
 ]
 optional-dependencies.dev = [ "scvi-tools[editing,tests]" ]
+# for diagvi
+optional-dependencies.diagvi = [ "geomloss", "torch-geometric" ]
 optional-dependencies.docs = [
   "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
   "ipython",
   "myst-nb",
   "myst-parser",
-  "sphinx",
+  "sphinx<9",
   "sphinx-autodoc-typehints",
   "sphinx-book-theme>=1.0.1",
   "sphinx-copybutton",
@@ -79,7 +88,8 @@ optional-dependencies.docs = [
   "sphinxcontrib-bibtex",
   "sphinxext-opengraph",
 ]
-optional-dependencies.docsbuild = [ "scvi-tools[autotune,docs,hub,jax]" ]
+optional-dependencies.docsbuild = [ "mlx", "scvi-tools[autotune,diagvi,docs,hub]" ]
+
 optional-dependencies.editing = [ "jupyter", "pre-commit" ]
 # for files sharing or handling
 optional-dependencies.file_sharing = [ "fcswrite", "gdown", "pooch", "readfcs" ]
@@ -87,36 +97,51 @@ optional-dependencies.file_sharing = [ "fcswrite", "gdown", "pooch", "readfcs" ]
 optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub" ]
 # for models interpretability
 optional-dependencies.interpretability = [ "captum", "decoupler", "shap" ]
-# for jax support
-optional-dependencies.jax = [ "flax", "jax", "jaxlib", "numpyro", "optax" ]
-optional-dependencies.metal = [ "jax-metal", "torchaudio", "torchvision" ]
+optional-dependencies.metal = [ "mlx-metal", "torchaudio", "torchvision" ]
+
 # for mlflow
-optional-dependencies.mlflow = [ "gputil", "mlflow", "psutil" ]
+optional-dependencies.mlflow = [ "gputil", "mlflow>=3.9", "nvidia-ml-py", "psutil" ]
 optional-dependencies.optional = [
   "igraph",
   "leidenalg",
   "pynndescent",
-  "scvi-tools[autotune,file_sharing,hub,interpretability,jax,mlflow,parallel,regseq]",
+  "scvi-tools[autotune,diagvi,file_sharing,hub,interpretability,mlflow,parallel,regseq]",
 ]
 # for parallelization engine
 optional-dependencies.parallel = [ "dask[array]", "zarr" ]
+# for rapids
+optional-dependencies.rapids = [ "cupy", "rapids-singlecell[rapids]" ]
+optional-dependencies.rapids-cuda12 = [
+  "cugraph-cu12>=24",
+  "cuml-cu12>=24",
+  "cupy-cuda12x",
+  "rapids-singlecell-cu12[rapids]",
+]
+optional-dependencies.rapids-cuda13 = [
+  "cugraph-cu13>=24",
+  "cuml-cu13>=24",
+  "cupy-cuda13x",
+  "rapids-singlecell-cu13[rapids]",
+]
+
 # scvi.data.add_dna_sequence
 optional-dependencies.regseq = [ "biopython>=1.81", "genomepy" ]
 optional-dependencies.test = [ "scvi-tools[tests]" ]
 optional-dependencies.tests = [ "coverage", "pytest", "pytest-pretty", "scvi-tools[optional]" ]
+optional-dependencies.tpu = [ "torch-xla[tpu]" ]
 optional-dependencies.tutorials = [
   "biomart",
   "cell2location",
-  "dataloaders",
   "jupyter",
   "matplotlib",
   "plotnine",
   "scrublet",
-  "scvi-tools[optional]",
+  "scvi-tools[dataloaders,optional]",
   "seaborn",
   "squidpy>=1.6",
   "umap-learn>=0.5",
 ]
+
 urls.Documentation = "https://scvi-tools.org"
 urls.Home-page = "https://scvi-tools.org"
 urls.Source = "https://github.com/scverse/scvi-tools"
@@ -124,8 +149,15 @@ urls.Source = "https://github.com/scverse/scvi-tools"
 [tool.hatch.build.targets.wheel]
 packages = [ 'src/scvi' ]
 
+[tool.uv]
+# uvloop does not support Windows; override the transitive dependency
+# pulled in via flax -> orbax-checkpoint -> uvloop
+override-dependencies = [
+  "uvloop ; sys_platform != 'win32'",
+]
+
 [tool.ruff]
-target-version = "py312"
+target-version = "py313"
 
 line-length = 99
 indent-width = 4
@@ -221,6 +253,8 @@ markers = [
   "multigpu: mark tests that are used to check multi GPU performance",
   "autotune: mark tests that are used to check ray autotune capabilities",
   "custom dataloaders: mark tests that are used to check different custom data loaders",
+  "dataloader: mark tests that are used to check data loaders",
+  "mlflow: mark test for mlflow",
 ]
 
 [tool.coverage.run]

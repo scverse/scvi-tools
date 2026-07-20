@@ -20,6 +20,7 @@ from scvi.train import (
     TrainRunner,
 )
 from scvi.train._callbacks import SubSampleLabels
+from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
@@ -29,9 +30,31 @@ if TYPE_CHECKING:
     from torch import Tensor
 
     from scvi._types import AnnOrMuData
+    from scvi.train._config import KwargsLike
 
 
 logger = logging.getLogger(__name__)
+
+
+def _set_datamodule_split(
+    datamodule,
+    train_size: float | None,
+    validation_size: float | None,
+    shuffle_set_split: bool,
+    batch_size: int | None = None,
+) -> None:
+    """Forward split settings to custom datamodules that implement splitting."""
+    if train_size is None and validation_size is None:
+        train_size = 0.9
+    if datamodule is not None and hasattr(datamodule, "set_batch_size"):
+        datamodule.set_batch_size(batch_size)
+    if datamodule is not None and hasattr(datamodule, "set_split"):
+        datamodule.set_split(
+            train_size=train_size,
+            validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
+            batch_size=batch_size,
+        )
 
 
 class UnsupervisedTrainingMixin:
@@ -54,8 +77,10 @@ class UnsupervisedTrainingMixin:
         batch_size: int = 128,
         early_stopping: bool = False,
         datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
+        plan_config: KwargsLike | None = None,
+        plan_kwargs: KwargsLike | None = None,
         datamodule: LightningDataModule | None = None,
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -98,6 +123,9 @@ class UnsupervisedTrainingMixin:
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
             Values in this argument can be overwritten by arguments directly passed into this
             method, when appropriate. Not used if ``datamodule`` is passed in.
+        plan_config
+            Configuration object or mapping used to build :class:`~scvi.train.TrainingPlan`.
+            Values in ``plan_kwargs`` and explicit arguments take precedence.
         plan_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.TrainingPlan`. Values in
             this argument can be overwritten by arguments directly passed into this method, when
@@ -106,6 +134,9 @@ class UnsupervisedTrainingMixin:
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        trainer_config
+            Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
+            ``trainer_kwargs`` and explicit arguments take precedence.
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
@@ -132,17 +163,26 @@ class UnsupervisedTrainingMixin:
                 load_sparse_tensor=load_sparse_tensor,
                 **datasplitter_kwargs,
             )
-        elif self.module is None:
-            self.module = self._module_cls(
-                datamodule.n_vars,
-                n_batch=datamodule.n_batch,
-                n_labels=getattr(datamodule, "n_labels", 1),
-                n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
-                n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
-                **self._module_kwargs,
+        else:
+            _set_datamodule_split(
+                datamodule,
+                train_size,
+                validation_size,
+                shuffle_set_split,
+                batch_size=batch_size if batch_size != 128 else None,
             )
+            self._datamodule = datamodule
+            if self.module is None:
+                self.module = self._module_cls(
+                    datamodule.n_vars,
+                    n_batch=datamodule.n_batch,
+                    n_labels=getattr(datamodule, "n_labels", 1),
+                    n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
+                    n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
+                    **self._module_kwargs,
+                )
 
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
@@ -156,6 +196,7 @@ class UnsupervisedTrainingMixin:
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=devices,
+            trainer_config=trainer_config,
             **trainer_kwargs,
         )
         return runner()
@@ -175,12 +216,22 @@ class SemisupervisedTrainingMixin:
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
         if datamodule is None:
-            self.labels_ = get_anndata_attribute(
-                self.adata,
-                self.adata_manager.data_registry.labels.attr_name,
-                self.original_label_key,
-                mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
-            ).ravel()
+            if self.adata is None:
+                # Load path with no adata — use categorical_mapping without the unlabeled
+                # category so n_labels is computed the same way as during training
+                # (where actual cell labels never contain the unlabeled_category value).
+                cat_mapping = labels_state_registry.categorical_mapping
+                unlabeled = labels_state_registry.unlabeled_category
+                if unlabeled is not None:
+                    cat_mapping = cat_mapping[cat_mapping != unlabeled]
+                self.labels_ = cat_mapping
+            else:
+                self.labels_ = get_anndata_attribute(
+                    self.adata,
+                    self.adata_manager.data_registry.labels.attr_name,
+                    self.original_label_key,
+                    mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
+                ).ravel()
         else:
             if datamodule.registry["setup_method_name"] == "setup_datamodule":
                 self.labels_ = datamodule.labels_.ravel()
@@ -334,10 +385,11 @@ class SemisupervisedTrainingMixin:
                     return np.array(predictions)
             else:
                 n_labels = len(pred[0])
+                index = None if dataloader is not None else adata.obs_names[indices]
                 pred = pd.DataFrame(
                     y_pred,
                     columns=self._label_mapping[:n_labels],
-                    index=adata.obs_names[indices],
+                    index=index,
                 )
                 if ig_interpretability:
                     return pred, attributions
@@ -358,8 +410,10 @@ class SemisupervisedTrainingMixin:
         devices: int | list[int] | str = "auto",
         adversarial_classifier: bool | None = None,
         datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
+        plan_config: KwargsLike | None = None,
+        plan_kwargs: KwargsLike | None = None,
         datamodule: LightningDataModule | None = None,
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -399,10 +453,17 @@ class SemisupervisedTrainingMixin:
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword
             arguments passed to `train()` will overwrite values present in `plan_kwargs`,
             when appropriate.
+        plan_config
+            Configuration object or mapping used to build
+            :class:`~scvi.train.SemiSupervisedTrainingPlan`. Values in ``plan_kwargs`` and
+            explicit arguments take precedence.
         datamodule
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        trainer_config
+            Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
+            ``trainer_kwargs`` and explicit arguments take precedence.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -412,10 +473,10 @@ class SemisupervisedTrainingMixin:
             if adversarial_classifier is None:
                 adversarial_classifier = self._use_adversarial_classifier  # from totalvi
             update_dict = {"adversarial_classifier": adversarial_classifier}
-            if plan_kwargs is not None:
-                plan_kwargs.update(update_dict)
-            else:
-                plan_kwargs = update_dict
+            plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
 
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
@@ -425,7 +486,6 @@ class SemisupervisedTrainingMixin:
 
         logger.info(f"Training for {max_epochs} epochs.")
 
-        plan_kwargs = {} if plan_kwargs is None else plan_kwargs
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         if datamodule is None:
@@ -445,6 +505,14 @@ class SemisupervisedTrainingMixin:
                 **datasplitter_kwargs,
             )
         else:
+            _set_datamodule_split(
+                datamodule,
+                train_size,
+                validation_size,
+                shuffle_set_split,
+                batch_size=batch_size if batch_size != 128 else None,
+            )
+            self._datamodule = datamodule
             Warning("Warning: SCANVI sampler is not available with custom dataloader")
             sampler_callback = []
 
@@ -463,6 +531,7 @@ class SemisupervisedTrainingMixin:
             accelerator=accelerator,
             devices=devices,
             check_val_every_n_epoch=check_val_every_n_epoch,
+            trainer_config=trainer_config,
             **trainer_kwargs,
         )
         return runner()
@@ -512,6 +581,8 @@ class SemisupervisedTrainingMixin:
             modality = np.array([])
             for mod in mod_list:
                 for layer in adata[mod].layers:
+                    if layer is None:
+                        continue
                     tmp_mod = mod + "_" + layer
                     features_list = np.concatenate(
                         (

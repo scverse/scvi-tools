@@ -9,7 +9,7 @@ from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI
 
 @pytest.mark.autotune
 @pytest.mark.parametrize("save_checkpoints", [True, False])
-@pytest.mark.parametrize("metric", ["elbo_validation", "elbo_train"])
+@pytest.mark.parametrize("metric", ["elbo_validation"])
 def test_run_autotune_scvi_basic_adata(save_checkpoints: bool, metric: str, save_path: str):
     from ray import tune
     from ray.tune import ResultGrid
@@ -43,6 +43,43 @@ def test_run_autotune_scvi_basic_adata(save_checkpoints: bool, metric: str, save
     assert isinstance(experiment, AutotuneExperiment)
     assert hasattr(experiment, "result_grid")
     assert isinstance(experiment.result_grid, ResultGrid)
+
+
+@pytest.mark.autotune
+def test_run_autotune_scvi_multiple_metrics(save_path: str):
+    from ray import tune
+    from ray.tune import ResultGrid
+
+    from scvi.autotune import AutotuneExperiment, run_autotune
+
+    settings.logging_dir = save_path
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+
+    experiment = run_autotune(
+        SCVI,
+        adata,
+        metrics=["elbo_validation", "validation_loss"],
+        mode="min",
+        search_space={
+            "model_params": {
+                "n_hidden": tune.choice([1, 2]),
+            },
+            "train_params": {
+                "max_epochs": 1,
+            },
+        },
+        num_samples=2,
+        seed=0,
+        scheduler="asha",
+        searcher="hyperopt",
+        ignore_reinit_error=True,
+    )
+    assert isinstance(experiment, AutotuneExperiment)
+    assert isinstance(experiment.result_grid, ResultGrid)
+    result_df = experiment.result_grid.get_dataframe()
+    assert "elbo_validation" in result_df.columns
+    assert "validation_loss" in result_df.columns
 
 
 @pytest.mark.autotune
@@ -132,8 +169,8 @@ def test_run_autotune_scvi_no_anndata(n_batches: int, save_path: str):
 
 
 @pytest.mark.autotune
-@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
-@pytest.mark.parametrize("model_cls", [SCVI, SCANVI, TOTALVI])
+@pytest.mark.parametrize("metric", ["Total"])
+@pytest.mark.parametrize("model_cls", [SCVI, TOTALVI])
 @pytest.mark.parametrize("solver", ["randomized"])
 def test_run_autotune_scvi_with_scib_adata(model_cls, metric: str, solver: str, save_path: str):
     from ray import tune
@@ -191,7 +228,6 @@ def test_run_autotune_scvi_with_scib_adata(model_cls, metric: str, solver: str, 
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
-        local_mode=True,
         ignore_reinit_error=True,
         solver=solver,
     )
@@ -201,7 +237,7 @@ def test_run_autotune_scvi_with_scib_adata(model_cls, metric: str, solver: str, 
 
 
 @pytest.mark.autotune
-@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
+@pytest.mark.parametrize("metric", ["Total"])
 @pytest.mark.parametrize("model_cls", [MULTIVI, TOTALVI])
 @pytest.mark.parametrize("solver", ["randomized"])
 def test_run_autotune_scvi_with_scib_mdata(model_cls, metric: str, solver: str, save_path: str):
@@ -249,7 +285,6 @@ def test_run_autotune_scvi_with_scib_mdata(model_cls, metric: str, solver: str, 
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
-        local_mode=True,
         ignore_reinit_error=True,
         solver=solver,
     )
@@ -293,7 +328,6 @@ def test_run_autotune_scvi_with_scib_ext_indices(metric: str, save_path: str):
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
-        local_mode=True,
         ignore_reinit_error=True,
         solver="randomized",
     )

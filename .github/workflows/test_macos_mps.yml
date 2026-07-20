@@ -19,7 +19,7 @@ jobs:
       (
         contains(github.event.pull_request.labels.*.name, 'mps') ||
         contains(github.event.pull_request.labels.*.name, 'all tests') ||
-        contains(github.event_name, 'schedule') ||
+        (contains(github.event_name, 'schedule') && github.repository == 'scverse/scvi-tools') ||
         contains(github.event_name, 'workflow_dispatch')
       )
 
@@ -37,10 +37,10 @@ jobs:
       #  run: echo "BRANCH_NAME=$(echo $GITHUB_REF | awk -F'/' '{print $3}')" >> $GITHUB_ENV
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
@@ -56,7 +56,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m pip install "scvi-tools[tests]"
-          python -m pip install jax-metal
+          python -m pip install mlx
+          python -m pip install mlx-metal
           python -m pip install coverage
           python -m pip install pytest
 
@@ -72,6 +73,8 @@ jobs:
           coverage run -m pytest -v --color=yes --accelerator mps --devices auto
           coverage report
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v6
         with:
+          fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+          flags: mps

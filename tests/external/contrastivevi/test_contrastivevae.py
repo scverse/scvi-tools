@@ -74,8 +74,8 @@ def mock_contrastive_batch(mock_contrastive_dataloader):
 
 @pytest.fixture
 def mock_background_batch(mock_contrastive_adata_manager, mock_background_indices):
-    background_batch = mock_contrastive_adata_manager.adata.obs["_scvi_batch"][
-        mock_background_indices
+    background_batch = mock_contrastive_adata_manager.adata.obs.loc[
+        mock_contrastive_adata_manager.adata.obs.index[mock_background_indices], "_scvi_batch"
     ].unique()
     assert len(background_batch) == 1
     return background_batch.item()
@@ -83,8 +83,8 @@ def mock_background_batch(mock_contrastive_adata_manager, mock_background_indice
 
 @pytest.fixture
 def mock_target_batch(mock_contrastive_adata_manager, mock_target_indices):
-    target_batch = mock_contrastive_adata_manager.adata.obs["_scvi_batch"][
-        mock_target_indices
+    target_batch = mock_contrastive_adata_manager.adata.obs.loc[
+        mock_contrastive_adata_manager.adata.obs.index[mock_target_indices], "_scvi_batch"
     ].unique()
     assert len(target_batch) == 1
     return target_batch.item()

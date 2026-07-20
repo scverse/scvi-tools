@@ -19,7 +19,7 @@ jobs:
       (
         contains(github.event.pull_request.labels.*.name, 'resolution tests') ||
         contains(github.event.pull_request.labels.*.name, 'all tests') ||
-        contains(github.event_name, 'schedule') ||
+        (contains(github.event_name, 'schedule') && github.repository == 'scverse/scvi-tools') ||
         contains(github.event_name, 'workflow_dispatch')
       )
 
@@ -33,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python: ["3.11", "3.12", "3.13"]
+        python: ["3.12", "3.13", "3.14"]
         install-flags: ["--prerelease if-necessary-or-explicit"]
 
     name: integration
@@ -43,9 +43,9 @@ jobs:
       PYTHON: ${{ matrix.python }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
@@ -66,6 +66,8 @@ jobs:
           coverage run -m pytest -v --color=yes
           coverage report
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v6
         with:
+          fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+          flags: resolution

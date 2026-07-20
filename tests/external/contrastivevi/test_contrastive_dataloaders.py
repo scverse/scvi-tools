@@ -17,19 +17,19 @@ def test_contrastive_dataloader(
         adata.layers["raw_counts"][expected_background_indices, :]
     )
     expected_background_labels = torch.LongTensor(
-        adata.obs["_scvi_labels"].iloc[expected_background_indices]
+        adata.obs["_scvi_labels"].iloc[expected_background_indices].values
     ).unsqueeze(1)
     expected_background_batch = torch.LongTensor(
-        adata.obs["_scvi_batch"].iloc[expected_background_indices]
+        adata.obs["_scvi_batch"].iloc[expected_background_indices].values
     ).unsqueeze(1)
 
     expected_target_indices = mock_target_indices[:batch_size]
     expected_target_input = torch.Tensor(adata.layers["raw_counts"][expected_target_indices, :])
     expected_target_labels = torch.LongTensor(
-        adata.obs["_scvi_labels"].iloc[expected_target_indices]
+        adata.obs["_scvi_labels"].iloc[expected_target_indices].values
     ).unsqueeze(1)
     expected_target_batch = torch.LongTensor(
-        adata.obs["_scvi_batch"].iloc[expected_target_indices]
+        adata.obs["_scvi_batch"].iloc[expected_target_indices].values
     ).unsqueeze(1)
 
     dataloader = scvi.external.contrastivevi.ContrastiveDataLoader(

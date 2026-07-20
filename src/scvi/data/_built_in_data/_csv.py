@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def _load_breast_cancer_dataset(save_path: str = "data/"):
     save_path = os.path.abspath(save_path)
-    url = "https://www.spatialresearch.org/wp-content/uploads/2016/07/Layer2_BC_count_matrix-1.tsv"
+    url = "https://exampledata.scverse.org/scvi-tools/Layer2_BC_count_matrix-1.tsv"
     save_fn = "Layer2_BC_count_matrix-1.tsv"
     _download(url, save_path, save_fn)
     adata = _load_csv(os.path.join(save_path, save_fn), delimiter="\t", gene_by_cell=False)
@@ -23,7 +23,7 @@ def _load_breast_cancer_dataset(save_path: str = "data/"):
 
 def _load_mouse_ob_dataset(save_path: str = "data/"):
     save_path = os.path.abspath(save_path)
-    url = "https://www.spatialresearch.org/wp-content/uploads/2016/07/Rep11_MOB_count_matrix-1.tsv"
+    url = "https://exampledata.scverse.org/scvi-tools/Rep11_MOB_count_matrix-1.tsv"
     save_fn = "Rep11_MOB_count_matrix-1.tsv"
     _download(url, save_path, save_fn)
     adata = _load_csv(os.path.join(save_path, save_fn), delimiter="\t", gene_by_cell=False)

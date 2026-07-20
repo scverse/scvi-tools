@@ -198,12 +198,12 @@ class HubModel:
         )
         if not push_anndata:
             kwargs["ignore_patterns"] = ["*.h5ad", "*.h5mu"]
-            api.upload_folder(
-                folder_path=self._local_dir,
-                repo_id=repo_name,
-                token=repo_token,
-                **kwargs,
-            )
+        api.upload_folder(
+            folder_path=self._local_dir,
+            repo_id=repo_name,
+            token=repo_token,
+            **kwargs,
+        )
 
         if collection_name == "test":
             collection_slug = "scvi-tools/test-674f56b9eb86e62d57eac5cf"

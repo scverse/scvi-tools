@@ -3,22 +3,123 @@
 Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
 to [Semantic Versioning]. The full commit history is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.4
+## Version 1.5
 
-### 1.4.2 (2025-XX-XX)
+### 1.5.1 (2026-XX-XX)
 
 #### Added
 
 #### Fixed
 
+- Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered
+    literally in several public model methods (e.g.
+    {meth}`~scvi.model.SCVI.get_normalized_expression`,
+    {meth}`~scvi.model.TOTALVI.get_protein_foreground_probability`) by applying the
+    missing `de_dsp` docstring processor, {pr}`3921`.
+
+#### Changed
+
+#### Removed
+
+### 1.5.0 (2026-07-08)
+
+#### Added
+
+- Add [scvi-tools MCP](https://scvi-tools-mcp.readthedocs.io/en/latest/index.html) package
+    that gives any MCP-compatible LLM access to scvi-tools knowledge.
+- Add {class}`~scvi.dataloaders.AnnbatchDataModule` for out-of-core dataloading via `annbatch`,
+    enabling memory-efficient training on large-scale datasets stored as sharded Zarr collections,
+    with support for batch covariates, {pr}`3620`.
+- Add support for rapids-singlecell, {pr}`3811`.
+- Add {class}`scvi.external.DRVI` for unsupervised disentangled representation learning of
+    single-cell omics, {pr}`3866`.
+- Add {class}`scvi.external.JointEmbeddingSCVI`, a self-supervised SCVI variant using binomial
+    thinning and a cross-correlation objective (CCO) for robust embeddings, {pr}`3883`.
+- Add {class}`scvi.external.CYTOVI` KNN imputation backend option to be cuML, {pr}`3821`.
+
+#### Fixed
+
+- Fix list of metrics to be recorded in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3816`.
+- Fix {class}`scvi.external.RESOLVI` preparing data for every load, {pr}`3887`.
+- Fix scArches query mapping for models using a batch embedding, {pr}`3879`.
+- Fix autotune CI installing a `setuptools` version that removed `pkg_resources`, breaking
+    `hyperopt` imports; pin `setuptools>=77.0.3,<82`, {pr}`3909`.
+
+#### Changed
+
+- Changed {class}`scvi.external.Tangram` backend to be in Pytorch, {pr}`3786`.
+- Consolidate parts of the training and data loading between {class}`~scvi.external.GIMVI`
+    and {class}`scvi.external.DIAGVI`, {pr}`3830`.
+- Support validation set in {class}`scvi.model.DestVI` training and raise clear errors for
+    unsupported validation in {class}`scvi.external.RESOLVI`, {pr}`3881`.
+- Extract {meth}`~scvi.nn.FCLayers._build_layer`, {meth}`~scvi.nn.FCLayers._is_linear_layer`,
+    {meth}`~scvi.nn.FCLayers._apply_batch_norm`, and {meth}`~scvi.nn.FCLayers._apply_layer`
+    from {class}`~scvi.nn.FCLayers` as overridable methods for easier inheritance, {pr}`3880`.
+
+#### Removed
+
+- Removed Jax support from SCVI-Tools, {pr}`3786`.
+
+## Version 1.4
+
+### 1.4.3 (2026-05-12)
+
+#### Added
+
+- Add support for Python 3.14, {pr}`3563`.
+- Add support for Pandas3, {pr}`3638`.
+- Add {class}`scvi.external.DIAGVI` for integrating unpaired single-cell datasets, {pr}`3575`.
+- Add MuData support to {class}`scvi.external.TOTALANVI` {pr}`3797`.
+
+#### Fixed
+
+- Fix PyTorch {class}`scvi.external.MRVI` to match JAX implementation architecture and work on GPU,
+    {pr}`3749`.
+- Fix {class}`~scvi.model.MULTIVI` modality reordering in {meth}`~scvi.model.MULTIVI.setup_mudata`
+    to avoid `AttributeError` when using mudata>=0.3, where `MuData.mod` is read-only {pr}`3776`.
+- Fix DE functionality in {class}`scvi.external.SysVI` {pr}`3783`.
+
+#### Changed
+
+- Update SCVI-Tools Hub models, {pr}`3733`.
+
+#### Removed
+
+- Removed grouped-label classification legacy code in {class}`scvi.model.SCANVI`,
+    {class}`scvi.external.TOTALANVI`, and {class}`scvi.external.METHYLANVI`, {pr}`3805`.
+
+### 1.4.2 (2026-02-26)
+
+#### Added
+
+- Add {meth}`~scvi.model.base.VAEMixin.differential_abundance`
+    and {meth}`~scvi.model.base.VAEMixin.get_aggregated_posterior`
+    functions to {class}`scvi.model.base.VAEMixin`, {pr}`3618`
+- Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
+    {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
+- Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
+- Add support for running scVI-Tools on TPU, {pr}`3690`.
+- Add support for logging validation metrics in MultiGPU, {pr}`3712`.
+- Add Support for MLX backend for Apple silicon with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
+- Add support for covariates and multiGPU in {class}`scvi.model.JaxSCVI`, {pr}`3717`.
+- Add support for size_factor in {class}`scvi.external.RESOLVI`, {pr}`3701`.
+
+#### Fixed
+
 - Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
-- Fix Integrated Gradients gets cont and categ covs in the the reverse order, {pr}`3660`.
+- Fix Integrated Gradients gets cont and categ covs in the reverse order, {pr}`3660`.
+- Fix minified adata load into non-minified model, {pr}`3691`.
 
 #### Changed
 
 - Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
+- Change explicit training configuration objects for scvi-tools, reducing reliance on loose kwargs
+    and improving clarity across training APIs, {pr}`3666`.
+- Change the default backend of {class}`scvi.external.MRVI` to torch instead of jax, {pr}`3717`.
 
 #### Removed
+
+- Removed all Jax tests from mandatory tests and put them under a special tag, {pr}`3703`.
 
 ### 1.4.1 (2025-12-10)
 
@@ -1097,6 +1198,7 @@ This release features a refactor of {class}`~scvi.model.DestVI` ([#1457]):
 1. We changed the weighting of the loss on the variances of beta and the prior of eta.
 
 ::: {note}
+
 Due to bug fixes listed above this version of {class}`~scvi.model.DestVI` is not backwards
 compatible. Despite instability in training in the outdated version, we were able to reproduce
 results generated with this code. We therefore do not strictly encourage it to rerun old experiments.

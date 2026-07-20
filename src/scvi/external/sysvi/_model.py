@@ -27,6 +27,7 @@ from scvi.model.base import (
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 
 from ._module import SysVAE
@@ -61,51 +62,70 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         prior: Literal["standard_normal", "vamp"] = "vamp",
         n_prior_components: int = 5,
         pseudoinputs_data_indices: np.array | None = None,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
-        if prior == "vamp":
-            if pseudoinputs_data_indices is not None:
-                assert pseudoinputs_data_indices.shape[0] == n_prior_components
-                assert pseudoinputs_data_indices.ndim == 1
-                if pseudoinputs_data_indices.max() >= self.summary_stats.n_cells:
-                    warnings.warn(
-                        "The maximum index in pseudoinputs_data_indices exceeds the number of "
-                        "cells. The parameter pseudoinputs_data_indices will be re-initialised. "
-                        "Note: If you are building a new model for mapping query onto a reference "
-                        "this is expected.",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
+        pseudoinput_data = None
+
+        if adata is not None:
+            if prior == "vamp":
+                if pseudoinputs_data_indices is not None:
+                    assert pseudoinputs_data_indices.shape[0] == n_prior_components
+                    assert pseudoinputs_data_indices.ndim == 1
+                    if pseudoinputs_data_indices.max() >= self.summary_stats.n_cells:
+                        warnings.warn(
+                            "The maximum index in pseudoinputs_data_indices exceeds the "
+                            "number of cells. The parameter pseudoinputs_data_indices will be "
+                            "re-initialised. Note: If you are building a new model for "
+                            "mapping query onto a reference this is expected.",
+                            UserWarning,
+                            stacklevel=settings.warnings_stacklevel,
+                        )
+                        n_prior_components = pseudoinputs_data_indices.shape[0]
+                        pseudoinputs_data_indices = None
+                if pseudoinputs_data_indices is None:
+                    pseudoinputs_data_indices = np.random.randint(
+                        0, self.summary_stats.n_cells, n_prior_components
                     )
-                    n_prior_components = pseudoinputs_data_indices.shape[0]
-                    pseudoinputs_data_indices = None
-            if pseudoinputs_data_indices is None:
-                pseudoinputs_data_indices = np.random.randint(
-                    0, self.summary_stats.n_cells, n_prior_components
-                )
-            pseudoinput_data = next(
-                iter(
-                    self._make_data_loader(
-                        adata=adata,
-                        indices=pseudoinputs_data_indices,
-                        batch_size=n_prior_components,
-                        shuffle=False,
+                pseudoinput_data = next(
+                    iter(
+                        self._make_data_loader(
+                            adata=adata,
+                            indices=pseudoinputs_data_indices,
+                            batch_size=n_prior_components,
+                            shuffle=False,
+                        )
                     )
                 )
+        else:
+            # Registry path: VampPrior pseudoinputs require AnnData access.
+            if prior == "vamp":
+                warnings.warn(
+                    "SysVI initialized from registry (annbatch path): VampPrior pseudoinputs "
+                    "cannot be computed without AnnData. Falling back to standard_normal prior.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+                prior = "standard_normal"
+
+        n_cats_per_cov = None
+        if adata is not None:
+            n_cats_per_cov = (
+                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                else None
             )
         else:
-            pseudoinput_data = None
-
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
+            cat_cov_sr = self.registry["field_registries"]["extra_categorical_covs"][
+                "state_registry"
+            ]
+            n_cats_per_cov = tuple(cat_cov_sr["n_cats_per_key"]) if cat_cov_sr else None
 
         self.module = SysVAE(
             n_input=self.summary_stats.n_vars,
@@ -145,7 +165,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         train_kwargs
             Training kwargs. Passed to `meth`:`scvi.model.base.BaseModelClass.train`.
         """
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         kl_weight_defaults = {"n_epochs_kl_warmup": 0, "n_steps_kl_warmup": 0}
         if any(v != plan_kwargs.get(k, v) for k, v in kl_weight_defaults.items()):
             warnings.warn(

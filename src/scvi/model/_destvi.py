@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING
 
@@ -9,13 +10,14 @@ import pandas as pd
 import torch
 from scipy.sparse import csr_matrix
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.model.base._archesmixin import _get_loaded_data
 from scvi.module import MRDeconv
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -92,6 +94,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         dropout_decoder: float,
         **module_kwargs,
     ):
+        warnings.warn(
+            "DESTVI is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         super().__init__(st_adata)
 
         self.module = self._module_cls(
@@ -614,14 +623,32 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        # A validation set is only meaningful when every spot-specific parameter is amortized.
+        # With amortization != "both", the proportions (`V`) and/or latents (`gamma`) are stored
+        # per spot and only optimized for the spots seen during training, so held-out validation
+        # spots keep their random initialization and the validation loss is not meaningful.
+        validation_requested = (
+            train_size < 1.0
+            or bool(validation_size)
+            or kwargs.get("early_stopping", False)
+            or kwargs.get("check_val_every_n_epoch", None) is not None
+        )
+        if validation_requested and self.module.amortization != "both":
+            raise ValueError(
+                "DestVI only supports a validation set (`train_size < 1.0`, `validation_size`, "
+                "`early_stopping`, or `check_val_every_n_epoch`) when `amortization='both'`. With "
+                f"`amortization={self.module.amortization!r}`, the per-spot parameters (`V` and/or"
+                "`gamma`) are not amortized and are trained only on the training spots, leaving "
+                "validation spots at their random initialization. Use `amortization='both'`, or "
+                "train on all spots with `train_size=1.0` and no early stopping / validation."
+            )
+
         update_dict = {
             "lr": lr,
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
         super().train(
             max_epochs=max_epochs,
             accelerator=accelerator,
@@ -652,7 +679,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         %(param_adata)s
         %(param_layer)s
         smoothed_layer
-            param that...
+            When provided, the model adds a spatial-smoothing regularization that encourages a
+            spot's inferred cell-type proportions to agree with those inferred from its
+            neighborhood, yielding spatially smoother deconvolution.
+            Optional; if ``None`` the regularization is disabled.
         %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())

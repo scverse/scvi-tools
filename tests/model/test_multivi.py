@@ -527,3 +527,24 @@ def test_multivi_wrong_modality_order():
     assert de_expression.shape[0] == n_genes
     de_expression = model.differential_expression(groupby="modality")
     assert de_expression.shape[0] == n_genes * groups
+
+
+@pytest.mark.parametrize("dispersion", ["gene"])
+@pytest.mark.parametrize("protein_dispersion", ["protein", "protein-batch"])
+def test_multivi_dispersion(dispersion: str, protein_dispersion: str):
+    mdata = synthetic_iid(return_mudata=True)
+    MULTIVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        modalities={
+            "rna_layer": "rna",
+            "protein_layer": "protein_expression",
+            "atac_layer": "accessibility",
+        },
+    )
+    model = MULTIVI(
+        mdata,
+        dispersion=dispersion,
+        protein_dispersion=protein_dispersion,
+    )
+    model.train(1)

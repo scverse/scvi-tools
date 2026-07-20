@@ -33,6 +33,7 @@ from scvi.model.base._save_load import (
 )
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
@@ -323,15 +324,12 @@ class TOTALVI(
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
             "n_steps_kl_warmup": n_steps_kl_warmup,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         data_splitter = self._data_splitter_cls(
@@ -399,6 +397,7 @@ class TOTALVI(
             libraries += [library.cpu()]
         return torch.cat(libraries).numpy()
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -592,6 +591,7 @@ class TOTALVI(
         else:
             return scale_list_gene, scale_list_pro
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_protein_foreground_probability(
         self,
@@ -1038,6 +1038,7 @@ class TOTALVI(
 
         return np.concatenate(scdl_list, axis=0)
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_feature_correlation_matrix(
         self,

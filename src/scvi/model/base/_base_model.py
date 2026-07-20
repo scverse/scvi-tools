@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 import pyro
 import rich.table
 import torch
@@ -50,20 +51,42 @@ from scvi.model.base._save_load import (
     _validate_var_names,
 )
 from scvi.model.utils import get_minified_adata_scrna, get_minified_mudata
-from scvi.utils import attrdict, setup_anndata_dsp
+from scvi.utils import attrdict, dependencies, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
 from . import _constants
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Literal
 
-    import pandas as pd
     from lightning import LightningDataModule
 
     from scvi._types import AnnOrMuData, MinifiedDataType
 
 logger = logging.getLogger(__name__)
+
+
+def _write_adata(adata, path, **kwargs):
+    """Write AnnData or MuData, skipping None layer keys for anndata 0.13+ compatibility."""
+    if not isinstance(adata, MuData):
+        adata.write(path, **kwargs)
+        return
+
+    from anndata._io.specs.registry import Writer
+
+    _orig_writer_write_elem = Writer.write_elem
+
+    def _safe_writer_write_elem(self, store, k, elem, **kw):
+        if k is None:
+            return
+        return _orig_writer_write_elem(self, store, k, elem, **kw)
+
+    Writer.write_elem = _safe_writer_write_elem
+    try:
+        adata.write(path, **kwargs)
+    finally:
+        Writer.write_elem = _orig_writer_write_elem
 
 
 _UNTRAINED_WARNING_MESSAGE = (
@@ -136,8 +159,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             # Suffix a registry instance variable with _ to include it when saving the model.
             self.registry_ = registry
             self.summary_stats = AnnDataManager._get_summary_stats_from_registry(registry)
-        elif (self.__class__.__name__ == "GIMVI") or (self.__class__.__name__ == "SCVI"):
-            # note some models do accept empty registry/adata (e.g.: gimvi)
+        elif (
+            (self.__class__.__name__ == "GIMVI")
+            or (self.__class__.__name__ == "SCVI")
+            or (self.__class__.__name__ == "DIAGVI")
+        ):
+            # note some models do accept empty registry/adata (e.g: gimvi)
             pass
         else:
             raise ValueError("adata or registry must be provided.")
@@ -149,6 +176,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
+        self._datamodule = None
         self.get_normalized_function_name_ = "get_normalized_expression"
         self.run_name_ = f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
         self.run_id_ = ""
@@ -187,14 +215,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """Manager instance associated with self.adata."""
         return self._adata_manager
 
-    def to_device(self, device: str | int):
+    def to_device(self, device: str | int | torch.device):
         """Move the model to the device.
 
         Parameters
         ----------
         device
             Device to move model to. Options: 'cpu' for CPU, integer GPU index (e.g., 0),
-            or 'cuda:X' where X is the GPU index (e.g. 'cuda:0'). See torch.device for more info.
+            'cuda:X' where X is the GPU index (e.g. 'cuda:0'), or a torch.device object
+            (including XLA devices for TPU). See torch.device for more info.
 
         Examples
         --------
@@ -204,7 +233,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model.to_device("cuda:0")  # moves model to GPU 0
         >>> model.to_device(0)  # also moves model to GPU 0
         """
-        my_device = torch.device(device)
+        # Handle XLA/TPU devices which are already torch.device objects
+        if isinstance(device, torch.device):
+            my_device = device
+        else:
+            my_device = torch.device(device)
         self.module.to(my_device)
 
     @property
@@ -548,6 +581,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                         "Cannot setup the provided AnnData."
                     )
                 method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+                if method_name == "setup_datamodule":
+                    method_name = "setup_anndata"
                 getattr(cls, method_name)(
                     adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
                 )
@@ -573,6 +608,64 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             return self.adata_manager.transfer_fields(adata, **kwargs)
         else:
             raise ValueError("Model need to be initialized with AnnData to transfer fields.")
+
+    def _collect_obs_from_dataloader(self, dataloader) -> pd.DataFrame:
+        """Collect decoded obs annotations from an inference dataloader."""
+        if dataloader is None:
+            raise ValueError("`dataloader` is required.")
+
+        registry = self.registry.get("field_registries", {})
+
+        def _to_numpy(value):
+            if isinstance(value, torch.Tensor):
+                return value.detach().cpu().numpy()
+            return np.asarray(value)
+
+        def _decode_categorical(values, mapping):
+            values = np.asarray(values).ravel().astype(int)
+            if mapping is None:
+                return values.astype(str)
+            mapping = np.asarray(mapping, dtype=object)
+            if mapping.ndim == 0:
+                return values.astype(str)
+            return mapping[values]
+
+        obs_rows = []
+        for batch in dataloader:
+            obs = {}
+            if "batch" in batch and "batch" in registry:
+                mapping = registry["batch"]["state_registry"].get("categorical_mapping")
+                original_key = registry["batch"]["state_registry"].get("original_key", "batch")
+                if original_key is not None and batch["batch"] is not None:
+                    obs[original_key] = _decode_categorical(batch["batch"], mapping)
+            if "labels" in batch and "labels" in registry:
+                mapping = registry["labels"]["state_registry"].get("categorical_mapping")
+                original_key = registry["labels"]["state_registry"].get("original_key", "labels")
+                if original_key is not None and batch["labels"] is not None:
+                    obs[original_key] = _decode_categorical(batch["labels"], mapping)
+            if "sample" in batch and "sample" in registry:
+                mapping = registry["sample"]["state_registry"].get("categorical_mapping")
+                original_key = registry["sample"]["state_registry"].get("original_key", "sample")
+                if original_key is not None and batch["sample"] is not None:
+                    obs[original_key] = _decode_categorical(batch["sample"], mapping)
+            if "extra_categorical_covs" in batch and "extra_categorical_covs" in registry:
+                field_keys = registry["extra_categorical_covs"]["state_registry"].get(
+                    "field_keys", []
+                )
+                mapping = registry["extra_categorical_covs"]["state_registry"].get("mapping", {})
+                values = _to_numpy(batch["extra_categorical_covs"])
+                for i, field_key in enumerate(field_keys):
+                    obs[field_key] = _decode_categorical(values[:, i], mapping[field_key])
+            if "extra_continuous_covs" in batch and "extra_continuous_covs" in registry:
+                field_keys = registry["extra_continuous_covs"]["state_registry"].get("columns", [])
+                values = _to_numpy(batch["extra_continuous_covs"])
+                for i, field_key in enumerate(field_keys):
+                    obs[field_key] = values[:, i]
+            if "size_factor" in batch:
+                obs["size_factor"] = _to_numpy(batch["size_factor"]).ravel()
+            obs_rows.append(pd.DataFrame(obs))
+
+        return pd.concat(obs_rows, axis=0).reset_index(drop=True)
 
     def _check_if_trained(self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE):
         """Check if the model is trained.
@@ -750,15 +843,26 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         save_kwargs = save_kwargs or {}
 
         if save_anndata:
-            file_suffix = ""
-            if isinstance(self.adata, AnnData):
-                file_suffix = SAVE_KEYS.ADATA_FNAME
-            elif isinstance(self.adata, MuData):
-                file_suffix = SAVE_KEYS.MDATA_FNAME
-            self.adata.write(
-                os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
-                **anndata_write_kwargs,
-            )
+            if self.adata is None:
+                import warnings
+
+                warnings.warn(
+                    "Model has no AnnData (trained via setup_annbatch); "
+                    "`save_anndata=True` has no effect.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            else:
+                file_suffix = ""
+                if isinstance(self.adata, AnnData):
+                    file_suffix = SAVE_KEYS.ADATA_FNAME
+                elif isinstance(self.adata, MuData):
+                    file_suffix = SAVE_KEYS.MDATA_FNAME
+                _write_adata(
+                    self.adata,
+                    os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
+                    **anndata_write_kwargs,
+                )
 
         model_save_path = os.path.join(dir_path, f"{file_name_prefix}{SAVE_KEYS.MODEL_FNAME}")
 
@@ -788,7 +892,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     "n_sample": datamodule.n_samples,
                     "n_vars": datamodule.n_vars,
                     "batch_labels": datamodule.batch_labels,
-                    "label_keys": datamodule.label_keys,
+                    "label_keys": getattr(datamodule, "label_keys", None),
                 }
             )
             if "datamodule" in user_attributes["init_params_"]["non_kwargs"]:
@@ -878,7 +982,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and (
             registry[_MODEL_NAME_KEY] != cls.__name__
-            and registry[_MODEL_NAME_KEY] not in allowed_classes_names_list
+            and registry[_MODEL_NAME_KEY] not in (allowed_classes_names_list or [])
         ):
             raise ValueError("It appears you are loading a model from a different class.")
 
@@ -899,20 +1003,34 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 )
 
         model = _initialize_model(cls, adata, registry, attr_dict, datamodule)
+        if datamodule is not None:
+            model._datamodule = datamodule
         pyro_param_store = model_state_dict.pop("pyro_param_store", None)
 
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
         if method_name == "setup_datamodule":
-            attr_dict["n_input"] = attr_dict["n_vars"]
-            attr_dict["n_continuous_cov"] = attr_dict["n_extra_continuous_covs"]
-            attr_dict["n_cats_per_cov"] = cls._get_decoder_cat_cov_shape(model.module)
-            module_exp_params = inspect.signature(model._module_cls).parameters.keys()
-            common_keys1 = list(attr_dict.keys() & module_exp_params)
-            common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
-            common_items1 = {key: attr_dict[key] for key in common_keys1}
-            common_items2 = {key: model.init_params_["non_kwargs"][key] for key in common_keys2}
-            module = model._module_cls(**common_items1, **common_items2)
-            model.module = module
+            if datamodule is not None:
+                # Full module recreation using datamodule-provided shapes.
+                attr_dict["n_input"] = attr_dict["n_vars"]
+                attr_dict["n_continuous_cov"] = attr_dict["n_extra_continuous_covs"]
+                attr_dict["n_cats_per_cov"] = cls._get_decoder_cat_cov_shape(model.module)
+                module_exp_params = inspect.signature(model._module_cls).parameters.keys()
+                common_keys1 = list(attr_dict.keys() & module_exp_params)
+                common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
+                common_items1 = {key: attr_dict[key] for key in common_keys1}
+                common_items2 = {
+                    key: model.init_params_["non_kwargs"][key] for key in common_keys2
+                }
+                if hasattr(model.module, "library_log_means"):
+                    common_items1["library_log_means"] = (
+                        model.module.library_log_means.cpu().numpy()
+                    )
+                if hasattr(model.module, "library_log_vars"):
+                    common_items1["library_log_vars"] = model.module.library_log_vars.cpu().numpy()
+                module = model._module_cls(**common_items1, **common_items2)
+                model.module = module
+            # else: _initialize_model already built the module correctly from registry;
+            # skip recreation to avoid losing params not in the module's explicit signature.
         else:
             model.module.on_load(model, pyro_param_store=pyro_param_store)
         model.module.load_state_dict(model_state_dict)
@@ -921,18 +1039,38 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         model.module.eval()
         if adata:
+            # Check if the saved model supports minified data by looking at registry
+            model_supports_minified = (
+                _FIELD_REGISTRIES_KEY in registry
+                and REGISTRY_KEYS.MINIFY_TYPE_KEY in registry[_FIELD_REGISTRIES_KEY]
+            )
+            # Check if the adata has latent params, which allows minify_adata() to be called
+            adata_obsm = getattr(adata, "obsm", None) or {}
+            adata_has_latent_params = (
+                "_scvi_latent_qzm" in adata_obsm and "_scvi_latent_qzv" in adata_obsm
+            )
             if type(adata) is MuData:
+                first_mod = adata[adata.mod_names[0]]
+                mudata_has_latent_params = "_scvi_latent_qzm" in getattr(
+                    first_mod, "obsm", {}
+                ) and "_scvi_latent_qzv" in getattr(first_mod, "obsm", {})
                 if (
-                    sparse.issparse(adata[adata.mod_names[0]].X)
-                    and adata[adata.mod_names[0]].X.nnz == 0
-                    and new_adata is None
+                    sparse.issparse(first_mod.X)
+                    and first_mod.X.nnz == 0
+                    and not model_supports_minified
+                    and not mudata_has_latent_params
                 ):
                     raise ValueError(
                         "It appears you are trying to load a non-minified model "
                         "with minified mudata"
                     )
             if type(adata) is AnnData:
-                if sparse.issparse(adata.X) and adata.X.nnz == 0 and new_adata is None:
+                if (
+                    sparse.issparse(adata.X)
+                    and adata.X.nnz == 0
+                    and not model_supports_minified
+                    and not adata_has_latent_params
+                ):
                     raise ValueError(
                         "It appears you are trying to load a non-minified model "
                         "with minified adata"
@@ -1037,6 +1175,352 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
         on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
         """
+
+    @classmethod
+    @dependencies("annbatch", "zarr")
+    def setup_annbatch(
+        cls,
+        collection_path: str | None = None,
+        paths: list[str] | None = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        sample_key: str | None = None,
+        unlabeled_category: str = "Unknown",
+        layer: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        rebuild: bool = True,
+        batch_size: int = 4096,
+        chunk_size: int = 256,
+        preload_nchunks: int = 32,
+        preload_to_gpu: bool = True,
+        dataset_size: int | str = "20GB",
+        shuffle: bool = False,
+        var_subset: list[str] | None = None,
+        merge: Literal["same", "unique", "first", "only"] | None = None,
+        adatas: list[AnnData] | None = None,
+        use_class_sampler: bool = False,
+        class_sampler_key: str | None = None,
+        class_weights=None,
+    ):
+        """Set up a model from on-disk AnnData files via the annbatch streaming loader.
+
+        Builds (or reuses) a zarr-backed :class:`~annbatch.DatasetCollection` from the supplied
+        h5ad file paths, then wraps it in a
+        :class:`~scvi.dataloaders.AnnbatchDataModule` ready for training.
+
+        Parameters
+        ----------
+        collection_path
+            Directory where the zarr collection is written (or already exists).  If ``None``
+            (default), a path is auto-generated as ``"./{ModelName}_annbatch.zarr"`` in the
+            current working directory.
+        paths
+            Paths to h5ad files that make up the training dataset.  If ``None``, an existing
+            collection at ``collection_path`` is opened without rebuilding — useful when the
+            zarr store was created by a previous call.  Must be provided when the store does
+            not exist yet.
+        batch_key
+            Column in ``obs`` to use as the batch variable.
+        labels_key
+            Column in ``obs`` to use as the cell-type / label variable.
+        sample_key
+            Column in ``obs`` to use as the sample variable. Used by models like MrVI.
+        unlabeled_category
+            Value used to mark unlabeled cells in ``labels_key``.  Required by semi-supervised
+            models such as SCANVI.  Defaults to ``"Unknown"``.
+        layer
+            Layer in the h5ad files to use as the count matrix.  ``None`` uses ``adata.X``
+            (falling back to ``adata.raw.X`` when a raw slot exists).
+        categorical_covariate_keys
+            Additional categorical covariate columns in ``obs``.
+        continuous_covariate_keys
+            Additional continuous covariate columns in ``obs``.
+        rebuild
+            If ``True``, always rebuild the zarr collection even if it already exists on disk.
+            If ``False`` (default), reuse an existing collection and skip the (potentially
+            expensive) ``add_adatas`` step.
+        batch_size
+            Number of cells per batch yielded by the :class:`~annbatch.Loader`.
+        chunk_size
+            Number of cells loaded from disk contiguously per read.
+        preload_nchunks
+            Number of chunks to preload and shuffle in memory.
+        preload_to_gpu
+            Whether the loader should move data to GPU before yielding.
+        dataset_size
+            Number of observations to load into memory for shuffling / pre-processing when
+            building the collection, or annbatch's human-readable size strings, e.g. ``"20GB"``.
+        shuffle
+            Whether to pre-shuffle cells when building the collection.
+        var_subset
+            Optional list of gene names to restrict the collection to (passed as
+            ``var_subset`` to ``add_adatas``).
+        merge
+            How annbatch should merge ``var`` metadata across inputs. Passed through to
+            :meth:`annbatch.DatasetCollection.add_adatas`.
+
+        Returns
+        -------
+        :class:`~scvi.dataloaders.AnnbatchDataModule`
+            A configured datamodule whose ``registry`` can be passed directly to the model
+            constructor, e.g. ``model = SCVI(registry=dm.registry)``.
+
+        Notes
+        -----
+        After training, saving and reloading the model requires reconstructing the datamodule
+        manually and passing it to :meth:`~scvi.model.base.BaseModelClass.load` via the
+        ``datamodule`` argument — the same pattern used by all custom datamodules.
+        """
+        from scvi.dataloaders import AnnbatchDataModule
+
+        # Validate mutually exclusive inputs.
+        if adatas is not None and paths is not None:
+            raise ValueError(
+                "`adatas` and `paths` are mutually exclusive. Provide one or the other."
+            )
+
+        # ClassSampler validation.
+        if use_class_sampler:
+            if adatas is not None:
+                raise ValueError(
+                    "ClassSampler is not supported with the in-memory path (`adatas`). "
+                    "Use the zarr path (`paths`/`collection_path`) instead."
+                )
+            _class_key = class_sampler_key or labels_key
+            if _class_key is None:
+                raise ValueError(
+                    "`use_class_sampler=True` requires `labels_key` or `class_sampler_key` "
+                    "to identify the obs column for class assignment."
+                )
+            if shuffle:
+                warnings.warn(
+                    "`shuffle=True` destroys class locality required by ClassSampler. "
+                    "ClassSampler may raise during training.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        else:
+            _class_key = None
+
+        from importlib.util import find_spec
+
+        if preload_to_gpu and find_spec("cupy") is None:
+            warnings.warn(
+                "`preload_to_gpu=True` requires cupy, which is not installed. "
+                "Falling back to `preload_to_gpu=False`.",
+                UserWarning,
+                stacklevel=2,
+            )
+            preload_to_gpu = False
+
+        if adatas is not None:
+            # ------------------------------------------------------------------ #
+            # In-memory path: use Loader.add_adata(); no zarr needed.
+            # ------------------------------------------------------------------ #
+            if collection_path is not None:
+                warnings.warn(
+                    "`collection_path` is ignored when `adatas` is provided.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            import anndata as ad
+            import zarr
+            from annbatch import Loader
+
+            def _wrap_sparse_as_dataset(adata: ad.AnnData) -> ad.AnnData:
+                """Wrap csr_matrix/csr_array X in CSRDataset via in-memory zarr.
+
+                Avoids a segfault in annbatch 0.2.0's compiled _csr_subset_rows extension.
+                """
+                import scipy.sparse as sp
+
+                if not isinstance(adata.X, (sp.csr_matrix, sp.csr_array)):
+                    return adata
+                store = zarr.storage.MemoryStore()
+                root = zarr.open(store, mode="w")
+                with ad.settings.override(zarr_write_format=3):
+                    ad.io.write_elem(root, "X", adata.X)
+                wrapped = adata.copy()
+                wrapped.X = ad.io.sparse_dataset(root["X"])
+                return wrapped
+
+            ds = Loader(
+                batch_size=batch_size,
+                chunk_size=chunk_size,
+                preload_nchunks=preload_nchunks,
+                preload_to_gpu=preload_to_gpu,
+                to_torch=True,
+            )
+            for adata in adatas:
+                ds.add_adata(_wrap_sparse_as_dataset(adata))
+            var_names = list(adatas[0].var_names)
+        else:
+            # ------------------------------------------------------------------ #
+            # Zarr path (original logic).
+            # ------------------------------------------------------------------ #
+            import anndata as ad
+            import zarr
+            from annbatch import DatasetCollection, Loader
+
+            # Configure zarrs codec pipeline (ships with annbatch[zarrs] extra).
+            zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+            # Default collection paths derived from the model class name.
+            if collection_path is None:
+                collection_path = f"./{cls.__name__.lower()}_annbatch.zarr"
+
+            obs_keys = [k for k in [batch_key, labels_key, sample_key] if k is not None]
+            if categorical_covariate_keys:
+                obs_keys += list(categorical_covariate_keys)
+            if continuous_covariate_keys:
+                obs_keys += list(continuous_covariate_keys)
+
+            def _get_var_names_from_path(path: str) -> list[str]:
+                import h5py
+
+                with h5py.File(path, "r") as f:
+                    if layer is None and "raw" in f and "var" in f["raw"]:
+                        var_grp = f["raw/var"]
+                    else:
+                        var_grp = f["var"]
+                    if "_index" in var_grp:
+                        idx_key = var_grp.attrs.get("_index", "_index")
+                    else:
+                        idx_key = var_grp.attrs.get("_index", None)
+                    if idx_key and idx_key in var_grp:
+                        return list(var_grp[idx_key].asstr()[:])
+                    # fallback: try common index column names
+                    for col in ("_index", "index", "gene_ids", "gene_names"):
+                        if col in var_grp:
+                            return list(var_grp[col].asstr()[:])
+                    raise ValueError(f"Cannot find var index in {path}")
+
+            def _get_var_names_from_collection(store_path: str) -> list[str]:
+                store = zarr.open(store_path, mode="r")
+                # annbatch stores datasets as numbered groups inside the store
+                for key in store.keys():
+                    grp = store[key]
+                    if "var" in grp:
+                        var_grp = ad.experimental.read_lazy(grp)
+                        var_df = (
+                            var_grp.var.to_memory()
+                            if hasattr(var_grp.var, "to_memory")
+                            else var_grp.var
+                        )
+                        return list(var_df.index)
+                raise ValueError(
+                    f"Could not read var names from existing collection at '{store_path}'. "
+                    "The store may be empty or malformed."
+                )
+
+            def _load_adata_from_path(path: str) -> ad.AnnData:
+                import h5py
+
+                # Use h5py directly to avoid ad.experimental.read_lazy, which creates
+                # dask arrays for ALL elements including uns — breaking on zero-shape datasets.
+                f = h5py.File(path, "r")
+                if layer is not None:
+                    x = ad.experimental.read_elem_lazy(f[f"layers/{layer}"])
+                    var = ad.io.read_elem(f["var"])
+                elif "raw" in f and "X" in f["raw"]:
+                    x = ad.experimental.read_elem_lazy(f["raw/X"])
+                    var = ad.io.read_elem(f["raw/var"])
+                else:
+                    x = ad.experimental.read_elem_lazy(f["X"])
+                    var = ad.io.read_elem(f["var"])
+                # Store all obs so the zarr collection can be reused with different key sets.
+                obs = ad.io.read_elem(f["obs"])
+                return ad.AnnData(X=x, obs=obs, var=var)
+
+            def _load_adata_from_zarr(g: zarr.Group) -> ad.AnnData:
+                x_elem = g["X"]
+                x = ad.io.sparse_dataset(x_elem) if isinstance(x_elem, zarr.Group) else x_elem
+                obs = ad.experimental.read_lazy(g).obs[obs_keys].to_memory() if obs_keys else None
+                return ad.AnnData(X=x, obs=obs)
+
+            def _build_collection(store_path: str, file_paths: list[str]) -> DatasetCollection:
+                store = zarr.open(store_path, mode="w")
+                coll = DatasetCollection(store)
+                # annbatch shards the collection, which requires the zarr v3 write format.
+                # anndata defaults to v2, so override it for the duration of the build.
+                with ad.settings.override(zarr_write_format=3):
+                    coll.add_adatas(
+                        adata_paths=file_paths,
+                        shuffle=shuffle,
+                        dataset_size=dataset_size,
+                        var_subset=var_subset,
+                        merge=merge,
+                        load_adata=_load_adata_from_path,
+                    )
+                return coll
+
+            def _open_collection(store_path: str) -> DatasetCollection:
+                store = zarr.open(store_path, mode="r")
+                return DatasetCollection(store)
+
+            collection_exists = os.path.exists(collection_path)
+            if rebuild and paths is None:
+                raise ValueError("`paths` must be provided when `rebuild=True`.")
+            if not collection_exists and paths is None:
+                raise ValueError(
+                    f"No existing collection found at '{collection_path}'. "
+                    "Provide `paths` to build one."
+                )
+
+            needs_build = rebuild or not collection_exists
+            if needs_build:
+                collection = _build_collection(collection_path, paths)
+            else:
+                collection = _open_collection(collection_path)
+                if collection.is_empty:
+                    if paths is None:
+                        raise ValueError(
+                            f"Existing zarr store at '{collection_path}' appears incomplete and "
+                            "`paths` was not provided to rebuild it."
+                        )
+                    warnings.warn(
+                        f"Existing zarr store at '{collection_path}' appears incomplete "
+                        "(missing annbatch encoding marker). Rebuilding from scratch.",
+                        stacklevel=2,
+                    )
+                    collection = _build_collection(collection_path, paths)
+
+            if var_subset is not None:
+                var_names = list(var_subset)
+            elif paths is not None:
+                var_names = _get_var_names_from_path(paths[0])
+            else:
+                var_names = _get_var_names_from_collection(collection_path)
+
+            ds = Loader(
+                batch_size=batch_size,
+                chunk_size=chunk_size,
+                preload_nchunks=preload_nchunks,
+                preload_to_gpu=preload_to_gpu,
+                to_torch=True,
+            )
+            ds.use_collection(collection, load_adata=_load_adata_from_zarr)
+
+        return AnnbatchDataModule(
+            ds,
+            batch_key=batch_key,
+            label_key=labels_key,
+            sample_key=sample_key,
+            unlabeled_category=unlabeled_category,
+            model_name=cls.__name__,
+            batch_size=batch_size,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            var_names=var_names,
+            layer=layer,
+            chunk_size=chunk_size,
+            preload_nchunks=preload_nchunks,
+            preload_to_gpu=preload_to_gpu,
+            shuffle=shuffle,
+            class_sampler_key=_class_key,
+            class_weights=class_weights,
+        )
 
     @staticmethod
     def view_setup_args(dir_path: str, prefix: str | None = None) -> None:
@@ -1246,7 +1730,29 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self._registry[_SETUP_ARGS_KEY].update(setup_method_args)
 
     def get_normalized_expression(self, *args, **kwargs):
+        """Not implemented for this model class.
+
+        Available in RNA models that inherit from
+        :class:`~scvi.model.base.RNASeqMixin`.
+
+        Raises
+        ------
+        NotImplementedError
+        """
         msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
+
+    def differential_abundance(self, *args, **kwargs):
+        """Not implemented for this model class.
+
+        Available in models that inherit from
+        :class:`~scvi.model.base.VAEMixin`.
+
+        Raises
+        ------
+        NotImplementedError
+        """
+        msg = f"differential_abundance is not implemented for {self.__class__.__name__}."
         raise NotImplementedError(msg)
 
 

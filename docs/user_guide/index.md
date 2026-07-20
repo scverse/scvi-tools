@@ -54,6 +54,12 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/velovi`
      - Deep generative modeling of transcriptional dynamics for RNA velocity analysis in single cells
      - :cite:p:`GayosoWeiler23`
+   * - :doc:`/user_guide/models/drvi`
+     - Unsupervised deep disentangled representation learning of single-cell omics
+     - :cite:p:`Moinfar2024`
+   * - :doc:`/user_guide/models/jointembeddingscvi`
+     - Improving SCVI for low-count cells through self-supervised augmentation
+     - :cite:p:`Svensson26`
 ```
 
 ## ATAC-seq analysis
@@ -89,10 +95,10 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
    * - :doc:`/user_guide/models/methylvi`
      - Anlaysis of single-cell bisulfite data from several sequencing platforms
-     - :cite:p:`Weinberger2023a`
+     - :cite:p:`Weinberger26`
    * - :doc:`/user_guide/models/methylanvi`
      - MethylVI tasks along with cell type label transfer from reference, seed labeling
-     - :cite:p:`Weinberger2023a`
+     - :cite:p:`Weinberger26`
 ```
 
 ## Cytometry analysis
@@ -127,7 +133,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`GayosoSteier21`
    * - :doc:`/user_guide/models/totalanvi`
      - A probabilistic generative model for single-cell RNA and CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer both protein expression and cell states
-     - :cite:p:`Mark25`
+     - :cite:p:`Mark26`
 ```
 
 ### Multiome
@@ -143,6 +149,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/multivi`
      - Integration of paired/unpaired multiome data, missing modality imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`AshuachGabitto21`
+   * - :doc:`/user_guide/models/diagvi`
+     - Diagonal integration of unpaired multiome data, dimensionality reduction, cross-modality imputation, cell label transfer
+     - []
 
 ```
 
@@ -189,7 +198,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/amortizedlda`
      - Topic modeling
      - :cite:p:`Blei03`
-   * - :doc:`/tutorials/notebooks/hub/scvi_hub_intro_and_download`
+   * - :doc:`Scvi-Hub </tutorials/notebooks/hub/scvi_hub_intro_and_download>`
      - Scvi-hub: an actionable repository for model-driven single-cell analysis usign Hugging Face Hub
      - :cite:p:`Ergen25-2`
 

@@ -122,7 +122,7 @@ def test_setup_mudata_default_batch():
 def test_setup_mudata_nan_batch():
     # test error is thrown when a categorical obs field contains nans
     adata = synthetic_iid()
-    adata.obs["batch"][:10] = np.nan
+    adata.obs.loc[adata.obs.index[:10], "batch"] = np.nan
     mdata = mudata.MuData({"rna": adata})
     with pytest.raises(ValueError):
         generic_setup_mudata_manager(mdata, layer_mod="rna", batch_mod="rna", batch_key="batch")
@@ -138,7 +138,9 @@ def test_save_setup_mudata(save_path):
         batch_key="batch",
     )
     temp_path = os.path.join(save_path, "test.h5mu")
-    mdata.write(temp_path)
+    from scvi.model.base._base_model import _write_adata
+
+    _write_adata(mdata, temp_path)
     mudata.read(temp_path)
 
 
@@ -252,7 +254,7 @@ def test_transfer_fields_diff_batch_mapping():
     batch_mapping = adata1_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).categorical_mapping
     print(batch_mapping)
     correct_batch = np.where(batch_mapping == "batch_1")[0][0]
-    assert adata2.obs["_scvi_batch"][0] == correct_batch
+    assert adata2.obs["_scvi_batch"]["0"] == correct_batch
 
 
 def test_transfer_fields_missing_batch():
@@ -287,7 +289,7 @@ def test_transfer_fields_default_batch():
         mdata1, layer_mod="rna", batch_mod="rna", batch_key=None
     )
     adata1_manager.transfer_fields(mdata2)
-    assert adata2.obs["_scvi_batch"][0] == 0
+    assert adata2.obs["_scvi_batch"]["0"] == 0
 
 
 def test_transfer_fields_covariates():

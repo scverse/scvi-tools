@@ -77,7 +77,7 @@ def test_solo_scvi_labels(save_path):
 def test_solo_from_scvi_errors():
     adata = synthetic_iid()
     adata.obs["continuous_covariate"] = np.random.normal(size=(adata.n_obs, 1))
-    adata.obs["categorical_covariate"] = np.random.choice(["a", "b", "c"], size=(adata.n_obs, 1))
+    adata.obs["categorical_covariate"] = np.random.choice(["a", "b", "c"], size=(adata.n_obs,))
 
     # no batch key, restrict_to_batch
     SCVI.setup_anndata(adata, labels_key="labels")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -9,7 +10,7 @@ import pandas as pd
 import pyro
 from pyro.infer import Trace_ELBO
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.data.fields import (
@@ -17,6 +18,7 @@ from scvi.data.fields import (
     CategoricalObsField,
     LabelsWithUnlabeledObsField,
     LayerField,
+    NumericalObsField,
     ObsmField,
 )
 from scvi.dataloaders import AnnTorchDataset
@@ -25,6 +27,7 @@ from scvi.model._utils import (
 )
 from scvi.model.base import ArchesMixin, BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.model.base._de_core import _de_core
+from scvi.train._config import merge_kwargs
 from scvi.utils import de_dsp, setup_anndata_dsp
 
 from ._module import RESOLVAE
@@ -109,6 +112,13 @@ class RESOLVI(
         downsample_counts=True,
         **model_kwargs,
     ):
+        warnings.warn(
+            "RESOLVI is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         pyro.clear_param_store()
 
         super().__init__(adata)
@@ -219,7 +229,25 @@ class RESOLVI(
             List of parameters to train if running model in Arches mode.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
+
+        Notes
+        -----
+        RESOLVI trains with Pyro SVI and maintains per-cell global parameters, so it does not
+        support a held-out validation set. ``train_size`` must be ``1.0`` and ``early_stopping``
+        is not available.
         """
+        train_size = kwargs.pop("train_size", 1.0)
+        if train_size != 1.0:
+            raise ValueError(
+                "RESOLVI does not support a validation set: it uses Pyro SVI with per-cell "
+                f"global parameters, so `train_size` must be 1.0 (got {train_size})."
+            )
+        if kwargs.pop("early_stopping", False):
+            raise ValueError(
+                "RESOLVI does not support `early_stopping` because it trains without a "
+                "validation set (`train_size` must be 1.0)."
+            )
+
         blocked = self._block_parameters.copy()
         for name, param in self.module.named_parameters():
             if not param.requires_grad:
@@ -241,8 +269,7 @@ class RESOLVI(
 
         optim = pyro.optim.Adam(per_param_callable)
 
-        if plan_kwargs is None:
-            plan_kwargs = {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         plan_kwargs.update(
             {
                 "optim_kwargs": {"lr": lr, "weight_decay": weight_decay, "eps": eps},
@@ -274,6 +301,7 @@ class RESOLVI(
         layer: str | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
+        size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         prepare_data: bool | None = True,
         prepare_data_kwargs: dict = None,
@@ -288,6 +316,10 @@ class RESOLVI(
         %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
+        size_factor_key
+            Key in ``adata.obs`` corresponding to pre-computed size factors.
+            This is the physical size of a cell (e.g. cell volume) and will be used to replace the
+            library size if size_scaling is True.
         %(param_cat_cov_keys)s
         prepare_data
             If True, prepares AnnData for training. Computes spatial neighbors and distances.
@@ -323,11 +355,26 @@ class RESOLVI(
         if prepare_data:
             if prepare_data_kwargs is None:
                 prepare_data_kwargs = {}
-            RESOLVI._prepare_data(adata, batch_key=batch_key, **prepare_data_kwargs)
+            effective_config = {"batch_key": batch_key, **prepare_data_kwargs}
+            stored_config = adata.uns.get("_resolvi_prepare_data_config", None)
+            neighbors_valid = (
+                stored_config == effective_config
+                and "index_neighbor" in adata.obsm
+                and "distance_neighbor" in adata.obsm
+                and int(adata.obsm["index_neighbor"].max()) < adata.n_obs
+            )
+            if not neighbors_valid:
+                print(
+                    "Preparing data for training. This may take a while. "
+                    "RAPIDS SingleCell will be used if installed."
+                )
+                RESOLVI._prepare_data(adata, batch_key=batch_key, **prepare_data_kwargs)
+                adata.uns["_resolvi_prepare_data_config"] = effective_config
 
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             ObsmField("index_neighbor", "index_neighbor"),
             ObsmField("distance_neighbor", "distance_neighbor"),
             CategoricalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
@@ -345,7 +392,7 @@ class RESOLVI(
         if slice_key is not None:
             batch_key = slice_key
         try:
-            import scanpy
+            import scanpy as sc
             from sklearn.neighbors._base import _kneighbors_from_graph
         except ImportError as err:
             raise ImportError(
@@ -366,14 +413,12 @@ class RESOLVI(
         for index in indices:
             sub_data = adata[index].copy()
             try:
-                import rapids_singlecell
+                import rapids_singlecell as rsc
 
                 print("RAPIDS SingleCell is installed and can be imported")
-                rapids_singlecell.pp.neighbors(
-                    sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep
-                )
+                rsc.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             except ImportError:
-                scanpy.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
+                sc.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             distances = sub_data.obsp["distances"] ** 2
 
             distance_neighbor[index, :], index_neighbor_batch = _kneighbors_from_graph(
@@ -386,6 +431,22 @@ class RESOLVI(
         adata.obsm["distance_neighbor"] = distance_neighbor
 
     def compute_dataset_dependent_priors(self, n_small_genes=None):
+        """Compute dataset-dependent prior parameters for the ResolVI model.
+
+        Estimates background expression ratio and spatial kernel size from the data,
+        which are used as priors during training.
+
+        Parameters
+        ----------
+        n_small_genes
+            Number of low-expressed genes used to estimate the background ratio.
+            If ``None``, defaults to ``n_genes // 50``.
+
+        Returns
+        -------
+        dict with keys ``"background_ratio"``, ``"median_distance"``,
+        ``"mean_log_counts"``, and ``"std_log_counts"``.
+        """
         x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         n_small_genes = x.shape[1] // 50 if n_small_genes is None else int(n_small_genes)
         # Computing library size over low-expressed genes (expectation for the background).
@@ -430,6 +491,9 @@ class RESOLVI(
         silent: bool = False,
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
+        n_samples: int = 5,
+        size_scaling: bool = False,
+        library_scaling: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -455,9 +519,20 @@ class RESOLVI(
         %(de_fdr_target)s
         %(de_silent)s
         weights
+            Precomputed weight for importance sampling. If `uniform` no importance sampling is
+            performed.
         filter_outlier_cells
             Whether to filter outlier cells with
-            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells
+        n_samples
+            Number of posterior samples to use for estimation.
+        size_scaling
+            If True, will scale normalized expression by size factors (e.g. cell volume).
+            This needs to be setup in :meth:`~scvi.external.RESOLVI.setup_anndata` with
+            `size_factor_key`. False by default.
+        library_scaling
+            If True, will scale normalized expression to library size. This is useful for skewed
+            gene panels if library size normalization is detrimental. False by default.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -468,12 +543,16 @@ class RESOLVI(
         adata = self._validate_anndata(adata)
 
         model_fn = partial(
-            self.get_normalized_expression_importance,
+            self.get_normalized_expression_importance
+            if weights == "importance"
+            else self.get_normalized_expression,
             return_numpy=True,
-            n_samples=5,
+            n_samples=n_samples,
             batch_size=batch_size,
             weights=weights,
             return_mean=False,
+            size_scaling=size_scaling,
+            library_scaling=library_scaling,
         )
 
         representation_fn = self.get_latent_representation if filter_outlier_cells else None

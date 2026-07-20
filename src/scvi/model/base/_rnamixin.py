@@ -17,6 +17,7 @@ from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._de_core import _de_core
+from scvi.model.utils import _de_core_for_annbatch
 from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import de_dsp, dependencies, track, unsupported_if_adata_minified
 
@@ -153,6 +154,7 @@ class RNASeqMixin:
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
         return log_probs.exp().numpy()
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -375,6 +377,7 @@ class RNASeqMixin:
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         importance_weighting_kwargs: dict | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -406,6 +409,8 @@ class RNASeqMixin:
         importance_weighting_kwargs
             Keyword arguments passed into
             :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
+        dataloader
+            Inference dataloader to materialize when the model was initialized without AnnData.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -413,6 +418,40 @@ class RNASeqMixin:
         -------
         Differential expression DataFrame.
         """
+        if adata is None and self.adata is None:
+            if dataloader is None:
+                raise ValueError("Pass `adata` or an inference dataloader.")
+
+            importance_weighting_kwargs = importance_weighting_kwargs or {}
+            obs = self._collect_obs_from_dataloader(dataloader)
+            col_names = np.asarray(self.get_var_names())
+            model_fn = partial(
+                self.get_normalized_expression,
+                dataloader=dataloader,
+                return_numpy=True,
+                return_mean=False,
+                batch_size=batch_size,
+                weights=weights,
+                **importance_weighting_kwargs,
+            )
+            return _de_core_for_annbatch(
+                dataloader,
+                model_fn,
+                obs,
+                groupby,
+                group1,
+                group2,
+                idx1,
+                idx2,
+                all_stats,
+                col_names,
+                mode,
+                delta,
+                fdr_target,
+                silent,
+                **kwargs,
+            )
+
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
         importance_weighting_kwargs = importance_weighting_kwargs or {}
@@ -659,6 +698,7 @@ class RNASeqMixin:
 
         return np.concatenate(data_loader_list, axis=0)
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_feature_correlation_matrix(
         self,
