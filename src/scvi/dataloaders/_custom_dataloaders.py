@@ -130,9 +130,11 @@ class MappedCollectionDataModule(LightningDataModule):
         self._validset.close()
 
     def train_dataloader(self) -> DataLoader:
+        """Create the train data loader."""
         return self._create_dataloader(shuffle=self.shuffle)
 
     def val_dataloader(self) -> DataLoader:
+        """Create the validation data loader."""
         return self._create_dataloader_val(shuffle=self.shuffle)
 
     def inference_dataloader(
@@ -638,6 +640,7 @@ class TileDBDataModule(LightningDataModule):
 
     @dependencies("tiledbsoma_ml")
     def train_dataloader(self) -> DataLoader:
+        """Create the train data loader."""
         from tiledbsoma_ml import experiment_dataloader
 
         return experiment_dataloader(
@@ -647,6 +650,7 @@ class TileDBDataModule(LightningDataModule):
 
     @dependencies("tiledbsoma_ml")
     def val_dataloader(self) -> DataLoader:
+        """Create the validation data loader."""
         from tiledbsoma_ml import experiment_dataloader
 
         if self.val_dataset is not None:
@@ -1206,11 +1210,13 @@ class AnnbatchDataModule(LightningDataModule):
         return loader
 
     def train_dataloader(self):
+        """Create the train data loader."""
         if self._train_mask is not None:
             return self._loader_with_mask(self._train_mask, shuffle=self._shuffle_train)
         return self.dataset
 
     def val_dataloader(self):
+        """Create the validation data loader."""
         if self._val_mask is not None:
             return self._loader_with_mask(self._val_mask, shuffle=False)
         return []
