@@ -246,12 +246,13 @@ html_theme_options = {
     "repository_branch": version,
 }
 
-# sphinx-book-theme's default sidebar template list includes search-button-field.html,
-# a second search box shown at the top of the sidebar. We already have Sphinx's own
-# quick-search box there (searchbox.html), so drop the duplicate.
-html_sidebars = {
-    "**": ["navbar-logo.html", "icon-links.html", "sbt-sidebar-nav.html"],
-}
+# On Read the Docs, sphinx-book-theme's default sidebar template list includes
+# search-button-field.html, a second search box shown alongside RTD's own search UI.
+# Keep the default sidebar templates for local builds so they retain a search box.
+if os.environ.get("READTHEDOCS") == "True":
+    html_sidebars = {
+        "**": ["navbar-logo.html", "icon-links.html", "sbt-sidebar-nav.html"],
+    }
 
 pygments_style = "default"
 
