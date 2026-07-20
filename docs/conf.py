@@ -139,6 +139,7 @@ myst_enable_extensions = [
 myst_url_schemes = ("http", "https", "mailto")
 # Auto-generate #slug anchors for headings so in-page links like
 # [prerequisites](#prerequisites) resolve (up to h4, the deepest level used in docs).
+myst_heading_anchors = 4
 nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
@@ -240,11 +241,12 @@ html_theme_options = {
     "use_repository_button": True,
     "logo_only": True,
     "show_toc_level": 1,
+    "navbar_persistent": [],
+    "article_header_end": ["article-header-buttons-no-search.html"],
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
     "path_to_docs": "docs/",
     "repository_branch": version,
 }
-
 
 pygments_style = "default"
 
