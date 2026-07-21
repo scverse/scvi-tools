@@ -38,6 +38,32 @@ _ASHA_DEFAULT_KWARGS = {
 
 logger = logging.getLogger(__name__)
 
+
+def _write_mudata_compat(mdata: MuData, path: str) -> None:
+    """Write MuData, compatible with anndata >= 0.13.0.
+
+    In anndata >= 0.13.0, the X matrix is backed by layers[None]. mudata's
+    write_h5mu calls dict(adata.layers) which includes this None key, causing
+    anndata's write_elem to fail. We temporarily patch mudata's write_elem
+    reference to filter None from layers dicts, matching what anndata's own
+    h5ad writer does internally.
+    """
+    import mudata._core.io as _mudata_io
+
+    _orig = _mudata_io.write_elem
+
+    def _filtered(store, k, elem, **kwargs):
+        if k == "layers" and isinstance(elem, dict) and None in elem:
+            elem = {key: val for key, val in elem.items() if key is not None}
+        return _orig(store, k, elem, **kwargs)
+
+    _mudata_io.write_elem = _filtered
+    try:
+        mdata.write_h5mu(path)
+    finally:
+        _mudata_io.write_elem = _orig
+
+
 # Get all Pytorch Lightning Callback hooks based on whatever PTL version is being used.
 _allowed_hooks = {
     name
@@ -390,7 +416,7 @@ class AutotuneExperiment:
             # save mudata on disk as it can't be pickled by ray
             mudata_file_path = join(self._logging_dir, mudata_file_name)
             Path(self._logging_dir).mkdir(parents=True, exist_ok=True)
-            data.write_h5mu(mudata_file_path)
+            _write_mudata_compat(data, mudata_file_path)
             self.is_mudata = True
             # need to forcefully register it
             data_manager = self.model_cls._get_most_recent_anndata_manager(data, required=True)
