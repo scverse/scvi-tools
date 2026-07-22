@@ -30,6 +30,12 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add `sparse_mode` to {class}`~scvi.dataloaders.DataSplitter` (`"OFF"`, `"TRANSPORT"`,
+    `"INPUT_CSR"`, `"AUTO"`). When `load_sparse_tensor=True`, `"INPUT_CSR"` keeps the count
+    matrix as a sparse CSR tensor through `log1p` and the first encoder linear layer
+    ({class}`~scvi.nn.FCLayers`) before densifying, and `"AUTO"` selects `"INPUT_CSR"` or
+    `"TRANSPORT"` from the measured per-batch density. Default `"TRANSPORT"` preserves prior
+    behavior, {pr}`3840`.
 - Add [scvi-tools MCP](https://scvi-tools-mcp.readthedocs.io/en/latest/index.html) package
     that gives any MCP-compatible LLM access to scvi-tools knowledge.
 - Add {class}`~scvi.dataloaders.AnnbatchDataModule` for out-of-core dataloading via `annbatch`,
