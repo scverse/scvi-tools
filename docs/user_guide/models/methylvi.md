@@ -1,6 +1,6 @@
 # MethylVI
 
-**methylVI** {cite:p}`Weinberger2023a` (Python class {class}`~scvi.external.METHYLVI`) is a generative model of scBS-seq data that can subsequently
+**methylVI** {cite:p}`Weinberger26` (Python class {class}`~scvi.external.METHYLVI`) is a generative model of scBS-seq data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of methylVI are:

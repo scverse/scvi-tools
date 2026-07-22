@@ -19,7 +19,7 @@ The method works well for any SCVI model out of the box to provide insights into
 We can compute and compare two models PPC's by:
 ```python
 models_dict = {"model1": model1, "model2": model2}
-ppc = PPC(adata, models_dict)
+ppc = PosteriorPredictiveCheck(adata, models_dict)
 ```
 
 ## Creating Report:
