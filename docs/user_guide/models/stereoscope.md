@@ -181,5 +181,5 @@ Subsequently, for a given cell type, users can plot a heatmap of the cell type p
 
 ```
 >>> import scanpy as sc
->>> sc.p1.embedding(st_adata, basis="location", color="B cells")
+>>> sc.pl.embedding(st_adata, basis="location", color="B cells")
 ```

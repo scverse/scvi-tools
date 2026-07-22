@@ -151,7 +151,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`AshuachGabitto21`
    * - :doc:`/user_guide/models/diagvi`
      - Diagonal integration of unpaired multiome data, dimensionality reduction, cross-modality imputation, cell label transfer
-     - []
+     -
 
 ```
 

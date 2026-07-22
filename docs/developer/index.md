@@ -20,6 +20,7 @@ maintenance
 ```
 
 [forum]: https://discourse.scverse.org/
+[documentation]: https://github.com/scverse/scvi-tools/tree/main/docs
 [tutorials]: https://github.com/scverse/scvi-tutorials
 [codebase]: https://github.com/scverse/scvi-tools
 [scverse projects]: https://github.com/scverse

@@ -221,3 +221,7 @@ This approach allows label-free imputation of unobserved modalities, such as gen
 ```
 >>> adata_imputed_rna = model.impute_rna_from_reference(reference_batch='CITE_seq', adata_rna = adata_rna, layer_key='rna_normalized', return_query_only = True)
 ```
+
+The k-nearest neighbor search underlying this step automatically uses a GPU-accelerated
+{mod}`rapids_singlecell` backend when it is installed, falling back to a CPU-based implementation
+otherwise.
