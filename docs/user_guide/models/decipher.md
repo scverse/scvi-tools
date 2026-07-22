@@ -69,7 +69,7 @@ more information for reconstruction and downstream cell-state analyses.
 Decipher is implemented as a Pyro module and trained with stochastic variational
 inference. The guide uses encoder networks in the reverse direction: log-transformed
 counts are encoded to $z_i$, and the concatenation of $z_i$ and the log-transformed
-counts is encoded to $v_i$. The `beta` parameter scales the KL term for $v_i`, which
+counts is encoded to $v_i$. The `beta` parameter scales the KL term for $v_i$, which
 controls the regularization strength of the interpretable latent space.
 
 During training, Decipher uses validation predictive log likelihood as the default
