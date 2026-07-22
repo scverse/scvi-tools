@@ -100,13 +100,13 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
 
         self.n_batch = n_batch
         n_cat_list = [n_batch]
-        n_cont = n_continuous_cov
+        n_continuous = n_continuous_cov
         if n_cats_per_cov is not None:
             if self.embed_categorical_covariates:
                 for idx, n in enumerate(n_cats_per_cov):
                     covariate_name = f"cov{idx}"
                     self.init_embedding(covariate_name, n, **embedding_kwargs)
-                    n_cont += self.get_embedding(covariate_name).embedding_dim
+                    n_continuous += self.get_embedding(covariate_name).embedding_dim
             else:
                 n_cat_list.extend(n_cats_per_cov)
 
@@ -114,7 +114,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
             n_input=n_input,
             n_output=n_latent,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
+            n_continuous=n_continuous,
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
@@ -127,7 +127,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
             n_input=n_latent,
             n_output=n_input,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
+            n_continuous=n_continuous,
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
