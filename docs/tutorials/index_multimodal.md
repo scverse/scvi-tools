@@ -22,7 +22,7 @@ Go through the totalVI workflow to analyze CITE-seq datasets
 
 ```{customcard}
 :path: notebooks/multimodal/scarches_scvi_tools
-:tags: Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance, Analysis, Modality-imputation
+:tags: Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance, Analysis, Modality-imputation, Semi-supervised, Cell-type-annotation
 
 Map cells from a query dataset to the latent space of a reference dataset with the scArches method
 ```

@@ -154,6 +154,7 @@ class RNASeqMixin:
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
         return log_probs.exp().numpy()
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -258,9 +259,11 @@ class RNASeqMixin:
             scdl = dataloader
             for param in [indices, batch_size, n_samples]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
             gene_mask = slice(None)
             transform_batch = [None]
@@ -570,9 +573,11 @@ class RNASeqMixin:
         else:
             for param in [indices, batch_size, gene_list]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
             gene_mask = slice(None)
             transform_batch = [None]
@@ -649,9 +654,11 @@ class RNASeqMixin:
             scdl = dataloader
             for param in [indices, batch_size, n_samples]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
             transform_batch = None
 
@@ -697,6 +704,7 @@ class RNASeqMixin:
 
         return np.concatenate(data_loader_list, axis=0)
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_feature_correlation_matrix(
         self,
@@ -823,9 +831,11 @@ class RNASeqMixin:
             scdl = dataloader
             for param in [indices, batch_size, n_samples]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         dropout_list = []
@@ -921,9 +931,11 @@ class RNASeqMixin:
             scdl = dataloader
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         libraries = []

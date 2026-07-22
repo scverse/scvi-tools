@@ -11,7 +11,7 @@ from pyro import infer
 
 from scvi import settings
 from scvi.model._utils import _get_batch_code_from_category, parse_device_args
-from scvi.utils import track
+from scvi.utils import de_dsp, track
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,7 @@ class ResolVIPredictiveMixin:
             else torch.cat(latent).numpy()
         )
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression_importance(
         self,
@@ -265,6 +266,7 @@ class ResolVIPredictiveMixin:
         else:
             return exprs
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,

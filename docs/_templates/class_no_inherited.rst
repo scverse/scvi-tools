@@ -15,7 +15,7 @@ Attributes table
 .. autosummary::
 {% for item in attributes %}
     {%- if item not in inherited_members%}
-        ~{{ fullname }}.{{ item }}
+        ~{{ objname }}.{{ item }}
     {%- endif -%}
 {%- endfor %}
 {% endif %}
@@ -30,7 +30,7 @@ Methods table
 .. autosummary::
 {% for item in methods %}
     {%- if item != '__init__' and item not in inherited_members%}
-    ~{{ fullname }}.{{ item }}
+    ~{{ objname }}.{{ item }}
     {%- endif -%}
 
 {%- endfor %}

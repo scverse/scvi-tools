@@ -33,6 +33,56 @@ templates_path = ["_templates"]
 nitpicky = True  # Warn about broken links
 needs_sphinx = "4.0"
 
+# Bare (unqualified) names used in type annotations that autodoc/autodoc-typehints
+# should resolve against their fully-qualified, intersphinx-resolvable targets.
+autodoc_type_aliases = {
+    "AnnData": "anndata.AnnData",
+    "Tensor": "torch.Tensor",
+}
+
+# Reference targets that can never resolve, either because they leak a
+# third-party library's private submodule path via `__module__` (with no public
+# alias available), because the target is inherited third-party docstring
+# content rendered in our own doc pages, or because of a long-standing
+# py:class/py:data domain mismatch between sphinx-autodoc-typehints and the
+# target project's own inventory.
+nitpick_ignore = [
+    # sphinx-autodoc-typehints emits typing.Union as py:data, but CPython's own
+    # inventory registers it as py:class.
+    ("py:data", "typing.Union"),
+    # numpy.array is a function, not a class; used informally as a type name in
+    # some docstrings.
+    ("py:class", "numpy.array"),
+    ("py:class", "numpy._typing.TypeAliasType"),
+    # Legacy torch tensor aliases/internals not present in torch's inventory.
+    ("py:class", "torch.FloatTensor"),
+    ("py:class", "torch._VariableFunctionsClass.tensor"),
+    # Internal typing helpers not meant to have their own documentation page.
+    ("py:class", "scvi.train._config.KwargsConfig"),
+    ("py:class", "scvi.external.contrastivevi._contrastive_dataloader.ContrastiveDataLoader"),
+    # Inherited members from lightning.pytorch base classes: their first-line
+    # docstrings reference other members by short name, which only resolves in
+    # lightning's own docs, not ours.
+    ("py:meth", "save_hyperparameters"),
+    ("py:class", "AttributeDict"),
+    # Inherited members from torch.distributions.Distribution whose docstrings
+    # use short names that only resolve in torch's own docs.
+    ("py:class", "Tensor"),
+    ("py:class", "Distribution"),
+    ("py:class", "return"),
+    # napoleon/numpydoc occasionally mis-splits a "type, optional" parameter type
+    # string and tries to cross-reference the word "optional" itself; this also
+    # occurs in torch's own inherited docstrings (e.g. torch.nn.functional.one_hot),
+    # so it can't be fixed purely on our side.
+    ("py:class", "optional"),
+    ("py:class", "LongTensor"),
+]
+nitpick_ignore_regex = [
+    # mudata.MuData is aliased from a private path (mudata._core.mudata.MuData)
+    # that intersphinx can't always disambiguate depending on inventory caching.
+    (r"py:class", r"mudata\._core\.mudata\.MuData"),
+]
+
 html_context = {
     "display_github": True,  # Integrate GitHub
     "github_user": "scverse",  # Username
@@ -87,6 +137,9 @@ myst_enable_extensions = [
     "html_admonition",
 ]
 myst_url_schemes = ("http", "https", "mailto")
+# Auto-generate #slug anchors for headings so in-page links like
+# [prerequisites](#prerequisites) resolve (up to h4, the deepest level used in docs).
+myst_heading_anchors = 4
 nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
@@ -165,10 +218,14 @@ intersphinx_mapping = {
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
-    "mudata": ("https://mudata.readthedocs.io/en/latest/", None),
+    "mudata": ("https://mudata.readthedocs.io/stable/", None),
     "ray": ("https://docs.ray.io/en/latest/", None),
     "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
     "sparse": ("https://sparse.pydata.org/en/stable/", None),
+    "annbatch": ("https://annbatch.readthedocs.io/en/latest/", None),
+    "rich": ("https://rich.readthedocs.io/en/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "torch_geometric": ("https://pytorch-geometric.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------
@@ -184,6 +241,7 @@ html_theme_options = {
     "use_repository_button": True,
     "logo_only": True,
     "show_toc_level": 1,
+    "navbar_persistent": [],
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
     "path_to_docs": "docs/",
     "repository_branch": version,

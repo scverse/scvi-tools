@@ -11,7 +11,18 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
+- Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
+    several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
+- Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.
+- Fix bare `Warning(...)` statements that constructed a warning and silently
+    discarded it (instead of calling `warnings.warn(...)`) across several models
+    and training utilities, so the intended user-facing warnings are now emitted,
+    {pr}`3933`.
+
 #### Changed
+
+- Updated dockerfile to py3.13, {pr}`3920`.
+- Updated several github workflows with recent github actions modules, {pr}`3916`.
 
 #### Removed
 
