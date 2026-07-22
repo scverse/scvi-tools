@@ -85,7 +85,7 @@ developer/index
 faq
 changelog.md
 references
-Discussion <https://discourse.scvi-tools.org>
+Discussion <https://discourse.scverse.org/>
 GitHub <https://github.com/scverse/scvi-tools>
 Model hub <https://huggingface.co/scvi-tools>
 ```

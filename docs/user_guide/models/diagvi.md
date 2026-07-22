@@ -87,7 +87,7 @@ The graph loss encourages the inner product between embeddings $\mathbf{v}_i$ an
 
 #### Unbalanced optimal transport
 
-To ensure robust alignment of cells from different modalities within the shared latent space, DiagVI leverages unbalanced optimal transport (UOT). Specifically, it minimizes the de-biased Sinkhorn divergence between latent distributions using the [GeomLoss](https://www.kernel-operations.io/geomloss/#) library[^ref4]. UOT relaxes the marginal constraints of classical optimal transport, allowing for unequal total mass between distributions. This enables robust integration in the presence of differing cell type proportions across modalities.
+To ensure robust alignment of cells from different modalities within the shared latent space, DiagVI leverages unbalanced optimal transport (UOT). Specifically, it minimizes the de-biased Sinkhorn divergence between latent distributions using the [GeomLoss](https://www.kernel-operations.io/geomloss/#) library[^ref3]. UOT relaxes the marginal constraints of classical optimal transport, allowing for unequal total mass between distributions. This enables robust integration in the presence of differing cell type proportions across modalities.
 
 #### Classifier
 
@@ -475,7 +475,7 @@ Data can be generated from the model using the posterior predictive distribution
     _Sinkhorn Divergences for Unbalanced Optimal Transport_,
     [arXiv](https://arxiv.org/abs/1910.12958).
 
-[^ref4]:
+[^ref3]:
     Feydy, Jean; Séjourné, Thibault; Vialard, François‑Xavier; Amari, Shun‑ichi; Trouvé, Alain; Peyré, Gabriel (2019)
     _Interpolating between Optimal Transport and MMD using Sinkhorn Divergences_
     [The 22nd International Conference on Artificial Intelligence and Statistics](https://arxiv.org/abs/1810.08278).

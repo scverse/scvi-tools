@@ -35,6 +35,7 @@ classifiers = [
 dependencies = [
     "anndata",
     "docrep>=0.3.2",
+    "joblib",
     "lightning>=2.0",
     "ml-collections",
     "mudata",

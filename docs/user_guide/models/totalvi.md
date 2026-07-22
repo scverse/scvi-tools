@@ -134,7 +134,7 @@ The latent variables, along with their description, are summarized in the follow
 
 ## Inference
 
-totalVI uses variational inference, and specifically auto-are encoding variational bayes (see {doc}`/user_guide/background/variational_inference`), to learn both the model parameters (the
+totalVI uses variational inference, and specifically auto-encoding variational bayes (see {doc}`/user_guide/background/variational_inference`), to learn both the model parameters (the
 neural network params, dispersion params, etc.), and an approximate posterior distribution with the following factorization:
 
 ```{math}
