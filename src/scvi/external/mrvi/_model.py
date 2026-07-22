@@ -399,9 +399,11 @@ class MRVI(
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
         us = []
         zs = []
@@ -1966,9 +1968,11 @@ class MRVI(
             scdl = dataloader
             for param in [indices, batch_size, n_samples]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
             gene_mask = slice(None)
             transform_batch = [None]
