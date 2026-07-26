@@ -17,7 +17,7 @@ def _find_noop_warning_statements():
     """
     offenders = []
     for path in _SRC.rglob("*.py"):
-        tree = ast.parse(path.read_text())
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
                 func = node.value.func
