@@ -60,7 +60,7 @@ class METHYLANVI(VAEMixin, SemisupervisedTrainingMixin, BSSeqMixin, ArchesMixin,
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.methylanvi.METHYLANVAE`
+        Keyword args for :class:`~scvi.external.methylvi.METHYLANVAE`
 
     Examples
     --------

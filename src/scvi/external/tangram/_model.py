@@ -317,7 +317,7 @@ class Tangram(BaseModelClass):
 
         Returns
         -------
-        Projected annotations as a :class:`pd.DataFrame` with shape (n_sp, n_labels).
+        Projected annotations as a :class:`~pandas.DataFrame` with shape (n_sp, n_labels).
         """
         if len(labels) != adata_sc.shape[0]:
             raise ValueError(

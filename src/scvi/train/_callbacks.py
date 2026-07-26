@@ -47,7 +47,7 @@ class SaveCheckpoint(ModelCheckpoint):
     ----------
     dirpath
         Base directory to save the model checkpoints. If ``None``, defaults to a subdirectory in
-        :attr:``scvi.settings.logging_dir`` formatted with the current date, time, and monitor.
+        :attr:`~scvi._settings.ScviConfig.logging_dir` formatted with the current date, time, and monitor.
     filename
         Name for the checkpoint directories, which can contain formatting options for auto filling.
         If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
@@ -228,7 +228,7 @@ class SubSampleLabels(Callback):
 class LoudEarlyStopping(EarlyStopping):
     """Loud early stopping callback.
 
-    Wrapper of :class:`~lightning.pytorch.callbacks.early_stopping.EarlyStopping callback that
+    Wrapper of :class:`~lightning.pytorch.callbacks.early_stopping.EarlyStopping` callback that
     prints the reason for stopping on teardown. When the early stopping condition is met, the
     reason is saved to the callback instance, then printed on teardown. By printing on teardown, we
     do not interfere with the progress bar callback.

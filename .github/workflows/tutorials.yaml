@@ -1,22 +1,31 @@
-name: update tutorials
+name: Update tutorials
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   update:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          submodules: "recursive"
+          submodules: recursive
+          persist-credentials: false
 
       - name: Update tutorials 🔧
         run: git submodule update --remote --recursive
 
-      - uses: peter-evans/create-pull-request@v6
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "docs: automated update of tutorials"
           title: "docs: automated update of tutorials"
           branch: "update-tutorials"

@@ -656,7 +656,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         generative_outputs,
         pro_recons_weight=1.0,
         kl_weight=1.0,
-    ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Returns the reconstruction loss and the Kullback divergences"""
         qz = inference_outputs["qz"]
         ql = inference_outputs["ql"]

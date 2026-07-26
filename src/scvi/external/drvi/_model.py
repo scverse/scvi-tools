@@ -31,7 +31,7 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
     disentanglement/interpretability logic. It therefore exposes the full SCVI interface
     (:meth:`~scvi.model.SCVI.setup_anndata`, ``minify_adata``, ``get_batch_representation``,
     ``size_factor_key``, …) plus the DRVI-specific knobs below and the interpretability methods
-    from :class:`~scvi.external.drvi.InterpretabilityMixin`.
+    from ``InterpretabilityMixin``.
 
     Parameters
     ----------

@@ -1,3 +1,4 @@
+import importlib
 import importlib.util
 import inspect
 import os
@@ -5,10 +6,13 @@ import re
 import subprocess
 import sys
 import types
+import warnings
 from pathlib import Path
 from importlib.metadata import metadata
 from datetime import datetime
 from typing import TYPE_CHECKING
+
+from sphinx.deprecation import RemovedInSphinx90Warning
 
 if TYPE_CHECKING:
     from typing import Any
@@ -23,7 +27,8 @@ project_name = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
-repository_url = f"https://github.com/scverse/{project_name}"
+urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
+repository_url = urls["Source"]
 
 # The full version, including alpha/beta/rc tags
 release = info["Version"]
@@ -40,47 +45,20 @@ autodoc_type_aliases = {
     "Tensor": "torch.Tensor",
 }
 
-# Reference targets that can never resolve, either because they leak a
-# third-party library's private submodule path via `__module__` (with no public
-# alias available), because the target is inherited third-party docstring
-# content rendered in our own doc pages, or because of a long-standing
-# py:class/py:data domain mismatch between sphinx-autodoc-typehints and the
-# target project's own inventory.
+# Targets that only exist in docstrings we inherit from third-party base classes, which we
+# render but cannot edit.
 nitpick_ignore = [
-    # sphinx-autodoc-typehints emits typing.Union as py:data, but CPython's own
-    # inventory registers it as py:class.
-    ("py:data", "typing.Union"),
-    # numpy.array is a function, not a class; used informally as a type name in
-    # some docstrings.
-    ("py:class", "numpy.array"),
-    ("py:class", "numpy._typing.TypeAliasType"),
-    # Legacy torch tensor aliases/internals not present in torch's inventory.
-    ("py:class", "torch.FloatTensor"),
-    ("py:class", "torch._VariableFunctionsClass.tensor"),
-    # Internal typing helpers not meant to have their own documentation page.
-    ("py:class", "scvi.train._config.KwargsConfig"),
-    ("py:class", "scvi.external.contrastivevi._contrastive_dataloader.ContrastiveDataLoader"),
-    # Inherited members from lightning.pytorch base classes: their first-line
-    # docstrings reference other members by short name, which only resolves in
-    # lightning's own docs, not ours.
-    ("py:meth", "save_hyperparameters"),
     ("py:class", "AttributeDict"),
-    # Inherited members from torch.distributions.Distribution whose docstrings
-    # use short names that only resolve in torch's own docs.
-    ("py:class", "Tensor"),
+    ("py:class", "huggingface_hub.repocard.ModelCard"),
+    ("py:class", "ml_collections.config_dict.config_dict.FrozenConfigDict"),
+    ("py:class", "numpy._typing.TypeAliasType"),
+    ("py:class", "pathlib._local.Path"),
     ("py:class", "Distribution"),
-    ("py:class", "return"),
-    # napoleon/numpydoc occasionally mis-splits a "type, optional" parameter type
-    # string and tries to cross-reference the word "optional" itself; this also
-    # occurs in torch's own inherited docstrings (e.g. torch.nn.functional.one_hot),
-    # so it can't be fixed purely on our side.
-    ("py:class", "optional"),
     ("py:class", "LongTensor"),
-]
-nitpick_ignore_regex = [
-    # mudata.MuData is aliased from a private path (mudata._core.mudata.MuData)
-    # that intersphinx can't always disambiguate depending on inventory caching.
-    (r"py:class", r"mudata\._core\.mudata\.MuData"),
+    ("py:class", "Tensor"),
+    ("py:class", "optional"),
+    ("py:class", "return"),
+    ("py:meth", "save_hyperparameters"),
 ]
 
 html_context = {
@@ -110,6 +88,9 @@ extensions = [
     "sphinxext.opengraph",
     "hoverxref.extension",
 ]
+
+# sphinx-hoverxref 1.4.2 still uses the tuple interface of Sphinx' config values.
+warnings.filterwarnings("ignore", category=RemovedInSphinx90Warning, module="hoverxref")
 
 
 # for sharing urls with nice info
@@ -144,45 +125,68 @@ nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
 typehints_defaults = "braces"
-autodoc_mock_imports = []
-if os.environ.get("READTHEDOCS") == "True":
-    autodoc_mock_imports += ["hyperopt", "ray", "ray.tune", "scib_metrics", "muon", "mlx"]
+always_use_bars_union = True
+
+
+def _importable(name: str) -> bool:
     try:
-        import scvi.autotune
+        importlib.import_module(name)
     except Exception:
-        import scvi
+        return False
+    return True
 
-        _autotune_error = ModuleNotFoundError(
-            "Autotune requires optional dependencies; install scvi-tools[autotune]."
-        )
-        autotune_stub = types.ModuleType("scvi.autotune")
 
-        class AutotuneExperiment:
-            """Autotune requires optional dependencies; install scvi-tools[autotune]."""
+# Optional dependencies that are not installable, or not loadable, on the machine building the
+# docs. Mocking them keeps their signatures documented.
+autodoc_mock_imports = [
+    name
+    for name in (
+        "hyperopt",
+        "ray",
+        "ray.tune",
+        "scib_metrics",
+        "muon",
+        "mlx",
+        "lamindb",
+        "tiledbsoma",
+    )
+    if not _importable(name)
+]
 
-            def __init__(self, *args, **kwargs):
-                raise _autotune_error
+if {"hyperopt", "ray"} & set(autodoc_mock_imports):
+    import scvi
 
-        class ScibTuneReportCheckpointCallback:
-            """Autotune requires optional dependencies; install scvi-tools[autotune]."""
+    _autotune_error = ModuleNotFoundError(
+        "Autotune requires optional dependencies; install scvi-tools[autotune]."
+    )
+    autotune_stub = types.ModuleType("scvi.autotune")
 
-            def __init__(self, *args, **kwargs):
-                raise _autotune_error
+    class AutotuneExperiment:
+        """Autotune requires optional dependencies; install scvi-tools[autotune]."""
 
-        def run_autotune(*args, **kwargs):
-            """Autotune requires optional dependencies; install scvi-tools[autotune]."""
+        def __init__(self, *args, **kwargs):
             raise _autotune_error
 
-        autotune_stub.AutotuneExperiment = AutotuneExperiment
-        autotune_stub.ScibTuneReportCheckpointCallback = ScibTuneReportCheckpointCallback
-        autotune_stub.run_autotune = run_autotune
-        autotune_stub.__all__ = [
-            "AutotuneExperiment",
-            "ScibTuneReportCheckpointCallback",
-            "run_autotune",
-        ]
-        sys.modules["scvi.autotune"] = autotune_stub
-        scvi.autotune = autotune_stub
+    class ScibTuneReportCheckpointCallback:
+        """Autotune requires optional dependencies; install scvi-tools[autotune]."""
+
+        def __init__(self, *args, **kwargs):
+            raise _autotune_error
+
+    def run_autotune(*args, **kwargs):
+        """Autotune requires optional dependencies; install scvi-tools[autotune]."""
+        raise _autotune_error
+
+    autotune_stub.AutotuneExperiment = AutotuneExperiment
+    autotune_stub.ScibTuneReportCheckpointCallback = ScibTuneReportCheckpointCallback
+    autotune_stub.run_autotune = run_autotune
+    autotune_stub.__all__ = [
+        "AutotuneExperiment",
+        "ScibTuneReportCheckpointCallback",
+        "run_autotune",
+    ]
+    sys.modules["scvi.autotune"] = autotune_stub
+    scvi.autotune = autotune_stub
 
 source_suffix = {
     ".rst": "restructuredtext",
@@ -193,7 +197,14 @@ source_suffix = {
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "**.ipynb_checkpoints",
+    "tutorials/notebooks/.github/**",
+    "tutorials/notebooks/README.md",
+]
 
 # extlinks config
 extlinks = {
@@ -214,7 +225,8 @@ intersphinx_mapping = {
     "torch": ("https://pytorch.org/docs/master/", None),
     "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
     "lightning": ("https://lightning.ai/docs/pytorch/stable/", None),
-    "pyro": ("http://docs.pyro.ai/en/stable/", None),
+    "pyro": ("https://docs.pyro.ai/en/stable/", None),
+    "torchmetrics": ("https://lightning.ai/docs/torchmetrics/stable/", None),
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
@@ -226,6 +238,7 @@ intersphinx_mapping = {
     "rich": ("https://rich.readthedocs.io/en/stable/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
     "torch_geometric": ("https://pytorch-geometric.readthedocs.io/en/latest/", None),
+    "rapids_singlecell": ("https://rapids-singlecell.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------
@@ -239,7 +252,6 @@ html_logo = "_static/logo.png"
 html_theme_options = {
     "repository_url": repository_url,
     "use_repository_button": True,
-    "logo_only": True,
     "show_toc_level": 1,
     "navbar_persistent": [],
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
@@ -253,7 +265,7 @@ pygments_style = "default"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ["css/override.css"]
+html_css_files = ["css/custom.css"]
 html_js_files = ["js/custom.js"]
 html_show_sphinx = False
 

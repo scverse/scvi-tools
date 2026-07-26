@@ -432,7 +432,7 @@ class MULTIVI(
 
         Returns
         -------
-        latent_representation : np.ndarray
+        latent_representation : numpy.ndarray
             Low-dimensional representation for each cell
         """
         if not self.is_trained_:

@@ -1,0 +1,85 @@
+name: Test (resolution)
+
+on:
+  pull_request:
+    branches: [main, "[0-9]+.[0-9]+.x"]
+    types: [labeled, synchronize, opened]
+  schedule:
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  HATCH_ENV: test-resolution
+
+jobs:
+  test:
+    # if PR has label "resolution tests" or "all tests" or if scheduled or manually triggered
+    if: >-
+      (
+        contains(github.event.pull_request.labels.*.name, 'resolution tests') ||
+        contains(github.event.pull_request.labels.*.name, 'all tests') ||
+        (contains(github.event_name, 'schedule') && github.repository == 'scverse/scvi-tools') ||
+        contains(github.event_name, 'workflow_dispatch')
+      )
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13", "3.14"]
+
+    name: resolution (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash -e {0} # -e to fail on error
+
+    env:
+      HATCH_PYTHON: ${{ matrix.python }}
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          filter: blob:none
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Create hatch environment
+        run: uvx hatch env create $HATCH_ENV
+
+      - name: List all installed package versions
+        run: uvx hatch run $HATCH_ENV:uv pip list
+
+      - name: Run tests using hatch
+        env:
+          MPLBACKEND: agg
+          PLATFORM: ubuntu-latest
+          DISPLAY: :42
+          COLUMNS: 120
+        run: uvx hatch run $HATCH_ENV:run-cov -v --color=yes
+
+      - name: Generate coverage report
+        run: |
+          # See https://coverage.readthedocs.io/page/config.html#run-patch
+          test -f .coverage || uvx hatch run $HATCH_ENV:cov-combine
+          uvx hatch run $HATCH_ENV:cov-report   # report visibly
+          uvx hatch run $HATCH_ENV:coverage xml # create report for upload
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: resolution
