@@ -5,7 +5,6 @@ import os
 import re
 import subprocess
 import sys
-import types
 import warnings
 from pathlib import Path
 from importlib.metadata import metadata
@@ -152,41 +151,6 @@ autodoc_mock_imports = [
     )
     if not _importable(name)
 ]
-
-if {"hyperopt", "ray"} & set(autodoc_mock_imports):
-    import scvi
-
-    _autotune_error = ModuleNotFoundError(
-        "Autotune requires optional dependencies; install scvi-tools[autotune]."
-    )
-    autotune_stub = types.ModuleType("scvi.autotune")
-
-    class AutotuneExperiment:
-        """Autotune requires optional dependencies; install scvi-tools[autotune]."""
-
-        def __init__(self, *args, **kwargs):
-            raise _autotune_error
-
-    class ScibTuneReportCheckpointCallback:
-        """Autotune requires optional dependencies; install scvi-tools[autotune]."""
-
-        def __init__(self, *args, **kwargs):
-            raise _autotune_error
-
-    def run_autotune(*args, **kwargs):
-        """Autotune requires optional dependencies; install scvi-tools[autotune]."""
-        raise _autotune_error
-
-    autotune_stub.AutotuneExperiment = AutotuneExperiment
-    autotune_stub.ScibTuneReportCheckpointCallback = ScibTuneReportCheckpointCallback
-    autotune_stub.run_autotune = run_autotune
-    autotune_stub.__all__ = [
-        "AutotuneExperiment",
-        "ScibTuneReportCheckpointCallback",
-        "run_autotune",
-    ]
-    sys.modules["scvi.autotune"] = autotune_stub
-    scvi.autotune = autotune_stub
 
 source_suffix = {
     ".rst": "restructuredtext",
