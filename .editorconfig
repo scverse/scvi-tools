@@ -8,8 +8,10 @@ charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-[{*.{yml,yaml,toml},.cruft.json}]
+[*.{yml,yaml,toml}]
 indent_size = 2
+
+# .cruft.json is machine-generated with 4-space indentation and never edited by hand.
 
 [LICENSE]
 insert_final_newline = false

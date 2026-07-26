@@ -185,7 +185,7 @@ distributions of the latent variables, retrieving the likelihood parameters (of 
 The standard {class}`~scvi.model.SCVI` class uses PyTorch as its computational backend.
 For users who prefer a different framework or are running on hardware where another backend offers better performance, an experimental alternative is available:
 
-- **MLX (Apple Silicon)** – {class}`scvi.model.mlxSCVI` is an MLX-based implementation optimized for Apple Silicon (M-series) chips via the [MLX](https://ml-explore.github.io/mlx/) framework. It is only available on macOS with Apple Silicon.
+- **MLX (Apple Silicon)** – {class}`~scvi.model.mlxSCVI` is an MLX-based implementation optimized for Apple Silicon (M-series) chips via the [MLX](https://ml-explore.github.io/mlx/) framework. It is only available on macOS with Apple Silicon.
 
 A JAX-based implementation (`JaxSCVI`) was previously available but was removed in v1.5, {pr}`3786`.
 

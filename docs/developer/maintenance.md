@@ -257,17 +257,10 @@ Documentation is built and hosted on [Read the Docs] (RTD), and the configuratio
 `main` and release branches, it can be useful to build the documentation locally since RTD only
 allows one build at a time.
 
-Make sure to install the documentation dependencies first:
+Run the following command to build the documentation locally from the root of the repository:
 
 ```bash
-pip install -e ".[docsbuild]"
-```
-
-Run the following command to build the documentation locally from
-the root of the repository:
-
-```bash
-python -m sphinx -b html docs docs/_build
+hatch run docs:build
 ```
 
 The documentation can be viewed by opening `docs/_build/index.html` in a web browser.

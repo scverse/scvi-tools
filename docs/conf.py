@@ -11,7 +11,10 @@ from importlib.metadata import metadata
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sphinx.deprecation import RemovedInSphinx90Warning
+try:
+    from sphinx.deprecation import RemovedInSphinx90Warning
+except ImportError:  # removed starting with Sphinx 9.0, where the warning no longer applies
+    RemovedInSphinx90Warning = None
 
 if TYPE_CHECKING:
     from typing import Any
@@ -89,7 +92,8 @@ extensions = [
 ]
 
 # sphinx-hoverxref 1.4.2 still uses the tuple interface of Sphinx' config values.
-warnings.filterwarnings("ignore", category=RemovedInSphinx90Warning, module="hoverxref")
+if RemovedInSphinx90Warning is not None:
+    warnings.filterwarnings("ignore", category=RemovedInSphinx90Warning, module="hoverxref")
 
 
 # for sharing urls with nice info
@@ -130,7 +134,13 @@ always_use_bars_union = True
 def _importable(name: str) -> bool:
     try:
         importlib.import_module(name)
-    except Exception:
+    except ModuleNotFoundError:
+        return False
+    except Exception as e:
+        warnings.warn(
+            f"{name!r} failed to import ({e!r}); mocking it for the documentation build.",
+            stacklevel=2,
+        )
         return False
     return True
 
