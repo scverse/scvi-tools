@@ -164,6 +164,7 @@ from this platform, and model generators can upload their own pre-trained `scvi-
    :nosignatures:
 
    criticism.PosteriorPredictiveCheck
+   criticism.create_criticism_report
 ```
 
 ## Utilities

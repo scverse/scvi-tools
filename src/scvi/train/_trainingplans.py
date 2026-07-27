@@ -349,8 +349,11 @@ class TrainingPlan(pl.LightningModule):
             met = loss_output.extra_metrics[key]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
-                    Warning(
-                        f"Extra tracked metrics {key} should be 0-d tensors. It will not be logged"
+                    warnings.warn(
+                        f"Extra tracked metrics {key} should be 0-d tensors. "
+                        "It will not be logged",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
                 else:
                     met = met.detach()
@@ -1718,7 +1721,11 @@ if is_package_installed("mlx"):
             elif hasattr(self.module, "_training"):
                 self.module._training = is_training
             else:
-                Warning("Unable to set module training state, may affect training performance")
+                warnings.warn(
+                    "Unable to set module training state, may affect training performance",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
 
         def get_kl_weight(self) -> float:
             """Compute the KL weight for the current step or epoch.

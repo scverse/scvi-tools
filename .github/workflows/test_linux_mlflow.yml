@@ -55,6 +55,7 @@ jobs:
           python -m pip install --upgrade pip wheel uv
           python -m pip install nvidia-nccl-cu12
           python -m uv pip install --system "scvi-tools[cuda,tests,mlflow] @ ."
+          python -c "import mlflow; print('MLflow:', mlflow.__version__)"
 
       - name: Run pytest
         env:

@@ -119,7 +119,7 @@ class MRVI(
 
     See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial_torch`
+    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial`
 
     See the user guide for this model:
 
@@ -399,9 +399,11 @@ class MRVI(
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
         us = []
         zs = []
@@ -1861,6 +1863,7 @@ class MRVI(
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
         self.sample_info = obs_df.set_index("_scvi_sample").sort_index()
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -1965,9 +1968,11 @@ class MRVI(
             scdl = dataloader
             for param in [indices, batch_size, n_samples]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
             gene_mask = slice(None)
             transform_batch = [None]

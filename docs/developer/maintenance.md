@@ -174,7 +174,7 @@ hatch publish
 Our package is also available on the conda-forge channel. The [feedstock repository] contains
 the recipe for building the package.
 
-Typically, a PR into the [feedstock] will be automatically created a couple of days after the
+Typically, a PR into the [feedstock repository] will be automatically created a couple of days after the
 PyPI release (see [#32] for an example) and will be automatically merged.
 
 If there are any issues with the recipe (_e.g._ due to dependency changes), it may need to be
@@ -222,6 +222,33 @@ a branch.
 - [`test (windows)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_windows.yml):
   Runs the test suite on a GitHub-hosted Windows runner. Useful for catching Windows-specific
   issues.
+- [`test (autotune)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_autotune.yml):
+  Runs the {mod}`scvi.autotune` test suite on a self-hosted GPU runner. Triggered on pull requests
+  with the `autotune` or `all tests` labels, as well as on a nightly schedule.
+- [`test (mlflow)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_mlflow.yml):
+  Runs MLflow integration tests on a self-hosted GPU runner. Triggered on pull requests with the
+  `mlflow` or `all tests` labels, as well as on a nightly schedule.
+- [`test (custom dataloaders)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_custom_dataloader.yml):
+  Runs tests for custom dataloaders (_e.g._, {class}`~scvi.dataloaders.AnnbatchDataModule`) across
+  a matrix of GitHub-hosted runners. Triggered on pull requests with the `custom_dataloader` or
+  `all tests` labels, as well as on a nightly schedule.
+- [`test (multi-GPU)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_multigpu.yml):
+  Runs the multi-GPU training test suite on a self-hosted runner. Triggered on pull requests with
+  the `multiGPU tests` or `all tests` labels.
+- [`test (optional)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_optional.yml):
+  Runs tests that require optional dependencies across a matrix of GitHub-hosted runners.
+  Triggered on pull requests with the `optional tests` or `all tests` labels, as well as on a
+  nightly schedule.
+- [`test (internet)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_internet.yml):
+  Runs tests that require internet access (_e.g._, downloading datasets) across a matrix of
+  GitHub-hosted runners. Triggered on pull requests with the `internet tests` or `all tests`
+  labels, as well as on a nightly schedule.
+- [`test (mps)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_macos_mps.yml):
+  Runs the test suite on a self-hosted macOS runner with Apple Silicon MPS support. Triggered on
+  pull requests with the `mps` or `all tests` labels.
+- [`build (base image)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/build_image_base.yaml):
+  Manually-triggered workflow that builds the base Docker image used by
+  [`build_image_latest`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/build_image_latest.yaml).
 
 ## Documentation
 

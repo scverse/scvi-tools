@@ -33,7 +33,7 @@ from scvi.model.base._de_core import _de_core
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp, track
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils._docstrings import de_dsp, devices_dsp
 
 from ._contrastive_data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE
@@ -320,6 +320,7 @@ class ContrastiveVI(BaseModelClass):
             latent += [latent_sample.detach().cpu()]
         return torch.cat(latent).numpy()
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,
