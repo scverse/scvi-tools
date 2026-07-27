@@ -4,7 +4,7 @@ import re
 import pytest
 
 import scvi.model
-from scvi.external import MRVI, RESOLVI, ContrastiveVI
+from scvi.external import MRVI, ContrastiveVI
 
 # Public model classes whose method docstrings should be fully rendered, i.e.
 # contain no leftover ``%(...)s`` docstring-template placeholders. The external
@@ -14,7 +14,7 @@ _MODEL_CLASSES = [
     getattr(scvi.model, name)
     for name in scvi.model.__all__
     if inspect.isclass(getattr(scvi.model, name))
-] + [ContrastiveVI, MRVI, RESOLVI]
+] + [ContrastiveVI, MRVI]
 
 _PLACEHOLDER = re.compile(r"%\([A-Za-z0-9_]+\)s")
 
