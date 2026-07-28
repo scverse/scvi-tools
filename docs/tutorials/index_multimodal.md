@@ -9,8 +9,8 @@ notebooks/multimodal/totalVI_reference_mapping
 notebooks/multimodal/cite_scrna_integration_w_totalVI
 notebooks/multimodal/MultiVI_tutorial
 notebooks/multimodal/totalanvi
-notebooks/multimodal/DiagVI_spatial_proteomics.ipynb
-notebooks/multimodal/DiagVI_spatial_transcriptomics.ipynb
+notebooks/multimodal/DiagVI_spatial_proteomics
+notebooks/multimodal/DiagVI_spatial_transcriptomics
 ```
 
 ```{customcard}

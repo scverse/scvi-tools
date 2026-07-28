@@ -1,6 +1,6 @@
 # MethylANVI
 
-**MethylANVI** {cite:p}`Weinberger2023a` (Python class {class}`~scvi.external.METHYLANVI`) is a semi-supervised generative model of scBS-seq data.
+**MethylANVI** {cite:p}`Weinberger26` (Python class {class}`~scvi.external.METHYLANVI`) is a semi-supervised generative model of scBS-seq data.
 Similar to how scANVI extends scVI, MethylANVI can be treated as an extension of MethylVI that can leverage cell type annotations
 for a subset of the cells present in the data sets to infer the states of the rest of the cells
 

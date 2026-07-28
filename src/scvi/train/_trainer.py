@@ -89,7 +89,7 @@ class Trainer(pl.Trainer):
     log_save_dir
         Path to save the lightning logger as pkl file (Optional)
     **kwargs
-        Other keyword args for :class:`~pytorch_lightning.trainer.Trainer`
+        Other keyword args for :class:`~lightning.pytorch.trainer.trainer.Trainer`
     """
 
     def __init__(

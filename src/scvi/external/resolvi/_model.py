@@ -223,7 +223,7 @@ class RESOLVI(
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
         plan_kwargs
-            Keyword args for :class:`~resolvi.train.PyroTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         expose_params
             List of parameters to train if running model in Arches mode.
@@ -324,7 +324,7 @@ class RESOLVI(
         prepare_data
             If True, prepares AnnData for training. Computes spatial neighbors and distances.
         prepare_data_kwargs
-            Keyword args for :meth:`scvi.external.RESOLVI._prepare_data`
+            Keyword args for ``RESOLVI._prepare_data``
         %(param_unlabeled_category)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
@@ -523,7 +523,7 @@ class RESOLVI(
             performed.
         filter_outlier_cells
             Whether to filter outlier cells with
-            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`
         n_samples
             Number of posterior samples to use for estimation.
         size_scaling

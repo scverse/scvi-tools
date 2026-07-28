@@ -2,12 +2,14 @@
 function getUniqueTags() {
     let tagSet = new Set();
 
-    $(".card-container").each(function() {
-        let tags = $(this).attr('data-tags').split(",")
-        .map(tag => tag.trim()) // Get rid of whitespace
-        .filter(tag => tag !== ""); // Make sure there are no empty tags
+    $(".card-container").each(function () {
+        let tags = $(this)
+            .attr("data-tags")
+            .split(",")
+            .map((tag) => tag.trim()) // Get rid of whitespace
+            .filter((tag) => tag !== ""); // Make sure there are no empty tags
 
-        tags.forEach(tag => tagSet.add(tag)); // Add tag to the set
+        tags.forEach((tag) => tagSet.add(tag)); // Add tag to the set
     });
 
     let uniqueTags = Array.from(tagSet);
@@ -19,14 +21,14 @@ function getUniqueTags() {
 function getUniqueGroups() {
     let groupSet = new Set();
 
-    $(".card-container").each(function() {
-        let group = $(this).attr('data-group')
+    $(".card-container").each(function () {
+        let group = $(this).attr("data-group");
 
         if (group && group.trim() !== "") {
             groupSet.add(group.trim());
         }
 
-        groupSet.add(group)
+        groupSet.add(group);
     });
 
     let uniqueGroups = Array.from(groupSet);
@@ -37,10 +39,15 @@ function getUniqueGroups() {
 function createMenu() {
     let tags = getUniqueTags();
 
-    tags.forEach(item => {
+    tags.forEach((item) => {
         let displayName = item.replace(/-/g, " "); // Replace underscores with spaces
-        $(".filter-menu")
-        .append("<div class='filter filter-btn' data-tag='" + item + "'>" + displayName + "</div>")
+        $(".filter-menu").append(
+            "<div class='filter filter-btn' data-tag='" +
+                item +
+                "'>" +
+                displayName +
+                "</div>",
+        );
     });
 }
 
@@ -48,13 +55,18 @@ function createMenu() {
 function populateTabs() {
     let groups = getUniqueGroups();
 
-    groups.forEach(item => {
-        $(".tab-menu")
-        .append("<div class='tab tab-btn' data-group='" + item + "'>" + item + "</div>")
+    groups.forEach((item) => {
+        $(".tab-menu").append(
+            "<div class='tab tab-btn' data-group='" +
+                item +
+                "'>" +
+                item +
+                "</div>",
+        );
     });
 }
 
-$(document).ready(function() {
+$(document).ready(function () {
     createMenu();
     populateTabs();
 });
@@ -96,13 +108,16 @@ $(document).on("click", ".filter-btn", function () {
 function filterCards() {
     $(".card-container").each(function () {
         let tagsData = $(this).attr("data-tags") || "";
-        let cardTags = tagsData.split(",").map(tag => tag.trim());
+        let cardTags = tagsData.split(",").map((tag) => tag.trim());
         let groupName = $(this).attr("data-group");
 
-        let matchesTags = selectedTagSet.size === 0 || [...selectedTagSet].every(tag => cardTags.includes(tag));
+        let matchesTags =
+            selectedTagSet.size === 0 ||
+            [...selectedTagSet].every((tag) => cardTags.includes(tag));
         // A card only has one group, so multi-select here means "matches any of
         // the selected groups" (OR), unlike tags where a card can carry many tags (AND).
-        let matchesGroup = selectedGroupSet.size === 0 || selectedGroupSet.has(groupName);
+        let matchesGroup =
+            selectedGroupSet.size === 0 || selectedGroupSet.has(groupName);
 
         $(this).toggleClass("hidden", !(matchesTags && matchesGroup));
 

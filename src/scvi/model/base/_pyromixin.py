@@ -20,9 +20,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from anndata import AnnData
-    from pyro import PyroBaseModuleClass
 
     from scvi.dataloaders import AnnDataLoader
+    from scvi.module.base import PyroBaseModuleClass
     from scvi.train._config import KwargsLike
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class PyroSviTrainMixin:
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
         lr
-            Optimiser learning rate (default optimiser is :class:`~pyro.optim.ClippedAdam`).
+            Optimiser learning rate (default optimiser is :class:`~pyro.optim.clipped_adam.ClippedAdam`).
             Specifying optimiser via plan_kwargs overrides this choice of lr.
         training_plan
             Training plan :class:`~scvi.train.PyroTrainingPlan`.
@@ -489,7 +489,7 @@ class PyroSampleMixin:
         summary_frequency
             Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         sample_kwargs
-            Keyword arguments for :meth:`~scvi.model.base.PyroSampleMixin._get_posterior_samples`.
+            Keyword arguments for ``_get_posterior_samples``.
 
         Returns
         -------
@@ -673,22 +673,22 @@ class PyroSampleMixin:
             distribution summaries to compute and which names to use. See below for default
             returns.
         sample_kwargs
-            Keyword arguments for :meth:`~scvi.model.base.PyroSampleMixin._get_posterior_samples`.
+            Keyword arguments for ``_get_posterior_samples``.
 
         Returns
         -------
-        post_sample_means: Dict[str, :class:`np.ndarray`]
+        post_sample_means : dict[str, numpy.ndarray]
             Mean of the posterior distribution for each variable, a dictionary of numpy arrays for
             each variable;
-        post_sample_q05: Dict[str, :class:`np.ndarray`]
+        post_sample_q05 : dict[str, numpy.ndarray]
             5th quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, :class:`np.ndarray`]
+        post_sample_q95 : dict[str, numpy.ndarray]
             95th quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, :class:`np.ndarray`]
+        post_sample_stds : dict[str, numpy.ndarray]
             Standard deviation of the posterior distribution for each variable;
-        posterior_samples: Optional[Dict[str, :class:`np.ndarray`]]
+        posterior_samples : dict[str, numpy.ndarray], optional
             Posterior distribution samples for each variable as numpy arrays of shape
-            `(n_samples, ...)` (Optional).
+            `(n_samples, ...)`.
 
         Notes
         -----

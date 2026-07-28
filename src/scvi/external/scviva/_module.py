@@ -87,8 +87,8 @@ class nicheVAE(VAE):
     niche_likelihood
         Distribution to use for the niche state. One of the following:
 
-        * ``"poisson"``: :class:`~torch.distributions.Poisson`.
-        * ``"gaussian"``: :class:`~torch.distributions.Normal`.
+        * ``"poisson"``: :class:`~torch.distributions.poisson.Poisson`.
+        * ``"gaussian"``: :class:`~torch.distributions.normal.Normal`.
 
         Default is ``"gaussian"`` and Poisson should be used if the niche state is count data.
     cell_rec_weight

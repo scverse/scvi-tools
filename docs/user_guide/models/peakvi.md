@@ -120,7 +120,7 @@ The latent representation can be used to create a nearest neighbor graph with sc
 
 ```
 >>> import scanpy as sc
->>> sc.pp.neighbors(adata, use_rep="X_scvi")
+>>> sc.pp.neighbors(adata, use_rep="X_peakvi")
 >>> adata.obsp["distances"]
 ```
 

@@ -15,22 +15,22 @@ class Trajectory:
     ----------
     rep_key : str
         Obsm key for the latent representation being used
-    cluster_locations : np.ndarray
+    cluster_locations : numpy.ndarray
         Array of coordinates for points to connect, shape (n_points, n_dimensions)
-    cluster_ids : List[str]
+    cluster_ids : list[str]
         List of cluster IDs corresponding to the locations
-    point_density : int, default=50
-        Number of interpolated points per unit distance in the latent space
+    point_density : int
+        Number of interpolated points per unit distance in the latent space, 50 by default
 
     Attributes
     ----------
-    trajectory_latent : np.ndarray
+    trajectory_latent : numpy.ndarray
         Coordinates of points along the interpolated trajectory
-    trajectory_time : np.ndarray
+    trajectory_time : numpy.ndarray
         Time values corresponding to each point in trajectory_latent
-    cumulative_length : np.ndarray
+    cumulative_length : numpy.ndarray
         Cumulative distance along the trajectory at each cluster location
-    cluster_locations : np.ndarray
+    cluster_locations : numpy.ndarray
         Original cluster locations used to create the trajectory
     n_points : int
         Total number of points in the interpolated trajectory
@@ -82,7 +82,7 @@ class Trajectory:
 
         Returns
         -------
-        np.ndarray
+        numpy.ndarray
             Coordinates at the specified time point.
         """
         i = 0
