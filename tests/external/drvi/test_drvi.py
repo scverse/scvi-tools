@@ -205,7 +205,7 @@ def test_drvi_batch_embedding():
 def test_drvi_decoder_reuse_weights(decoder_reuse_weights, n_body_per_split, head_is_shared):
     """decoder_reuse_weights selects which decoder layers are shared (nn.Linear) vs per-split
     (StackedLinearLayer), across the FC body (2 layers here) and the parameter heads."""
-    from stacked_linear import StackedLinearLayer
+    from scvi.external.drvi import StackedLinearLayer
 
     adata = mock_adata()
     DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
@@ -436,7 +436,7 @@ def test_drvi_query_to_reference_freezes_per_split_decoder_weights(deeply_inject
     """With weight-sharing off (per-split ``StackedLinearLayer``, 3d weights), scArches keeps the
     reference decoder weights frozen while updating only the new covariate (query batch) column.
     """
-    from stacked_linear import StackedLinearLayer
+    from scvi.external.drvi import StackedLinearLayer
 
     adata = mock_adata(n_batches=3)
     ref = adata[adata.obs["batch"] != "batch_0"].copy()

@@ -6,12 +6,12 @@ import pytest
 import torch
 from anndata.experimental import AnnCollection
 from scipy.sparse import csr_matrix
-from tests.data.utils import generic_setup_adata_manager
 
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.dataloaders import CollectionAdapter
 from scvi.model import SCANVI, SCVI
+from tests.data.utils import generic_setup_adata_manager
 
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):

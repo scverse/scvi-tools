@@ -4,9 +4,9 @@ import math
 from typing import TYPE_CHECKING
 
 import torch
-from stacked_linear import StackedLinearLayer
 from torch import nn
 
+from scvi.external.drvi._utils import StackedLinearLayer
 from scvi.nn import FCLayers
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ class SplitFCLayers(FCLayers):
         Per-layer weight-sharing across splits: either a single bool applied to every layer, or a
         sequence of bools with one entry per layer (length ``n_layers``). ``True`` → that layer is
         a single shared :class:`~torch.nn.Linear` (broadcast over the split dimension); ``False``
-        → per-split weights via :class:`stacked_linear.StackedLinearLayer`.
+        → per-split weights via :class:`~scvi.external.drvi.StackedLinearLayer`.
     **kwargs
         Keyword arguments for :class:`~scvi.nn.FCLayers`.
     """
@@ -132,8 +132,8 @@ class DecoderDRVI(nn.Module):
           its own split, zeroing the other chunks. Each split keeps the full latent width
           ``n_input``; e.g. with ``n_input=10`` and ``n_split=2`` the latent
           ``[1..10]`` becomes ``[[1,2,3,4,5,0,0,0,0,0], [0,0,0,0,0,6,7,8,9,10]]``.
-        * ``"split_map"`` — reshape into ``n_split`` chunks of size ``n_input // n_split``
-          and apply a learned per-split linear map (:class:`stacked_linear.StackedLinearLayer`).
+        * ``"split_map"`` — reshape into ``n_split`` chunks of size ``n_input // n_split`` and
+          apply a learned per-split linear map (:class:`~scvi.external.drvi.StackedLinearLayer`).
     n_split_output
         Per-split projection output width, i.e. the input dimension to each split's decoder body.
         ``"auto"`` (default) uses ``n_input`` (= ``n_latent``). For ``"split_map"`` it is the
@@ -156,7 +156,7 @@ class DecoderDRVI(nn.Module):
         * ``"hidden_except_first"`` — first hidden layer per-split, the rest and heads shared.
         * ``"nowhere"`` — hidden layers and heads all per-split.
 
-        Per-split weights use :class:`stacked_linear.StackedLinearLayer`; shared weights are a
+        Per-split weights use :class:`~scvi.external.drvi.StackedLinearLayer`; shared weights are a
         single :class:`~torch.nn.Linear` broadcast over the split dimension.
     model_cell_dispersion
         Whether to build a per-cell dispersion head (``px_r_decoder``). If ``False`` (default), the

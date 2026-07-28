@@ -437,7 +437,7 @@ class InterpretabilityMixin:
           contribution. Shrinks when a gene is driven by several factors.
           Overall specific is a factor's effect.
         * ``combined`` -- the product ``max_possible * min_possible``; large only when the factor
-        is both strong and specific.
+          is both strong and specific.
 
         ``add_to_counts`` is a pseudo-count (relative to a ``1e6``-count reference cell) folded
         into LFC calculations for numerical stability. See the DRVI paper :cite:p:`Moinfar2024`

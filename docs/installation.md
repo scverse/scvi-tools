@@ -27,7 +27,7 @@ And for Apple Silicon metal (MPS) support:
 pip install -U scvi-tools[metal]
 ```
 
-Note that for some OS you will have to use quotes in order to install with dependencies,e.g.:
+Note that for some OS you will have to use quotes in order to install with dependencies, e.g.:
 ```bash
 pip install -U "scvi-tools[cuda]"
 ```
@@ -72,7 +72,7 @@ dependencies be installed automatically by your package manager of choice.
 If you plan on taking advantage of an accelerated device (e.g., Nvidia GPU or Apple Silicon),
 which is likely, scvi-tools supports it, and you should install with the GPU support dependency of scvi-tools.
 
-However, there might be cases where the GPU HW is not supporting the latest installation of PyTorch.
+However, there might be cases where the GPU hardware does not support the latest version of PyTorch.
 In this case we recommend installing PyTorch _before_ installing scvi-tools.
 Please follow the respective installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) compatible with your system and device type.
 
@@ -86,17 +86,19 @@ It has many optional dependencies which expand its capabilities:
 - _autotune_ - in order to run scvi.autotune
 - _hub_ - in order to use scvi.hub
 - _regseq_ - in order to run scvi.data.add_dna_sequence
-- _file_sharing_ - for convenient files sharing
+- _file-sharing_ - for convenient files sharing
 - _parallel_ - for parallelization engine
 - _interpretability_ - for supervised models interpretability
 - _dataloaders_ - for custom dataloaders use
+- _diagvi_ - for DiagVI model (requires torch_geometric and geomloss)
 - _mlflow_ - for MLflow support
-- _tests_ - in order to be able to perform tests
-- _editing_ - for code editing
-- _dev_ - for development purposes
-- _cuda_ - for Linux-based OS GPU support
+- _cuda_ - for Linux-based OS CUDA 12 GPU support
+- _cuda13_ - for Linux-based OS CUDA 13 GPU support
+- _tpu_ - for Google TPU support (via torch_xla)
 - _metal_ - for Apple Silicon metal (MPS) support
-- _docsbuild_ - in order to create docs
+- _rapids_ - for RAPIDS-accelerated single-cell analysis (GPU)
+- _rapids-cuda12_ - for RAPIDS with CUDA 12 (cuGraph, cuML, cupy-cuda12x)
+- _rapids-cuda13_ - for RAPIDS with CUDA 13 (cuGraph, cuML, cupy-cuda13x)
 
 The easiest way to install this is with `pip`.
 To install capability X run: _pip install scvi-tools[X]_
@@ -107,18 +109,15 @@ To install all tutorial dependencies:
 pip install -U scvi-tools[tutorials]
 ```
 
-To install all optional dependencies (_e.g._ custom dataloaders, autotune, criticism, model hub):
+To install all optional dependencies (_e.g._ custom dataloaders, autotune, model hub and so on):
 
 
 ```bash
 pip install -U scvi-tools[optional]
 ```
 
-To install development dependencies, including `pre-commit` and testing dependencies:
-
-```bash
-pip install -U scvi-tools[dev]
-```
+The dependencies needed for development — linting, testing and building the documentation — are declared as [dependency groups][dependency-groups] (`dev`, `test` and `doc`) rather than as extras, because they are only relevant when working on scvi-tools itself.
+See our [contributing guide](developer/code.md) for how to install them.
 
 And to install all capabilities of scvi-tools, run:
 
@@ -155,3 +154,5 @@ The easiest way to install scvi-tools for R is via conda.
     library(reticulate)
     ```
 See rest of R tutorials for further examples.
+
+[dependency-groups]: https://packaging.python.org/en/latest/specifications/dependency-groups/

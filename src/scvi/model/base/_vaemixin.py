@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import torch
 
+from scvi import settings
 from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.utils import unsupported_if_adata_minified
 
@@ -89,9 +91,11 @@ class VAEMixin:
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         return -compute_elbo(self.module, dataloader, return_mean=return_mean, **kwargs)
@@ -168,9 +172,11 @@ class VAEMixin:
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         log_likelihoods: list[float | Tensor] = [
@@ -249,9 +255,11 @@ class VAEMixin:
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         return compute_reconstruction_error(
@@ -325,9 +333,11 @@ class VAEMixin:
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         zs: list[Tensor] = []

@@ -88,7 +88,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: AnnData | None = None,
         registry: dict | None = None,
-        ambient_profile: str | np.ndarray | pd.DataFrame | torch.tensor | None = None,
+        ambient_profile: str | np.ndarray | pd.DataFrame | torch.Tensor | None = None,
         n_hidden: int = 150,
         n_latent: int = 15,
         n_layers: int = 2,

@@ -17,7 +17,7 @@ def rotate_decipher_components(
     v2_obs_col: str | None = None,
     v2_order: list | None = None,
     auto_flip_decipher_z: bool = True,
-) -> tuple[np.array, np.array, np.array]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Rotate and flip the decipher space v to maximize the correlation of each decipher component.
 
