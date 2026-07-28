@@ -11,7 +11,7 @@ from pyro import infer
 
 from scvi import settings
 from scvi.model._utils import _get_batch_code_from_category, parse_device_args
-from scvi.utils import track
+from scvi.utils import de_dsp, track
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,7 @@ class ResolVIPredictiveMixin:
             else torch.cat(latent).numpy()
         )
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression_importance(
         self,
@@ -172,9 +173,13 @@ class ResolVIPredictiveMixin:
             indices = np.arange(adata.n_obs)
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
-        transform_batch = _get_batch_code_from_category(
-            self.get_anndata_manager(adata, required=True), transform_batch
-        )
+        if transform_batch is not None:
+            warnings.warn(
+                "`transform_batch` is not supported by "
+                "`get_normalized_expression_importance` and will be ignored.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
 
         gene_mask = slice(None) if gene_list is None else adata.var_names.isin(gene_list)
 
@@ -231,6 +236,7 @@ class ResolVIPredictiveMixin:
             else:
                 exprs.append(samples[1, ...].cpu())
         exprs = torch.cat(exprs, axis=1).numpy()
+        exprs = exprs[..., gene_mask]
         if return_mean:
             exprs = exprs.mean(0)
         weighting = torch.cat(weighting, axis=0).numpy()
@@ -260,6 +266,7 @@ class ResolVIPredictiveMixin:
         else:
             return exprs
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,

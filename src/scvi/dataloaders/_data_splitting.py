@@ -94,7 +94,7 @@ def validate_data_split(
 
 def validate_data_split_with_external_indexing(
     n_samples: int,
-    external_indexing: list[np.array, np.array, np.array] | None = None,
+    external_indexing: list[np.ndarray] | None = None,
     batch_size: int | None = None,
     drop_last: bool | int = False,
 ):
@@ -232,7 +232,7 @@ class DataSplitter(pl.LightningDataModule):
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
         pin_memory: bool = False,
-        external_indexing: list[np.array, np.array, np.array] | None = None,
+        external_indexing: list[np.ndarray] | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -393,7 +393,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         shuffle_set_split: bool = True,
         n_samples_per_label: int | None = None,
         pin_memory: bool = False,
-        external_indexing: list[np.array, np.array, np.array] | None = None,
+        external_indexing: list[np.ndarray] | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -636,7 +636,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: int | None = None,
-        external_indexing: list[np.array, np.array, np.array] | None = None,
+        external_indexing: list[np.ndarray] | None = None,
         **kwargs,
     ):
         super().__init__(

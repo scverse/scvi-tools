@@ -1145,6 +1145,70 @@ def test_scvi_online_update(save_path):
     model3.get_latent_representation()
 
 
+def _scvi_query_to_reference(**model_kwargs):
+    """scArches query->reference run; returns (reference_change, query_change, transfer_model).
+
+    Holds out ``batch_0`` as a new query batch, trains the reference, transfers via
+    ``load_query_data`` and finetunes the query twice, measuring how much the reference and query
+    latent representations move. ``encode_covariates=True`` makes the batch affect the latent.
+    """
+    adata = synthetic_iid(n_batches=3)
+    ref = adata[adata.obs["batch"] != "batch_0"].copy()
+    query = adata[adata.obs["batch"] == "batch_0"].copy()
+
+    SCVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    model = SCVI(ref, n_latent=8, encode_covariates=True, **model_kwargs)
+    model.train(max_epochs=2, batch_size=ref.n_obs)
+    latent_reference = model.get_latent_representation(ref)
+
+    SCVI.prepare_query_anndata(query, model)
+    transfer = SCVI.load_query_data(query, model)
+    train_kwargs = {"plan_kwargs": {"lr": 0.1, "weight_decay": 0.0}}
+    transfer.train(max_epochs=2, batch_size=query.n_obs, **train_kwargs)
+    latent_query = transfer.get_latent_representation(query)
+    transfer.train(max_epochs=2, batch_size=query.n_obs, **train_kwargs)
+
+    reference_change = np.sum((latent_reference - transfer.get_latent_representation(ref)) ** 2)
+    query_change = np.sum((latent_query - transfer.get_latent_representation(query)) ** 2)
+    return reference_change, query_change, transfer
+
+
+@pytest.mark.parametrize("batch_representation", ["one-hot", "embedding"])
+def test_scvi_query_to_reference_mapping(batch_representation):
+    """scArches keeps the reference latent intact while updating the query."""
+    reference_change, query_change, transfer = _scvi_query_to_reference(
+        batch_representation=batch_representation
+    )
+    assert reference_change < 1e-4  # reference latent intact (frozen path)
+    assert query_change > 1e-3  # query latent updated by transfer training
+
+
+def test_scvi_query_to_reference_freezes_reference_embedding_rows():
+    """With ``batch_representation="embedding"``, scArches freezes the reference embedding rows and
+    trains only the newly added (query) row."""
+    adata = synthetic_iid(n_batches=3)
+    ref = adata[adata.obs["batch"] != "batch_0"].copy()
+    query = adata[adata.obs["batch"] == "batch_0"].copy()
+    SCVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    model = SCVI(ref, n_latent=8, encode_covariates=True, batch_representation="embedding")
+    model.train(max_epochs=2, batch_size=ref.n_obs)
+    n_old = model.summary_stats.n_batch
+
+    SCVI.prepare_query_anndata(query, model)
+    transfer = SCVI.load_query_data(query, model)
+    emb = transfer.module.get_embedding(scvi.REGISTRY_KEYS.BATCH_KEY)
+    assert emb.num_embeddings == n_old + 1
+    assert emb.weight.requires_grad
+
+    before = emb.weight.detach().clone()
+    transfer.train(
+        max_epochs=3, batch_size=query.n_obs, plan_kwargs={"lr": 0.1, "weight_decay": 0.0}
+    )
+    after = emb.weight.detach()
+    assert ((after[:n_old] - before[:n_old]) ** 2).sum().item() < 1e-8  # reference rows frozen
+    assert ((after[n_old:] - before[n_old:]) ** 2).sum().item() > 1e-3  # new query row updated
+
+
 def test_scvi_library_size_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()

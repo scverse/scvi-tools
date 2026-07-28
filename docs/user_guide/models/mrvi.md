@@ -1,6 +1,6 @@
 # MrVI
 
-**MrVI** [^ref1] (Multi-resolution Variational Inference; Python class
+**MrVI** {cite:p}`Boyeau24` (Multi-resolution Variational Inference; Python class
 {class}`~scvi.external.MRVI`) is a deep generative model designed for the analysis of large-scale
 single-cell transcriptomics data with multi-sample, multi-batch experimental designs.
 
@@ -141,8 +141,3 @@ More generally, we can consider the log-ratio of aggregated posteriors between t
 $r = \log \frac{q_{A_1}}{q_{A_2}}$.
 We can evaluate these log-ratios for all cell states $u$ to identify DA cell-state regions.
 In particular, large positive (resp. negative) values of $r$ indicate that cell states are more abundant in $A_1$ (resp. $A_2$).
-
-[^ref1]:
-     Pierre Boyeau, Justin Hong, Adam Gayoso, Martin Kim, Jose L McFaline-Figueroa, Michael Jordan, Elham Azizi, Can Ergen, Nir Yosef (2024),
-    _Deep generative modeling of sample-level heterogeneity in single-cell genomics_,
-    [Nature Methods](https://www.nature.com/articles/s41592-025-02808-x).

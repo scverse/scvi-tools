@@ -37,17 +37,6 @@ def __getattr__(name: str):
 
     only when object is actually requested.
     """
-    if name == "JaxSCVI":
-        warnings.warn(
-            "In order to use the Jax version of SCVI make sure to install scvi-tools[jax]",
-            DeprecationWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
-        from ._jaxscvi import JaxSCVI as _JaxSCVI
-
-        return _JaxSCVI
     if name == "mlxSCVI":
         warnings.warn(
             "In order to use the MLX version of SCVI make sure to install mlx",

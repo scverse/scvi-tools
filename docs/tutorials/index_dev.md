@@ -34,3 +34,7 @@ Implement a novel statistical method for single-cell omics data as a module
 
 Implement an scvi-tools model class to provide a convenient interface for the lower-level module objects
 ```
+
+[example]: https://github.com/scverse/simple-scvi
+[forum]: https://discourse.scverse.org/
+[zulip]: https://scverse.zulipchat.com/#narrow/stream/324229-scvi-tools

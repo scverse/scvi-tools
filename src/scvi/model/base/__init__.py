@@ -44,17 +44,6 @@ def __getattr__(name: str):
 
     only when object is actually requested.
     """
-    if name == "JaxTrainingMixin":
-        warnings.warn(
-            "In order to use the JaxTrainingMixin make sure to install scvi-tools[jax]",
-            DeprecationWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
-        from ._jaxmixin import JaxTrainingMixin as _JaxTrainingMixin
-
-        return _JaxTrainingMixin
     if name == "MlxTrainingMixin":
         warnings.warn(
             "In order to use the MlxTrainingMixin make sure to install mlx",

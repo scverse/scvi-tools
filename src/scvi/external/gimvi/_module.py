@@ -35,12 +35,12 @@ class JVAE(BaseModuleClass):
         ``[0,1,3,2]``
     gene_likelihoods
         list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
-    model_library_bools bool list
+    model_library_bools
         model or not library size with a latent variable or use observed values
-    library_log_means np.ndarray list
+    library_log_means
         List of 1 x n_batch array of means of the log library sizes.
         Parameterizes prior on library size if not using observed library sizes.
-    library_log_vars np.ndarray list
+    library_log_vars
         List of 1 x n_batch array of variances of the log library sizes.
         Parameterizes prior on library size if not using observed library sizes.
     n_latent

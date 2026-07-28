@@ -75,12 +75,17 @@ def _gaussian_process_classifier(
         fdr_g1_n1_train = fdr_g1_n1
 
     # The design matrix X is concat of lfc_g1_g2 and lfc_n1_g2:
+    lfc_g1_g2_renamed = lfc_g1_g2.rename("lfc_g1_g2")
+    lfc_n1_g2_renamed = lfc_n1_g2.rename("lfc_n1_g2")
+    lfc_g1_g2_train_renamed = lfc_g1_g2_train.rename("lfc_g1_g2")
+    lfc_n1_g2_train_renamed = lfc_n1_g2_train.rename("lfc_n1_g2")
+
     X = pd.concat(
-        [lfc_g1_g2, lfc_n1_g2],
+        [lfc_g1_g2_renamed, lfc_n1_g2_renamed],
         axis=1,
     )
     X_train = pd.concat(
-        [lfc_g1_g2_train, lfc_n1_g2_train],
+        [lfc_g1_g2_train_renamed, lfc_n1_g2_train_renamed],
         axis=1,
     )
 

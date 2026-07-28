@@ -2,6 +2,7 @@ import mudata
 import numpy as np
 import pytest
 
+import scvi
 from scvi.data import synthetic_iid
 from scvi.external import Tangram
 
@@ -20,7 +21,6 @@ def _get_mdata(sparse_format: str | None = None):
     return mdata
 
 
-@pytest.mark.jax
 @pytest.mark.parametrize(
     ("density_prior_key", "constrained"),
     [
@@ -52,7 +52,6 @@ def test_tangram(density_prior_key, constrained):
     model.project_genes(mdata.mod["sc"], mdata.mod["sp"], mdata.mod["sc"].obsm["mapper"])
 
 
-@pytest.mark.jax
 def test_tangram_errors():
     mdata = _get_mdata()
     Tangram.setup_mudata(
@@ -70,3 +69,27 @@ def test_tangram_errors():
     )
     with pytest.raises(ValueError):
         Tangram(mdata)
+
+
+def test_tangram_reproducible_with_seed():
+    mdata = _get_mdata()
+    Tangram.setup_mudata(
+        mdata,
+        density_prior_key="rna_count_based_density",
+        modalities=modalities,
+    )
+
+    scvi.settings.seed = 7
+    model_a = Tangram(mdata)
+    model_a.train(max_epochs=2)
+    mapper_a = model_a.get_mapper_matrix()
+    loss_a = model_a.history_["loss"].to_numpy(dtype=float)
+
+    scvi.settings.seed = 7
+    model_b = Tangram(mdata)
+    model_b.train(max_epochs=2)
+    mapper_b = model_b.get_mapper_matrix()
+    loss_b = model_b.history_["loss"].to_numpy(dtype=float)
+
+    np.testing.assert_allclose(mapper_a, mapper_b, rtol=0, atol=0)
+    np.testing.assert_allclose(loss_a, loss_b, rtol=0, atol=0)

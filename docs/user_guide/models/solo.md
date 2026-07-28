@@ -1,6 +1,6 @@
 # Solo
 
-**Solo** [^ref1] (Python class {class}`~scvi.external.SOLO`) posits a flexible generative model of scRNA-seq count data that can subsequently
+**Solo** {cite:p}`Bernstein20` (Python class {class}`~scvi.external.SOLO`) posits a flexible generative model of scRNA-seq count data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of Solo are:
@@ -49,8 +49,3 @@ representations $z'_{1:D}$ if there are $D$ doublets.
 These vectors are assigned a label of 1, while the latent representations of the original data $z_{1:N}$ are
 assigned a label of 0. A simple multilayer perceptron classifier ({class}`scvi.module.Classifier`) is trained
 and the doublet score for each originally observed cell is the doublet probability according to this classifier.
-
-[^ref1]:
-    Nicholas J. Bernstein, , Nicole L. Fong, Irene Lam, Margaret A. Roy, David G. Hendrickson, and David R. Kelley (2020),
-    _Solo: doublet identification in single-cell RNA-Seq via semi-supervised deep learning_,
-    [Cell Systems](https://www.sciencedirect.com/science/article/pii/S2405471220301952).

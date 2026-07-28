@@ -1,12 +1,90 @@
 # Using LLM Engines with scvi-tools
 
-Large language models (LLMs) can significantly lower the barrier to using scvi-tools by helping researchers write code, choose models, tune parameters, and troubleshoot analyses through natural language. This page covers how to leverage five popular AI platforms—Claude, ChatGPT, OpenClaw, Gemini, and BioMNI—to get the most out of scvi-tools.
+Large language models (LLMs) can significantly lower the barrier to using scvi-tools by helping researchers write code, choose models, tune parameters, and troubleshoot analyses through natural language. This page covers how to leverage popular AI platforms—Claude, ChatGPT, OpenClaw, Gemini, and BioMNI—to get the most out of scvi-tools.
+
+---
+
+## scvi-tools MCP Server
+
+The **scvi-tools MCP server** ([`scvi-tools-mcp`](https://github.com/Yoseflab/scvi-tools-mcp)) is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives any MCP-compatible LLM structured access to scvi-tools knowledge: model documentation, tutorials, API reference, workflow templates, and a curated FAQ—with no runtime model execution.
+
+### Installation
+
+```bash
+pip install scvi-tools-mcp
+```
+
+Or use `uvx` (no install needed) directly in your MCP client config.
+
+### Connecting to your LLM client
+
+**Claude Code (CLI)**
+
+```bash
+claude mcp add scvi-tools-mcp -s user -- uvx scvi-tools-mcp
+```
+
+**Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "scvi-tools-mcp": {
+      "command": "uvx",
+      "args": ["scvi-tools-mcp"]
+    }
+  }
+}
+```
+
+**OpenAI Codex CLI** — add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.scvi-tools-mcp]
+command = "uvx"
+args   = ["scvi-tools-mcp"]
+```
+
+**Cursor / Windsurf / other MCP-compatible clients**
+
+```json
+{ "command": "uvx", "args": ["scvi-tools-mcp"] }
+```
+
+### Available tools
+
+| Tool | Description |
+|---|---|
+| `recommend_model` | Rank models by task and data type — start here |
+| `get_model_overview` | Full model description, use cases, inputs/outputs |
+| `get_model_parameters` | Key `__init__` and `train()` parameters with defaults |
+| `get_setup_anndata_guide` | Exact `setup_anndata()` call + required obs/var fields |
+| `validate_data_requirements` | Pass/fail checklist for your AnnData against a model |
+| `list_tutorials` | Browse tutorials by category |
+| `get_tutorial` | Paginated tutorial content (code + prose) |
+| `search_tutorials` | Keyword search across all tutorials |
+| `get_api_reference` | Signature + docstring for any public symbol |
+| `search_api` | Search public symbols by keyword |
+| `get_workflow_template` | Step-by-step code template for an analysis task |
+| `get_downstream_guide` | Guide for DE, clustering, embedding, label transfer |
+| `get_faq` | Curated FAQ from docs, GitHub issues, and Discourse |
+| `search_knowledge` | Cross-search all knowledge (catch-all) |
+
+Once connected, you can ask questions like:
+
+> "What model should I use for CITE-seq data with strong batch effects?"
+
+> "Show me a full scVI workflow template with batch correction."
+
+> "My KL divergence is exploding during training — how do I fix it?"
+
+The server resolves these against baked-in knowledge (no network calls at tool-call time) and returns structured, scvi-tools-specific guidance.
 
 ---
 
 ## Claude (Anthropic)
 
-Claude is a general-purpose AI assistant from Anthropic. For scvi-tools users, Claude offers a dedicated **scvi-tools Skill Bundle**—a curated set of skills covering the full scvi-tools ecosystem.
+Claude is a general-purpose AI assistant from Anthropic. For scvi-tools users, Claude offers two complementary integrations: the **scvi-tools MCP Server** (see above) for real-time knowledge lookup inside Claude Code and Claude Desktop, and a **scvi-tools Skill Bundle** with guided workflows for the full scvi-tools ecosystem.
 
 ### scvi-tools Skill Bundle
 
@@ -133,13 +211,14 @@ BioMNI is particularly well-suited for biologists who want to run complete singl
 
 | Platform | Best For | scvi-tools Integration |
 |---|---|---|
-| **Claude** | Guided workflows, parameter tuning, troubleshooting | Dedicated skill bundle with full model coverage |
-| **ChatGPT** | Code generation, custom GPTs, agentic pipelines | Custom GPTs + MCP tool use |
+| **Any MCP client** | Real-time API/tutorial/FAQ lookup inside the LLM | `scvi-tools-mcp` — works with Claude Code, Claude Desktop, Cursor, Codex, and more |
+| **Claude** | Guided workflows, parameter tuning, troubleshooting | MCP server + dedicated skill bundle with full model coverage |
+| **ChatGPT / Codex** | Code generation, custom GPTs, agentic pipelines | Custom GPTs + MCP tool use via `scvi-tools-mcp` |
 | **OpenClaw** | Lightweight Claude-based skill, CLI install | Installable scvi-tools skill via LobeHub |
-| **Gemini** | General code assistance, AI Studio prompting | General LLM assistance; no dedicated skill |
+| **Gemini** | General code assistance, AI Studio prompting | General LLM assistance; MCP support via Gemini CLI |
 | **BioMNI** | End-to-end automated scverse pipelines | Native scverse/scvi-tools integration |
 
-Each platform offers a different trade-off between ease of use, customization, and depth of scvi-tools knowledge. For users who primarily want guidance and code examples, Claude's skill bundle or BioMNI provide the deepest integration. For users building custom pipelines or agentic workflows, ChatGPT's MCP tool use or BioMNI's open-source deployment offer the most flexibility.
+Each platform offers a different trade-off between ease of use, customization, and depth of scvi-tools knowledge. The `scvi-tools-mcp` server is the broadest integration: install once and any MCP-compatible client gains structured scvi-tools knowledge. For users who want fully guided workflows, Claude's skill bundle or BioMNI provide the deepest experience. For custom pipelines or agentic workflows, `scvi-tools-mcp` combined with a code-execution tool (ChatGPT function calling, Claude tool use) or BioMNI's open-source deployment offer the most flexibility.
 
 :::{note}
 LLM-generated code should always be reviewed before running on important data. Check that model parameters, batch keys, and data shapes match your specific dataset.

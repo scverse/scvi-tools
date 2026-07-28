@@ -6,76 +6,6 @@ import scvi
 from tests.data.utils import generic_setup_adata_manager
 
 
-def pytest_addoption(parser):
-    """Docstring for pytest_addoption."""
-    parser.addoption(
-        "--internet-tests",
-        action="store_true",
-        default=False,
-        help="Run tests that retrieve stuff from the internet. This increases test time.",
-    )
-    parser.addoption(
-        "--multigpu-tests",
-        action="store_true",
-        default=False,
-        help="Run tests that are designed for multiGPU.",
-    )
-    parser.addoption(
-        "--autotune-tests",
-        action="store_true",
-        default=False,
-        help="Run tests that are designed for Ray Autotune.",
-    )
-    parser.addoption(
-        "--mlflow-tests",
-        action="store_true",
-        default=False,
-        help="Run tests that are designed for MLFlow.",
-    )
-    parser.addoption(
-        "--custom-dataloader-tests",
-        action="store_true",
-        default=False,
-        help="Run tests that deals with custom dataloaders. This increases test time.",
-    )
-    parser.addoption(
-        "--optional",
-        action="store_true",
-        default=False,
-        help="Run tests that are optional.",
-    )
-    parser.addoption(
-        "--jax",
-        action="store_true",
-        default=False,
-        help="Run tests that are Jax adopted.",
-    )
-    parser.addoption(
-        "--accelerator",
-        action="store",
-        default="cpu",
-        help="Option to specify which accelerator to use for tests.",
-    )
-    parser.addoption(
-        "--devices",
-        action="store",
-        default="auto",
-        help="Option to specify which devices to use for tests.",
-    )
-    parser.addoption(
-        "--seed",
-        action="store",
-        default=0,
-        help="Option to specify which scvi-tools seed to use for tests.",
-    )
-    parser.addoption(
-        "--private",
-        action="store_true",
-        default=False,
-        help="Run tests that are private.",
-    )
-
-
 def pytest_configure(config):
     """Docstring for pytest_configure."""
     config.addinivalue_line("markers", "optional: mark test as optional.")
@@ -123,18 +53,6 @@ def pytest_collection_modifyitems(config, items):
         # Skip all tests not marked with `pytest.mark.optional` if `--optional` passed
         elif run_optional and ("optional" not in item.keywords):
             item.add_marker(skip_non_optional)
-
-    run_jax = config.getoption("--jax")
-    skip_jax = pytest.mark.skip(reason="need --jax option to run")
-    skip_non_jax = pytest.mark.skip(reason="test not having a pytest.mark.jax decorator")
-    for item in items:
-        # All tests marked with `pytest.mark.jax` get skipped unless
-        # `--jax` passed
-        if not run_jax and ("jax" in item.keywords):
-            item.add_marker(skip_jax)
-        # Skip all tests not marked with `pytest.mark.jax` if `--jax` passed
-        elif run_jax and ("jax" not in item.keywords):
-            item.add_marker(skip_non_jax)
 
     run_private = config.getoption("--private")
     skip_private = pytest.mark.skip(reason="need --private option to run")

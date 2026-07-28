@@ -278,6 +278,16 @@ def test_diagvi_save_and_load_with_anndata(adata_seq, adata_spatial, tmp_path):
     assert latents["spatial"].shape[0] == adata_spatial.shape[0]
 
 
+def test_diagvi_save_and_load_with_prefix_and_anndata(adata_seq, adata_spatial, tmp_path):
+    model = make_model(adata_seq, adata_spatial)
+    save_path = tmp_path / "diagvi_prefixed"
+
+    model.save(save_path, prefix="diagvi_", save_anndata=True)
+    loaded_model = DIAGVI.load(save_path, prefix="diagvi_")
+
+    assert loaded_model.input_names == model.input_names
+
+
 # =============================================================================
 # Tests for get_imputed_values
 # =============================================================================

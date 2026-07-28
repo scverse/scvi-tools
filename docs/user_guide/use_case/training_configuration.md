@@ -53,6 +53,5 @@ Use the plan config that matches the training plan behind your model:
   models with adversarial mixing.
 - `PyroTrainingPlanConfig` / `LowLevelPyroTrainingPlanConfig` → Pyro‑based models.
 - `ClassifierTrainingPlanConfig` → classifier training plans.
-- `JaxTrainingPlanConfig` → Jax training plans.
 
 If you’re unsure, you can still use `plan_kwargs` exactly as before.

@@ -68,10 +68,11 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
    :nosignatures:
 
    dataloaders.AnnDataLoader
-   dataloaders.AnnTorchDataset
+   dataloaders.AnnbatchDataModule
    dataloaders.CollectionAdapter
    dataloaders.ConcatDataLoader
    dataloaders.DataSplitter
@@ -94,13 +95,13 @@ Parameterizable probability distributions.
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
    :nosignatures:
 
    distributions.Poisson
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
-   distributions.JaxNegativeBinomialMeanDisp
    distributions.BetaBinomial
    distributions.Normal
    distributions.Log1pNormal
@@ -162,8 +163,6 @@ Existing module classes with respective generative and inference procedures.
    module.VAE
    module.VAEC
    module.AmortizedLDAPyroModule
-   module.JaxVAE
-
 ```
 
 ## External module
@@ -181,28 +180,40 @@ Module classes in the external API with respective generative and inference proc
    :nosignatures:
 
    external.gimvi.JVAE
+   external.gimvi._task.GIMVITrainingPlan
+   external.gimvi._task.CyclicMultiDataLoader
    external.cytovi.CytoVAE
    external.cellassign.CellAssignModule
    external.contrastivevi.ContrastiveDataSplitter
+   external.contrastivevi.ContrastiveDataLoader
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
-   external.tangram.TangramMapper
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
+   external.tangram.TangramMapper
    external.mrvi.MRVAE
-   external.mrvi_jax.JaxMRVAE
-   external.mrvi_torch.TorchMRVAE
+   external.mrvi._types.MRVIReduction
    external.methylvi.METHYLVAE
+   external.methylvi.BSSeqMixin
+   external.methylvi.BSSeqModuleMixin
+   external.methylvi.DecoderMETHYLVI
    external.methylvi.METHYLANVAE
    external.decipher.DecipherPyroModule
+   external.decipher._trainingplan.DecipherTrainingPlan
    external.resolvi.RESOLVAE
    external.totalanvi.TOTALANVAE
    external.scviva.nicheVAE
    external.scviva.NicheLossOutput
+   external.scviva.differential_expression.DifferentialExpressionResults
    external.sysvi.SysVAE
    external.diagvi.DIAGVAE
-
+   external.drvi.DRVIModule
+   external.drvi.DecoderDRVI
+   external.drvi.SplitFCLayers
+   external.drvi.LogNegativeBinomial
+   external.drvi.StackedLinearLayer
+   external.JointEmbeddingVAE
 ```
 
 ## Module (Base)
@@ -223,11 +234,9 @@ These classes should be used to construct module classes that define generative 
    module.base.BaseMinifiedModeModuleClass
    module.base.SupervisedModuleClass
    module.base.PyroBaseModuleClass
-   module.base.JaxBaseModuleClass
    module.base.EmbeddingModuleMixin
    module.base.LossOutput
    module.base.auto_move_data
-
 ```
 
 ## Neural networks
@@ -246,7 +255,9 @@ Basic neural network building blocks.
 
    nn.FCLayers
    nn.Encoder
+   nn.MultiEncoder
    nn.Decoder
+   nn.MultiDecoder
    nn.DecoderSCVI
    nn.LinearDecoderSCVI
    nn.one_hot
@@ -277,13 +288,14 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.SemiSupervisedAdversarialTrainingPlan
    train.LowLevelPyroTrainingPlan
    train.PyroTrainingPlan
-   train.JaxTrainingPlan
    train.Trainer
    train.TrainingPlan
    train.TrainRunner
    train.ScibCallback
    train.SaveCheckpoint
    train.LoudEarlyStopping
+   train.KwargsConfig
+   train._metrics.ElboMetric
 
 ```
 
@@ -302,7 +314,15 @@ Utility functions used by scvi-tools.
 
    utils.track
    utils.setup_anndata_dsp
-   utils.attrdict
    model.get_max_epochs_heuristic
    external.decipher.utils.Trajectory
+```
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :template: class_no_inherited.rst
+   :nosignatures:
+
+   utils.attrdict
 ```

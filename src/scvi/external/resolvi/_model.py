@@ -223,13 +223,31 @@ class RESOLVI(
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
         plan_kwargs
-            Keyword args for :class:`~resolvi.train.PyroTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         expose_params
             List of parameters to train if running model in Arches mode.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
+
+        Notes
+        -----
+        RESOLVI trains with Pyro SVI and maintains per-cell global parameters, so it does not
+        support a held-out validation set. ``train_size`` must be ``1.0`` and ``early_stopping``
+        is not available.
         """
+        train_size = kwargs.pop("train_size", 1.0)
+        if train_size != 1.0:
+            raise ValueError(
+                "RESOLVI does not support a validation set: it uses Pyro SVI with per-cell "
+                f"global parameters, so `train_size` must be 1.0 (got {train_size})."
+            )
+        if kwargs.pop("early_stopping", False):
+            raise ValueError(
+                "RESOLVI does not support `early_stopping` because it trains without a "
+                "validation set (`train_size` must be 1.0)."
+            )
+
         blocked = self._block_parameters.copy()
         for name, param in self.module.named_parameters():
             if not param.requires_grad:
@@ -306,7 +324,7 @@ class RESOLVI(
         prepare_data
             If True, prepares AnnData for training. Computes spatial neighbors and distances.
         prepare_data_kwargs
-            Keyword args for :meth:`scvi.external.RESOLVI._prepare_data`
+            Keyword args for ``RESOLVI._prepare_data``
         %(param_unlabeled_category)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
@@ -337,7 +355,21 @@ class RESOLVI(
         if prepare_data:
             if prepare_data_kwargs is None:
                 prepare_data_kwargs = {}
-            RESOLVI._prepare_data(adata, batch_key=batch_key, **prepare_data_kwargs)
+            effective_config = {"batch_key": batch_key, **prepare_data_kwargs}
+            stored_config = adata.uns.get("_resolvi_prepare_data_config", None)
+            neighbors_valid = (
+                stored_config == effective_config
+                and "index_neighbor" in adata.obsm
+                and "distance_neighbor" in adata.obsm
+                and int(adata.obsm["index_neighbor"].max()) < adata.n_obs
+            )
+            if not neighbors_valid:
+                print(
+                    "Preparing data for training. This may take a while. "
+                    "RAPIDS SingleCell will be used if installed."
+                )
+                RESOLVI._prepare_data(adata, batch_key=batch_key, **prepare_data_kwargs)
+                adata.uns["_resolvi_prepare_data_config"] = effective_config
 
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
@@ -491,7 +523,7 @@ class RESOLVI(
             performed.
         filter_outlier_cells
             Whether to filter outlier cells with
-            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`
         n_samples
             Number of posterior samples to use for estimation.
         size_scaling

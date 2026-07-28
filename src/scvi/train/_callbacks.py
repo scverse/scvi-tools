@@ -17,12 +17,10 @@ from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 from scvi import settings
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
-from scvi.utils import dependencies
 
 if TYPE_CHECKING:
     import lightning.pytorch as pl
 
-    from scvi.dataloaders import AnnDataLoader
 
 MetricCallable = Callable[[BaseModelClass], float]
 
@@ -49,7 +47,7 @@ class SaveCheckpoint(ModelCheckpoint):
     ----------
     dirpath
         Base directory to save the model checkpoints. If ``None``, defaults to a subdirectory in
-        :attr:``scvi.settings.logging_dir`` formatted with the current date, time, and monitor.
+        :attr:`~scvi._settings.ScviConfig.logging_dir` formatted with the current date, time, and monitor.
     filename
         Name for the checkpoint directories, which can contain formatting options for auto filling.
         If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
@@ -230,7 +228,7 @@ class SubSampleLabels(Callback):
 class LoudEarlyStopping(EarlyStopping):
     """Loud early stopping callback.
 
-    Wrapper of :class:`~lightning.pytorch.callbacks.early_stopping.EarlyStopping callback that
+    Wrapper of :class:`~lightning.pytorch.callbacks.early_stopping.EarlyStopping` callback that
     prints the reason for stopping on teardown. When the early stopping condition is met, the
     reason is saved to the callback instance, then printed on teardown. By printing on teardown, we
     do not interfere with the progress bar callback.
@@ -265,35 +263,6 @@ class LoudEarlyStopping(EarlyStopping):
         """Print the reason for stopping on teardown."""
         if self.early_stopping_reason is not None:
             print(self.early_stopping_reason)
-
-
-class JaxModuleInit(Callback):
-    """A callback to initialize the Jax-based module."""
-
-    def __init__(self, dataloader: AnnDataLoader = None) -> None:
-        super().__init__()
-        self.dataloader = dataloader
-
-    @dependencies("flax")
-    def on_train_start(self, trainer, pl_module):
-        import flax
-
-        module = pl_module.module
-        if self.dataloader is None:
-            dl = trainer.datamodule.train_dataloader()
-        else:
-            dl = self.dataloader
-        module_init = module.init(module.rngs, next(iter(dl)))
-        state, params = flax.core.pop(module_init, "params")
-        pl_module.set_train_state(params, state)
-
-        # Multi-GPU: replicate train state across devices
-        n_devices = getattr(pl_module, "n_devices", 1)
-        if n_devices > 1:
-            from flax.jax_utils import replicate
-
-            log.info(f"JAX multi-GPU: replicating state across {n_devices} devices.")
-            pl_module.module.train_state = replicate(pl_module.module.train_state)
 
 
 class ScibCallback(Callback):

@@ -96,7 +96,7 @@ def test_lda_model(n_topics: int):
 
 
 @pytest.mark.parametrize("n_topics", [5])
-def test_lda_model_save_load(save_path: str, n_topics: int):
+def test_lda_model_save_load(n_topics: int, save_path: str):
     adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
     mod = AmortizedLDA(adata, n_topics=n_topics)

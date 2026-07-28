@@ -72,7 +72,7 @@ def _load_pbmc_dataset(
     )
     barcodes = np.concatenate((pbmc8k.obs_names, pbmc4k.obs_names))
 
-    adata = pbmc8k.concatenate(pbmc4k)
+    adata = anndata.concat([pbmc8k, pbmc4k], keys=["0", "1"], label="batch")
     adata.obs_names = barcodes
 
     dict_barcodes = dict(zip(barcodes, np.arange(len(barcodes)), strict=True))

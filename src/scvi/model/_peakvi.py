@@ -11,6 +11,7 @@ from scipy.sparse import csr_matrix, vstack
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -23,6 +24,11 @@ from scvi.model._utils import (
 )
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.model.base._de_core import _de_core
+from scvi.model.utils import (
+    _peakvi_differential_accessibility_result,
+    _run_annbatch_de_core,
+    _stream_atac_raw_counts_properties_from_dataloader,
+)
 from scvi.module import PEAKVAE
 from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
@@ -34,6 +40,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
+    from torch import Tensor
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +97,8 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_hidden: int | None = None,
         n_latent: int | None = None,
         n_layers_encoder: int = 2,
@@ -105,13 +113,20 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         encode_covariates: bool = False,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else []
-        )
+        if adata is not None:
+            n_cats_per_cov = (
+                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                else []
+            )
+        else:
+            cat_cov_sr = self.registry["field_registries"]["extra_categorical_covs"][
+                "state_registry"
+            ]
+            n_cats_per_cov = list(cat_cov_sr["n_cats_per_key"]) if cat_cov_sr else []
+
         self.get_normalized_function_name = "get_normalized_accessibility"
 
         self.module = self._module_cls(
@@ -163,6 +178,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         n_epochs_kl_warmup: int | None = 50,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
+        datamodule=None,
         **kwargs,
     ):
         """Trains the model using amortized variational inference.
@@ -209,6 +225,9 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -237,6 +256,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
             batch_size=batch_size,
+            datamodule=datamodule,
             **kwargs,
         )
 
@@ -295,6 +315,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         normalize_regions: bool = False,
         batch_size: int = 128,
         return_numpy: bool = False,
+        dataloader=None,
     ) -> pd.DataFrame | np.ndarray | csr_matrix:
         """Impute the full accessibility matrix.
 
@@ -341,20 +362,30 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             `threshold` is given, return :class:`~scipy.sparse.csr_matrix`. If `False`, return
             :class:`~pandas.DataFrame`. DataFrame includes regions names as columns.
         """
-        adata = self._validate_anndata(adata)
-        adata_manager = self.get_anndata_manager(adata, required=True)
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-        if n_samples_overall is not None:
-            indices = np.random.choice(indices, n_samples_overall)
-        post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
-
-        if region_list is None:
-            region_mask = slice(None)
+        _validate_adata_dataloader_input(self, adata, dataloader)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            adata_manager = self.get_anndata_manager(adata, required=True)
+            if indices is None:
+                indices = np.arange(adata.n_obs)
+            if n_samples_overall is not None:
+                indices = np.random.choice(indices, n_samples_overall)
+            post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+            transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
+            if region_list is None:
+                region_mask = slice(None)
+            else:
+                all_regions = adata.var_names
+                region_mask = [region in region_list for region in all_regions]
         else:
-            all_regions = adata.var_names
-            region_mask = [region in region_list for region in all_regions]
+            post = dataloader
+            transform_batch = [None]
+            all_regions = np.asarray(self.get_var_names())
+            region_mask = (
+                slice(None)
+                if region_list is None
+                else [region in region_list for region in all_regions]
+            )
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -390,17 +421,21 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         if return_numpy:
             return imputed
         elif threshold:
-            return pd.DataFrame.sparse.from_spmatrix(
-                imputed,
-                index=adata.obs_names[indices],
-                columns=adata.var_names[region_mask],
-            )
+            if adata is not None:
+                obs_idx = adata.obs_names[indices]
+                col_idx = adata.var_names[region_mask]
+            else:
+                obs_idx = None
+                col_idx = np.asarray(self.get_var_names())[region_mask]
+            return pd.DataFrame.sparse.from_spmatrix(imputed, index=obs_idx, columns=col_idx)
         else:
-            return pd.DataFrame(
-                imputed,
-                index=adata.obs_names[indices],
-                columns=adata.var_names[region_mask],
-            )
+            if adata is not None:
+                obs_idx = adata.obs_names[indices]
+                col_idx = adata.var_names[region_mask]
+            else:
+                obs_idx = None
+                col_idx = np.asarray(self.get_var_names())[region_mask]
+            return pd.DataFrame(imputed, index=obs_idx, columns=col_idx)
 
     @de_dsp.dedent
     def differential_accessibility(
@@ -420,6 +455,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
+        dataloader: Iterable[dict[str, Tensor | None]] | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""\.
@@ -445,6 +481,8 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        dataloader
+            Inference dataloader to materialize when the model was initialized without AnnData.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -475,6 +513,76 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             the empirical (observed) probability of accessibility in population 2
 
         """
+        if adata is None and self.adata is None:
+            if dataloader is None:
+                raise ValueError("Pass `adata` or an inference dataloader.")
+            obs = self._collect_obs_from_dataloader(dataloader)
+            col_names = np.asarray(self.get_var_names())
+            expr_all = np.asarray(
+                self.get_normalized_accessibility(
+                    dataloader=dataloader,
+                    batch_size=batch_size,
+                    return_numpy=True,
+                    use_z_mean=False,
+                )
+            )
+
+            def all_info_fn(mask1, mask2, _stats):
+                mean1 = expr_all[mask1].mean(axis=0)
+                mean2 = expr_all[mask2].mean(axis=0)
+                eps = 1e-8
+                if mode == "vanilla":
+                    proba_m1 = 1 / (1 + np.exp(-(mean1 - mean2)))
+                    proba_m2 = 1.0 - proba_m1
+                    return {
+                        "proba_m1": proba_m1,
+                        "proba_m2": proba_m2,
+                        "bayes_factor": np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
+                        "scale1": mean1,
+                        "scale2": mean2,
+                    }
+
+                lfc = mean1 - mean2
+                proba_de = 1 / (1 + np.exp(-np.abs(lfc) / max(delta, eps)))
+                return {
+                    "proba_de": proba_de,
+                    "proba_not_de": 1.0 - proba_de,
+                    "bayes_factor": np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
+                    "scale1": mean1,
+                    "scale2": mean2,
+                    "pseudocounts": 0.0,
+                    "delta": delta,
+                }
+
+            def all_stats_fn(mask1, mask2):
+                return _stream_atac_raw_counts_properties_from_dataloader(
+                    dataloader,
+                    mask1,
+                    mask2,
+                    len(col_names),
+                )
+
+            return _run_annbatch_de_core(
+                obs=obs,
+                groupby=groupby,
+                group1=group1,
+                group2=group2,
+                idx1=idx1,
+                idx2=idx2,
+                all_stats=all_stats,
+                col_names=col_names,
+                mode=mode,
+                fdr=fdr_target,
+                silent=silent,
+                all_info_fn=all_info_fn,
+                all_stats_fn=all_stats_fn,
+                result_transform=lambda result: _peakvi_differential_accessibility_result(
+                    result,
+                    mode,
+                    fdr_target,
+                ),
+            )
+
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
         model_fn = partial(

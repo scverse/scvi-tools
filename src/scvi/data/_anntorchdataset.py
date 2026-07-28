@@ -36,11 +36,12 @@ class AnnTorchDataset(Dataset):
         ``__getitem__``. One of the following:
 
         * ``dict``: Keys correspond to keys in the data registry and values correspond to the
-        desired :class:`~np.dtype` of the returned data.
+          desired :class:`~numpy.dtype` of the returned data.
         * ``list``: Elements correspond to keys in the data registry. Continuous data will be
-        returned as :class:`~np.float32` and discrete data will be returned as :class:`~np.int64`.
+          returned as :attr:`~numpy.float32` and discrete data will be returned as
+          :attr:`~numpy.int64`.
         * ``None``: All registered data will be returned. Continuous data will be returned as
-        :class:`~np.float32` and discrete data will be returned as :class:`~np.int64`.
+          :attr:`~numpy.float32` and discrete data will be returned as :attr:`~numpy.int64`.
     load_sparse_tensor
         ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
         :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
@@ -68,12 +69,12 @@ class AnnTorchDataset(Dataset):
 
     @property
     def keys_and_dtypes(self):
-        """Keys and corresponding :class:`~np.dtype` of data to fetch in ``__getitem__``."""
+        """Keys and corresponding :class:`~numpy.dtype` of data to fetch in ``__getitem__``."""
         return self._keys_and_dtypes
 
     @keys_and_dtypes.setter
     def keys_and_dtypes(self, getitem_tensors: list | dict[str, type] | None):
-        """Set keys and corresponding :class:`~np.dtype` of data to fetch in ``__getitem__``.
+        """Set keys and corresponding :class:`~numpy.dtype` of data to fetch in ``__getitem__``.
 
         Raises an error if any of the keys are not in the data registry.
         """

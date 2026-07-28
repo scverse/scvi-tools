@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import torch
 
+from scvi import settings
 from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.utils import unsupported_if_adata_minified
 
@@ -89,9 +91,11 @@ class VAEMixin:
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         return -compute_elbo(self.module, dataloader, return_mean=return_mean, **kwargs)
@@ -168,9 +172,11 @@ class VAEMixin:
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         log_likelihoods: list[float | Tensor] = [
@@ -249,9 +255,11 @@ class VAEMixin:
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         return compute_reconstruction_error(
@@ -325,9 +333,11 @@ class VAEMixin:
         else:
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         zs: list[Tensor] = []
@@ -427,6 +437,7 @@ class VAEMixin:
         batch_size: int = 128,
         num_cells_posterior: int | None = None,
         dof: float | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ):
         """Compute the differential abundance between samples.
 
@@ -452,10 +463,47 @@ class VAEMixin:
         dof
             Degrees of freedom for the Student's t-distribution components for aggregated
             posterior. If ``None``, components are Normal.
+        dataloader
+            Inference dataloader to materialize when the model was initialized without AnnData.
         """
         import numpy as np
         import pandas as pd
         from tqdm import tqdm
+
+        if adata is None and self.adata is None:
+            if dataloader is None:
+                raise ValueError("Pass `adata` or an inference dataloader.")
+            obs = self._collect_obs_from_dataloader(dataloader)
+            if sample_key is None:
+                raise ValueError("`sample_key` must be provided when using a dataloader.")
+
+            us = self.get_latent_representation(dataloader=dataloader, batch_size=batch_size)
+            unique_samples = obs[sample_key].unique()
+            log_probs = []
+            for sample_name in tqdm(unique_samples):
+                indices = np.where(obs[sample_key] == sample_name)[0]
+                if num_cells_posterior is not None and num_cells_posterior < indices.shape[0]:
+                    indices = np.random.choice(indices, num_cells_posterior, replace=False)
+                sample_u = us[indices]
+                mean = torch.tensor(sample_u.mean(axis=0), device=self.device, dtype=torch.float32)
+                scale = torch.tensor(
+                    sample_u.std(axis=0) + 1e-3,
+                    device=self.device,
+                    dtype=torch.float32,
+                )
+                ap = torch.distributions.Independent(torch.distributions.Normal(mean, scale), 1)
+                log_probs.append(
+                    ap.log_prob(torch.tensor(us, device=self.device)).detach().cpu().numpy()
+                )
+
+            log_probs = np.array(log_probs).T
+            log_probs_df = pd.DataFrame(
+                data=log_probs,
+                index=np.arange(us.shape[0]),
+                columns=unique_samples,
+            )
+            self._da_log_probs = log_probs_df
+            return log_probs_df
 
         adata = self._validate_anndata(adata)
         if adata_sub is None:

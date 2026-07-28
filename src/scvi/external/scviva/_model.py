@@ -246,7 +246,7 @@ class SCVIVA(
 
         Parameters
         ----------
-        adata : AnnData
+        adata : anndata.AnnData
              The annotated data matrix of shape `n_obs` x `n_vars`. Rows correspond to cells
              and columns to genes.
         k_nn : int, optional
