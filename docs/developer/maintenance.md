@@ -196,54 +196,54 @@ tags under `on:` specify the events that trigger the workflow. Additionally, our
 (`Settings > Rules > Rulesets`) specify which workflows are required to pass before merging into
 a branch.
 
-- [`build`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/build.yml): Runs
+- [`build`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/build.yaml): Runs
   on pushes and pull requests into `main` and release branches. This workflow attempts to build the
   package.
-- [`release`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/release.yml):
+- [`release`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/release.yaml):
   Triggered by a new release on GitHub, this workflow builds the package and uploads it to PyPI
-- [`test`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux.yml): Runs
+- [`test`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test.yaml): Runs
   the test suite on Ubuntu using a GitHub-hosted runner. This workflow is triggered on pushes and
   pull requests into `main` and release branches, as well as based on a cron schedule and manual
   triggers.
-- [`test (cuda)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_cuda.yml):
+- [`test (cuda)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_cuda.yaml):
   Same as the `test` workflow, but runs on a self-hosted runner with a GPU. This workflow is only
   triggered on pull requests with the `cuda tests` or `all tests` labels, which can only be added
   by maintainers.
-- [`test (private)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_private.yml):
+- [`test (private)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_private.yaml):
   Runs on a GitHub-hosted runner for tests that require authentication (_e.g._, downloading and
   uploading to AWS S3). This workflow is triggered on pull requests with the `private tests` or
   `all tests` labels, which can only be added by maintainers.
-- [`test (resolution)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_resolution.yml):
+- [`test (resolution)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_resolution.yaml):
   Optionally triggered on pull requests with the `resolution tests` or `all tests` labels, this
   workflow runs for various package resolution settings (_e.g._, pre-releases, lowest supported
   dependencies). Useful for catching dependency issues early if packages have pre-releases.
-- [`test (macos)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_macos.yml):
+- [`test (macos)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_macos.yaml):
   Runs the test suite on a GitHub-hosted macOS runner. Useful for catching macOS-specific issues.
-- [`test (windows)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_windows.yml):
+- [`test (windows)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_windows.yaml):
   Runs the test suite on a GitHub-hosted Windows runner. Useful for catching Windows-specific
   issues.
-- [`test (autotune)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_autotune.yml):
-  Runs the {mod}`scvi.autotune` test suite on a self-hosted GPU runner. Triggered on pull requests
+- [`test (autotune)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_autotune.yaml):
+  Runs the ``scvi.autotune`` test suite on a self-hosted GPU runner. Triggered on pull requests
   with the `autotune` or `all tests` labels, as well as on a nightly schedule.
-- [`test (mlflow)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_mlflow.yml):
+- [`test (mlflow)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_mlflow.yaml):
   Runs MLflow integration tests on a self-hosted GPU runner. Triggered on pull requests with the
   `mlflow` or `all tests` labels, as well as on a nightly schedule.
-- [`test (custom dataloaders)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_custom_dataloader.yml):
+- [`test (custom dataloaders)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_custom_dataloader.yaml):
   Runs tests for custom dataloaders (_e.g._, {class}`~scvi.dataloaders.AnnbatchDataModule`) across
   a matrix of GitHub-hosted runners. Triggered on pull requests with the `custom_dataloader` or
   `all tests` labels, as well as on a nightly schedule.
-- [`test (multi-GPU)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_multigpu.yml):
+- [`test (multi-GPU)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_multigpu.yaml):
   Runs the multi-GPU training test suite on a self-hosted runner. Triggered on pull requests with
   the `multiGPU tests` or `all tests` labels.
-- [`test (optional)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_optional.yml):
+- [`test (optional)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_optional.yaml):
   Runs tests that require optional dependencies across a matrix of GitHub-hosted runners.
   Triggered on pull requests with the `optional tests` or `all tests` labels, as well as on a
   nightly schedule.
-- [`test (internet)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_internet.yml):
+- [`test (internet)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_internet.yaml):
   Runs tests that require internet access (_e.g._, downloading datasets) across a matrix of
   GitHub-hosted runners. Triggered on pull requests with the `internet tests` or `all tests`
   labels, as well as on a nightly schedule.
-- [`test (mps)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_macos_mps.yml):
+- [`test (mps)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_mps.yaml):
   Runs the test suite on a self-hosted macOS runner with Apple Silicon MPS support. Triggered on
   pull requests with the `mps` or `all tests` labels.
 - [`build (base image)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/build_image_base.yaml):
@@ -257,17 +257,10 @@ Documentation is built and hosted on [Read the Docs] (RTD), and the configuratio
 `main` and release branches, it can be useful to build the documentation locally since RTD only
 allows one build at a time.
 
-Make sure to install the documentation dependencies first:
+Run the following command to build the documentation locally from the root of the repository:
 
 ```bash
-pip install -e ".[docsbuild]"
-```
-
-Run the following command to build the documentation locally from
-the root of the repository:
-
-```bash
-python -m sphinx -b html docs docs/_build
+hatch run docs:build
 ```
 
 The documentation can be viewed by opening `docs/_build/index.html` in a web browser.
@@ -318,7 +311,7 @@ We use the `BREAKING CHANGE` footer to indicate that a commit introduces a break
 [Docker image build]: https://github.com/scverse/scvi-tools/actions/workflows/build_image_latest.yaml
 [run the tutorials]: https://github.com/scverse/scvi-tutorials/actions/workflows/run_notebook_individual.yaml
 [tutorial checklist]: https://github.com/scverse/scvi-tutorials/blob/main/.github/ISSUE_TEMPLATE/release_checklist.md
-[release workflow]: https://github.com/scverse/scvi-tools/actions/workflows/release.yml
+[release workflow]: https://github.com/scverse/scvi-tools/actions/workflows/release.yaml
 [PyPI]: https://pypi.org/project/scvi-tools/
 [feedstock repository]: https://github.com/conda-forge/scvi-tools-feedstock
 [Read the Docs]: https://readthedocs.org/projects/scvi/

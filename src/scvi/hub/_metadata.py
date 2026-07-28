@@ -71,7 +71,7 @@ class HubMetadata:
         anndata_version
             The version of anndata used during model training.
         map_location
-            The device to map model tensors to, passed into :meth:`~torch.load`.
+            The device to map model tensors to, passed into :func:`~torch.load`.
         kwargs
             Additional keyword arguments to pass to the HubMetadata initializer.
         """
@@ -219,7 +219,7 @@ class HubModelCardHelper:
         data_is_minified
             Whether the training data uploaded with the model has been minified.
         map_location
-            The device to map model tensors to, passed into :meth:`~torch.load`.
+            The device to map model tensors to, passed into :func:`~torch.load`.
         kwargs
             Additional keyword arguments to pass to the HubModelCardHelper initializer.
         """

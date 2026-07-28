@@ -68,6 +68,7 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
    :nosignatures:
 
    dataloaders.AnnDataLoader
@@ -94,6 +95,7 @@ Parameterizable probability distributions.
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
    :nosignatures:
 
    distributions.Poisson
@@ -183,12 +185,21 @@ Module classes in the external API with respective generative and inference proc
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
    external.mrvi.MRVAE
+   external.mrvi._types.MRVIReduction
    external.methylvi.METHYLVAE
+   external.methylvi.BSSeqMixin
+   external.methylvi.BSSeqModuleMixin
+   external.methylvi.DecoderMETHYLVI
    external.methylvi.METHYLANVAE
    external.decipher.DecipherPyroModule
+   external.decipher._trainingplan.DecipherTrainingPlan
    external.totalanvi.TOTALANVAE
    external.sysvi.SysVAE
    external.drvi.DRVIModule
+   external.drvi.DecoderDRVI
+   external.drvi.SplitFCLayers
+   external.drvi.LogNegativeBinomial
+   external.drvi.StackedLinearLayer
    external.JointEmbeddingVAE
 ```
 
@@ -231,7 +242,9 @@ Basic neural network building blocks.
 
    nn.FCLayers
    nn.Encoder
+   nn.MultiEncoder
    nn.Decoder
+   nn.MultiDecoder
    nn.DecoderSCVI
    nn.LinearDecoderSCVI
    nn.one_hot
@@ -268,6 +281,8 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.ScibCallback
    train.SaveCheckpoint
    train.LoudEarlyStopping
+   train.KwargsConfig
+   train._metrics.ElboMetric
 
 ```
 
@@ -286,7 +301,15 @@ Utility functions used by scvi-tools.
 
    utils.track
    utils.setup_anndata_dsp
-   utils.attrdict
    model.get_max_epochs_heuristic
    external.decipher.utils.Trajectory
+```
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :template: class_no_inherited.rst
+   :nosignatures:
+
+   utils.attrdict
 ```

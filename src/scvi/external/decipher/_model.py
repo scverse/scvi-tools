@@ -119,11 +119,11 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             Perform early stopping. Additional arguments can be passed in ``**trainer_kwargs``.
         training_plan
             Training plan instance. If ``None``,
-            a default :class:`~scvi.train.DecipherTrainingPlan` is used.
+            a default ``DecipherTrainingPlan`` is used.
         datasplitter_kwargs
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
-            Keyword arguments for :class:`~scvi.train.DecipherTrainingPlan`.
+            Keyword arguments for ``DecipherTrainingPlan``.
         **trainer_kwargs
             Additional keyword arguments passed to :class:`~scvi.train.Trainer`.
         """
@@ -267,7 +267,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
 
         Parameters
         ----------
-        adata : AnnData
+        adata : anndata.AnnData
             The annotated data matrix.
         cluster_obs_key : str
             The key in adata.obs containing cluster assignments.
@@ -312,7 +312,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
 
         Parameters
         ----------
-        adata : AnnData
+        adata : anndata.AnnData
             The annotated data matrix.
         trajectory : Trajectory
             A :class:`~scvi.external.decipher.utils.Trajectory` object containing

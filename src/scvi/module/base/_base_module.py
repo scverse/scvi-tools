@@ -314,7 +314,7 @@ class PyroBaseModuleClass(nn.Module):
     the forward function of this class passes through to the forward of the ``model``.
 
     There are two ways this class can be equipped with a model and a guide. First,
-    ``model`` and ``guide`` can be class attributes that are :class:`~pyro.nn.PyroModule`
+    ``model`` and ``guide`` can be class attributes that are :class:`~pyro.nn.module.PyroModule`
     instances. The implemented ``model`` and ``guide`` class method can then return the (private)
     attributes. Second, ``model`` and ``guide`` methods can be written directly (see Pyro scANVI
     example) https://pyro.ai/examples/scanvi.html.
@@ -410,7 +410,7 @@ class PyroBaseModuleClass(nn.Module):
         return_sites: tuple[str] = (),
         parallel: bool = False,
     ) -> Predictive:
-        """Creates a :class:`~pyro.infer.Predictive` object.
+        """Creates a :class:`~pyro.infer.predictive.Predictive` object.
 
         Parameters
         ----------
@@ -431,7 +431,7 @@ class PyroBaseModuleClass(nn.Module):
         parallel
             predict in parallel by wrapping the existing model
             in an outermost ``plate`` messenger. Note that this requires that the model has
-            all batch dims correctly annotated via :class:`~pyro.plate`.
+            all batch dims correctly annotated via :class:`~pyro.primitives.plate`.
         """
         if model is None:
             model = self.model

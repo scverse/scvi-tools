@@ -736,8 +736,9 @@ class ContrastiveVI(BaseModelClass):
             from both salient and background latent embeddings are used when
             {group1, group2} is a subset of the target group, otherwise background
             normalized expression values are used.
-        kwargs: Keyword args for
-            `scvi.model.base.DifferentialComputation.get_bayes_factors`.
+        kwargs
+            Keyword args for
+            :meth:`~scvi.model.base.DifferentialComputation.get_bayes_factors`.
 
         Returns
         -------
