@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "scvi-tools"
-version = "1.5.0.post1"
+version = "1.6.0"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -80,8 +80,6 @@ optional-dependencies.dataloaders = [
   "tiledbsoma-ml",
   "torchdata",
 ]
-# for diagvi
-optional-dependencies.diagvi = [ "geomloss", "torch-geometric" ]
 # for files sharing or handling
 optional-dependencies.file-sharing = [ "fcswrite", "gdown", "pooch", "readfcs" ]
 # scvi.hub dependencies
@@ -95,7 +93,7 @@ optional-dependencies.optional = [
   "igraph",
   "leidenalg",
   "pynndescent",
-  "scvi-tools[autotune,diagvi,file-sharing,hub,interpretability,mlflow,parallel,regseq]",
+  "scvi-tools[autotune,file-sharing,hub,interpretability,mlflow,parallel,regseq]",
 ]
 # for parallelization engine
 optional-dependencies.parallel = [ "dask[array]", "zarr" ]
@@ -118,7 +116,6 @@ optional-dependencies.regseq = [ "biopython>=1.81", "genomepy" ]
 optional-dependencies.tpu = [ "torch-xla[tpu]" ]
 optional-dependencies.tutorials = [
   "biomart",
-  "cell2location",
   "jupyter",
   "matplotlib",
   "plotnine",
@@ -166,7 +163,7 @@ doc = [
 build.targets.wheel.packages = [ "src/scvi" ]
 envs.default.installer = "uv"
 envs.default.dependency-groups = [ "dev" ]
-envs.docs.features = [ "autotune", "diagvi", "hub" ]
+envs.docs.features = [ "autotune", "hub" ]
 envs.docs.scripts.build = "sphinx-build -M html docs docs/_build -W {args}"
 envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
 envs.docs.scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
