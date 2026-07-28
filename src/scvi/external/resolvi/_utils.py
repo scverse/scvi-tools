@@ -11,7 +11,7 @@ from pyro import infer
 
 from scvi import settings
 from scvi.model._utils import _get_batch_code_from_category, parse_device_args
-from scvi.utils import track
+from scvi.utils import de_dsp, track
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,7 @@ class ResolVIPredictiveMixin:
             else torch.cat(latent).numpy()
         )
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression_importance(
         self,
@@ -109,6 +110,8 @@ class ResolVIPredictiveMixin:
         weights: str | np.ndarray | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        library_scaling: bool = False,
+        size_scaling: bool = False,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         r"""Returns the normalized (decoded) importance-sampled gene expression.
 
@@ -145,7 +148,13 @@ class ResolVIPredictiveMixin:
         return_numpy
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
-             to `False`. Otherwise, it defaults to `True`.
+            to `False`. Otherwise, it defaults to `True`.
+        library_scaling
+            If `True`, multiplies the decoded expression by the library size.
+        size_scaling
+            If `True`, divides the decoded expression by the size factor (e.g. cell_area).
+            Requires that a size factor key was provided in
+            :meth:`~scvi.external.RESOLVI.setup_anndata`.
         %(de_silent)s
 
         Returns
@@ -164,9 +173,13 @@ class ResolVIPredictiveMixin:
             indices = np.arange(adata.n_obs)
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
-        transform_batch = _get_batch_code_from_category(
-            self.get_anndata_manager(adata, required=True), transform_batch
-        )
+        if transform_batch is not None:
+            warnings.warn(
+                "`transform_batch` is not supported by "
+                "`get_normalized_expression_importance` and will be ignored.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
 
         gene_mask = slice(None) if gene_list is None else adata.var_names.isin(gene_list)
 
@@ -207,8 +220,23 @@ class ResolVIPredictiveMixin:
             )
             log_weights = log_weights / kwargs["x"].to(samples.device).sum(-1)
             weighting.append(log_weights.reshape(-1).cpu())
-            exprs.append(samples[1, ...].cpu())
+            if library_scaling or size_scaling:
+                if size_scaling:
+                    if "size_factor" in self.adata_manager.data_registry:
+                        size_factor = kwargs["size_factor"]
+                        samples[0, ...] = samples[0, ...] / size_factor.unsqueeze(0).repeat(
+                            n_samples, 1, 1
+                        )
+                    else:
+                        raise ValueError(
+                            "size_scaling is True but no size_factor_key was provided "
+                            "in setup_anndata."
+                        )
+                exprs.append(samples[0, ...].cpu())
+            else:
+                exprs.append(samples[1, ...].cpu())
         exprs = torch.cat(exprs, axis=1).numpy()
+        exprs = exprs[..., gene_mask]
         if return_mean:
             exprs = exprs.mean(0)
         weighting = torch.cat(weighting, axis=0).numpy()
@@ -238,6 +266,7 @@ class ResolVIPredictiveMixin:
         else:
             return exprs
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -246,12 +275,14 @@ class ResolVIPredictiveMixin:
         transform_batch: Sequence[int | str] | None = None,
         gene_list: Sequence[str] | None = None,
         library_size: float | None = 1,
+        size_scaling: bool = False,
         n_samples: int = 1,
         n_samples_overall: int = None,
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
         silent: bool = True,
+        **kwargs,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         r"""Returns the normalized (decoded) gene expression.
 
@@ -278,6 +309,10 @@ class ResolVIPredictiveMixin:
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
             magnitude.
+        size_scaling
+            If `True`, divides the decoded expression by the size factor (e.g. cell_area).
+            Requires that a size factor key was provided in
+            :meth:`~scvi.external.RESOLVI.setup_anndata`.
         n_samples
             Number of posterior samples to use for estimation.
         n_samples_overall
@@ -289,8 +324,10 @@ class ResolVIPredictiveMixin:
         return_numpy
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
-             to `False`. Otherwise, it defaults to `True`.
+            to `False`. Otherwise, it defaults to `True`.
         %(de_silent)s
+        **kwargs
+            Additional keyword arguments passed
 
         Returns
         -------
@@ -363,10 +400,21 @@ class ResolVIPredictiveMixin:
                 px_scale, _, px_rate, _ = self.module.model.decoder(
                     self.module.model.dispersion, z, kwargs["library"], batch, *categorical_input
                 )
-                if library_size is not None:
-                    exp_ = library_size * px_scale
+                if size_scaling:
+                    if "size_factor" in self.adata_manager.data_registry:
+                        size_factor = kwargs["size_factor"]
+                        px_rate = px_rate / size_factor.reshape(-1, 1, 1)
+                        exp_ = px_rate
+                    else:
+                        raise ValueError(
+                            "size_scaling is True but no size_factor_key was provided "
+                            "in setup_anndata."
+                        )
                 else:
-                    exp_ = px_rate
+                    if library_size is not None:
+                        exp_ = library_size * px_scale
+                    else:
+                        exp_ = px_rate
 
                 exp_ = exp_[..., gene_mask]
                 per_batch_exprs.append(exp_[None].cpu())
@@ -435,7 +483,7 @@ class ResolVIPredictiveMixin:
         return_numpy
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
-             to `False`. Otherwise, it defaults to `True`.
+            to `False`. Otherwise, it defaults to `True`.
         kwargs
             Additional keyword arguments that have no effect and only serve for compatibility.
 

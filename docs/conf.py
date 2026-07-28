@@ -1,19 +1,26 @@
+import importlib
 import importlib.util
 import inspect
 import os
 import re
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 from importlib.metadata import metadata
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+try:
+    from sphinx.deprecation import RemovedInSphinx90Warning
+except ImportError:  # removed starting with Sphinx 9.0, where the warning no longer applies
+    RemovedInSphinx90Warning = None
+
 if TYPE_CHECKING:
     from typing import Any
 
 HERE = Path(__file__).parent
-sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
+sys.path[:0] = [str(HERE.parent / "src"), str(HERE.parent), str(HERE / "extensions")]
 
 # -- Project information -----------------------------------------------------
 
@@ -22,7 +29,8 @@ project_name = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
-repository_url = f"https://github.com/scverse/{project_name}"
+urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
+repository_url = urls["Source"]
 
 # The full version, including alpha/beta/rc tags
 release = info["Version"]
@@ -31,6 +39,29 @@ bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
 nitpicky = True  # Warn about broken links
 needs_sphinx = "4.0"
+
+# Bare (unqualified) names used in type annotations that autodoc/autodoc-typehints
+# should resolve against their fully-qualified, intersphinx-resolvable targets.
+autodoc_type_aliases = {
+    "AnnData": "anndata.AnnData",
+    "Tensor": "torch.Tensor",
+}
+
+# Targets that only exist in docstrings we inherit from third-party base classes, which we
+# render but cannot edit.
+nitpick_ignore = [
+    ("py:class", "AttributeDict"),
+    ("py:class", "huggingface_hub.repocard.ModelCard"),
+    ("py:class", "ml_collections.config_dict.config_dict.FrozenConfigDict"),
+    ("py:class", "numpy._typing.TypeAliasType"),
+    ("py:class", "pathlib._local.Path"),
+    ("py:class", "Distribution"),
+    ("py:class", "LongTensor"),
+    ("py:class", "Tensor"),
+    ("py:class", "optional"),
+    ("py:class", "return"),
+    ("py:meth", "save_hyperparameters"),
+]
 
 html_context = {
     "display_github": True,  # Integrate GitHub
@@ -60,6 +91,10 @@ extensions = [
     "hoverxref.extension",
 ]
 
+# sphinx-hoverxref 1.4.2 still uses the tuple interface of Sphinx' config values.
+if RemovedInSphinx90Warning is not None:
+    warnings.filterwarnings("ignore", category=RemovedInSphinx90Warning, module="hoverxref")
+
 
 # for sharing urls with nice info
 ogp_site_url = "https://docs.scvi-tools.org/"
@@ -86,10 +121,46 @@ myst_enable_extensions = [
     "html_admonition",
 ]
 myst_url_schemes = ("http", "https", "mailto")
+# Auto-generate #slug anchors for headings so in-page links like
+# [prerequisites](#prerequisites) resolve (up to h4, the deepest level used in docs).
+myst_heading_anchors = 4
 nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
 typehints_defaults = "braces"
+always_use_bars_union = True
+
+
+def _importable(name: str) -> bool:
+    try:
+        importlib.import_module(name)
+    except ModuleNotFoundError:
+        return False
+    except Exception as e:
+        warnings.warn(
+            f"{name!r} failed to import ({e!r}); mocking it for the documentation build.",
+            stacklevel=2,
+        )
+        return False
+    return True
+
+
+# Optional dependencies that are not installable, or not loadable, on the machine building the
+# docs. Mocking them keeps their signatures documented.
+autodoc_mock_imports = [
+    name
+    for name in (
+        "hyperopt",
+        "ray",
+        "ray.tune",
+        "scib_metrics",
+        "muon",
+        "mlx",
+        "lamindb",
+        "tiledbsoma",
+    )
+    if not _importable(name)
+]
 
 source_suffix = {
     ".rst": "restructuredtext",
@@ -100,7 +171,14 @@ source_suffix = {
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "**.ipynb_checkpoints",
+    "tutorials/notebooks/.github/**",
+    "tutorials/notebooks/README.md",
+]
 
 # extlinks config
 extlinks = {
@@ -121,14 +199,20 @@ intersphinx_mapping = {
     "torch": ("https://pytorch.org/docs/master/", None),
     "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
     "lightning": ("https://lightning.ai/docs/pytorch/stable/", None),
-    "pyro": ("http://docs.pyro.ai/en/stable/", None),
+    "pyro": ("https://docs.pyro.ai/en/stable/", None),
+    "torchmetrics": ("https://lightning.ai/docs/torchmetrics/stable/", None),
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
-    "mudata": ("https://mudata.readthedocs.io/en/latest/", None),
+    "mudata": ("https://mudata.readthedocs.io/stable/", None),
     "ray": ("https://docs.ray.io/en/latest/", None),
     "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
     "sparse": ("https://sparse.pydata.org/en/stable/", None),
+    "annbatch": ("https://annbatch.readthedocs.io/en/latest/", None),
+    "rich": ("https://rich.readthedocs.io/en/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "torch_geometric": ("https://pytorch-geometric.readthedocs.io/en/latest/", None),
+    "rapids_singlecell": ("https://rapids-singlecell.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------
@@ -142,8 +226,8 @@ html_logo = "_static/logo.png"
 html_theme_options = {
     "repository_url": repository_url,
     "use_repository_button": True,
-    "logo_only": True,
     "show_toc_level": 1,
+    "navbar_persistent": [],
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
     "path_to_docs": "docs/",
     "repository_branch": version,
@@ -155,7 +239,7 @@ pygments_style = "default"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ["css/override.css"]
+html_css_files = ["css/custom.css"]
 html_js_files = ["js/custom.js"]
 html_show_sphinx = False
 

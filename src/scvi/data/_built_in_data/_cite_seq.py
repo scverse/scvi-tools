@@ -29,13 +29,13 @@ def _load_pbmcs_10x_cite_seq(
     ``AnnData`` with ``.obsm['protein_expression']``
         Missing protein values are zero, and are identified during `AnnData` setup.
     """
-    url = "https://github.com/YosefLab/scVI-data/raw/master/pbmc_10k_protein_v3.h5ad?raw=true"
+    url = "https://exampledata.scverse.org/scvi-tools/pbmc_10k_protein_v3.h5ad"
     save_fn = "pbmc_10k_protein_v3.h5ad"
     _download(url, save_path, save_fn)
     dataset1 = anndata.read_h5ad(os.path.join(save_path, save_fn))
     dataset1.obs["batch"] = "PBMC10k"
 
-    url = "https://github.com/YosefLab/scVI-data/raw/master/pbmc_5k_protein_v3.h5ad?raw=true"
+    url = "https://exampledata.scverse.org/scvi-tools/pbmc_5k_protein_v3.h5ad"
     save_fn = "pbmc_5k_protein_v3.h5ad"
     _download(url, save_path, save_fn)
     dataset2 = anndata.read_h5ad(os.path.join(save_path, "pbmc_5k_protein_v3.h5ad"))
@@ -86,14 +86,14 @@ def _load_spleen_lymph_cite_seq(
     ``AnnData`` with ``.obsm['protein_expression']``
         Missing protein values are zero, and are identified during `AnnData` setup.
     """
-    url = "https://github.com/YosefLab/scVI-data/raw/master/sln_111.h5ad?raw=true"
+    url = "https://exampledata.scverse.org/scvi-tools/sln_111.h5ad"
     save_fn = "sln_111.h5ad"
     _download(url, save_path, save_fn)
     dataset1 = anndata.read_h5ad(os.path.join(save_path, save_fn))
     dataset1.obsm["isotypes_htos"] = dataset1.obsm["htos"].copy()
     del dataset1.obsm["htos"]
 
-    url = "https://github.com/YosefLab/scVI-data/raw/master/sln_208.h5ad?raw=true"
+    url = "https://exampledata.scverse.org/scvi-tools/sln_208.h5ad"
     save_fn = "sln_208.h5ad"
     _download(url, save_path, save_fn)
     dataset2 = anndata.read_h5ad(os.path.join(save_path, save_fn))

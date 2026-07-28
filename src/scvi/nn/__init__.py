@@ -1,3 +1,5 @@
+from torch.nn.functional import one_hot
+
 from ._base_components import (
     Decoder,
     DecoderSCVI,
@@ -22,4 +24,5 @@ __all__ = [
     "MultiEncoder",
     "MultiDecoder",
     "Embedding",
+    "one_hot",
 ]

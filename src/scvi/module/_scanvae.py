@@ -70,8 +70,6 @@ class SCANVAE(SupervisedModuleClass, VAE):
         If None, initialized to uniform probability over cell types
     labels_groups
         Label group designations
-    use_labels_groups
-        Whether to use the label groups
     linear_classifier
         If `True`, uses a single linear layer for classification instead of a
         multi-layer perceptron.
@@ -102,7 +100,6 @@ class SCANVAE(SupervisedModuleClass, VAE):
         use_observed_lib_size: bool = True,
         y_prior: torch.Tensor | None = None,
         labels_groups: Sequence[int] = None,
-        use_labels_groups: bool = False,
         linear_classifier: bool = False,
         classifier_parameters: dict | None = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
@@ -176,30 +173,7 @@ class SCANVAE(SupervisedModuleClass, VAE):
             y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels),
             requires_grad=False,
         )
-        self.use_labels_groups = use_labels_groups
         self.labels_groups = np.array(labels_groups) if labels_groups is not None else None
-        if self.use_labels_groups:
-            if labels_groups is None:
-                raise ValueError("Specify label groups")
-            unique_groups = np.unique(self.labels_groups)
-            self.n_groups = len(unique_groups)
-            if not (unique_groups == np.arange(self.n_groups)).all():
-                raise ValueError()
-            self.classifier_groups = Classifier(
-                n_latent, n_hidden, self.n_groups, n_layers, dropout_rate
-            )
-            self.groups_index = torch.nn.ParameterList(
-                [
-                    torch.nn.Parameter(
-                        torch.tensor(
-                            (self.labels_groups == i).astype(np.uint8),
-                            dtype=torch.uint8,
-                        ),
-                        requires_grad=False,
-                    )
-                    for i in range(self.n_groups)
-                ]
-            )
 
     def loss(
         self,

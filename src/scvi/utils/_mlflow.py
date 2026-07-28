@@ -1,7 +1,7 @@
 import os
 import sys
 import warnings
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 
@@ -35,13 +35,15 @@ def mlflow_log_artifact(
 
 @dependencies("mlflow")
 def mlflow_log_table(
-    data: Union[dict[str, Any], "pd.DataFrame"],
+    data: dict[str, Any] | pd.DataFrame,
     artifact_file: str | None = None,
     run_id: str | None = None,
     max_size_mb: float = 1.0,
 ) -> None:
     import mlflow
 
+    if isinstance(data, pd.DataFrame):
+        data["table_index"] = data.index
     file_size_mb = sys.getsizeof(data) / (1024 * 1024)
     if file_size_mb <= max_size_mb:
         mlflow.log_table(data, artifact_file=artifact_file, run_id=run_id)
@@ -51,6 +53,8 @@ def mlflow_log_table(
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
+    if isinstance(data, pd.DataFrame):
+        del data["table_index"]
     return
 
 

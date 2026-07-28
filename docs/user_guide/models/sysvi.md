@@ -1,6 +1,6 @@
 # SysVI
 
-**sysVI** (cross-SYStem Variational Inference,
+**sysVI** {cite:p}`Hrovatin23` (cross-SYStem Variational Inference,
 Python class {class}`~scvi.external.SysVI`)
 is a representation learning models that can remove significant batch effects.
 
@@ -40,9 +40,7 @@ many settings.
 
 ```{topic} References:
 
--  Paper: Hrovatin and Moinfar, et al.
-Integrating single-cell RNA-seq datasets with substantial batch effects.
-bioRxiv (2023): https://doi.org/10.1101/2023.11.03.565463
+-  Paper: {cite:p}`Hrovatin23`
 - Talk on caveats of scRNA-seq integration and strategies for removing
 substantial batch effects: https://www.youtube.com/watch?v=i-a4BjAn90E
 ```

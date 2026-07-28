@@ -29,6 +29,7 @@ from scvi import settings
 from scvi.model.base._de_core import (
     _de_core,
 )
+from scvi.utils import de_dsp
 
 from ._utils import scmc_raw_counts_properties
 
@@ -256,6 +257,7 @@ class BSSeqMixin:
         )
         return exprs[context]
 
+    @de_dsp.dedent
     def differential_methylation(
         self,
         mdata: MuData | None = None,
@@ -285,7 +287,6 @@ class BSSeqMixin:
         Parameters
         ----------
         %(de_mdata)s
-        %(de_modality)s
         %(de_groupby)s
         %(de_group1)s
         %(de_group2)s
@@ -308,6 +309,7 @@ class BSSeqMixin:
         Returns
         -------
         Differential methylation DataFrame with the following columns:
+
         proba_de
             the probability of the region being differentially methylated
         is_de_fdr

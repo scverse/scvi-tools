@@ -52,9 +52,11 @@ class BayesianRegressionPyroModel(PyroModule):
         # This effectively allows these priors to move with the model's device with the
         # expense of dynamic recreation.
         self.linear.weight = PyroSample(
-            lambda prior: dist.Normal(self.zero, self.one)
-            .expand([self.out_features, self.in_features])
-            .to_event(2)
+            lambda prior: (
+                dist.Normal(self.zero, self.one)
+                .expand([self.out_features, self.in_features])
+                .to_event(2)
+            )
         )
         self.linear.bias = PyroSample(
             lambda prior: dist.Normal(self.zero, self.ten).expand([self.out_features]).to_event(1)
@@ -337,7 +339,7 @@ def test_pyro_bayesian_save_load(save_path):
     linear_median = quants["linear.weight"][0].detach().cpu().numpy()
 
     model_save_path = os.path.join(save_path, "test_pyro_bayesian/")
-    mod.save(model_save_path)
+    mod.save(model_save_path, overwrite=True, save_anndata=True)
 
     # Test setting `on_load_kwargs`
     mod.module.on_load_kwargs = {"batch_size": 8}

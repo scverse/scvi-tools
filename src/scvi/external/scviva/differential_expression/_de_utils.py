@@ -6,9 +6,9 @@ from scvi.utils import dependencies
 
 
 def adjusted_nearest_neighbors(
-    cell_samples: np.array,
-    cell_coordinates: np.array,
-    cell_labels: np.array,
+    cell_samples: np.ndarray,
+    cell_coordinates: np.ndarray,
+    cell_labels: np.ndarray,
     radius: int | None = None,
     k_nn: int | None = None,
     return_sparse: bool = True,
@@ -32,7 +32,7 @@ def adjusted_nearest_neighbors(
 
     Returns
     -------
-    np.ndarray | csr_matrix
+    numpy.ndarray | csr_matrix
         Adjacency matrix for the neighborhood of each sample,
         without connections to cells of the same type.
     """

@@ -97,7 +97,10 @@ def create_criticism_report(
 
 def compute_metrics(model, adata, skip_metrics, n_samples, label_key, modality=None):
     models_dict = {"model": model}
-    ppc = PPC(adata, models_dict, n_samples=n_samples, modality=modality)
+    count_layer_key = model.registry_.get("setup_args", {}).get("layer", None)
+    ppc = PPC(
+        adata, models_dict, n_samples=n_samples, modality=modality, count_layer_key=count_layer_key
+    )
     # run ppc+cv
     if METRIC_CV_CELL not in skip_metrics:
         ppc.coefficient_of_variation("features")

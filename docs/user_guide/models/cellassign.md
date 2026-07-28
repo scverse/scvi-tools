@@ -1,6 +1,6 @@
 # CellAssign
 
-**CellAssign** [^ref1] (Python class {class}`~scvi.external.CellAssign`) is a simple yet, efficient
+**CellAssign** {cite:p}`Zhang19` (Python class {class}`~scvi.external.CellAssign`) is a simple yet, efficient
 approach for annotating scRNA-seq data in the scenario in which cell-type-specific
 gene markers are known. The method also allows users to control for nuisance covariates
 like batch or donor. The scvi-tools implementation of CellAssign uses stochastic inference,
@@ -148,11 +148,6 @@ The implementation uses the same variable names as the math.
 > -   In {func}`scvi.external.cellassign.CellAssignModule.loss` the full expected log likelihood is computed, as well as
 >     the penalties corresponding to the priors on $\pi$ and $\delta$.
 > -   CellAssign uses the standard {class}`~scvi.train.TrainingPlan`.
-
-[^ref1]:
-    Allen W. Zhang, Ciara O’Flanagan, Elizabeth A. Chavez, Jamie LP Lim, Nicholas Ceglia, Andrew McPherson, Matt Wiens et al. (2019),
-    _Probabilistic cell-type assignment of single-cell RNA-seq for tumor microenvironment profiling_,
-    [Nature Methods](https://www.nature.com/articles/s41592-019-0529-1?elqTrackId=12c8cef68e0741ef8422778b61).
 
 [^ref2]: CellAssign original implementation. GitHub. <https://github.com/Irrationone/cellassign>
 [^ref3]: Kingma, Diederik P., and Jimmy Ba. "Adam: A method for stochastic optimization." arXiv preprint arXiv:1412.6980 (2014).

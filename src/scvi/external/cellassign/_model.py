@@ -22,6 +22,7 @@ from scvi.external.cellassign._module import CellAssignModule
 from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -194,10 +195,8 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = {"lr": lr, "weight_decay": 1e-10}
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         datasplitter_kwargs = datasplitter_kwargs or {}
 
@@ -224,8 +223,6 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
 
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         data_splitter = DataSplitter(
             self.adata_manager,

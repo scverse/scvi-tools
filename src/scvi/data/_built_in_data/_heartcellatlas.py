@@ -34,7 +34,7 @@ def _load_heart_cell_atlas_subsampled(
         >>> sc.pp.filter_genes(bdata, min_counts=3)
         >>> bdata.write_h5ad(path, compression="gzip")
     """
-    url = "https://github.com/YosefLab/scVI-data/blob/master/hca_subsampled_20k.h5ad?raw=true"
+    url = "https://exampledata.scverse.org/scvi-tools/hca_subsampled_20k.h5ad"
     save_fn = "hca_subsampled_20k.h5ad"
     _download(url, save_path, save_fn)
     dataset = anndata.read_h5ad(os.path.join(save_path, save_fn))

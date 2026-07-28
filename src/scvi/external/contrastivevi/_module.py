@@ -545,6 +545,7 @@ class ContrastiveVAE(BaseModuleClass):
         Returns
         -------
         An scvi.module.base.LossOutput instance that records the following:
+
         loss
             One-dimensional tensor for overall loss used for optimization.
         reconstruction_loss

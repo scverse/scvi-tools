@@ -454,3 +454,93 @@ def test_scvi_with_minified_adata_get_feature_correlation_matrix():
     )
 
     assert_approx_equal(fcm_new, fcm_orig)
+
+
+def test_scvi_minified_model_load_with_user_provided_minified_adata(save_path):
+    """Test loading a minified model with user-provided minified adata.
+
+    This is the workflow used in the cellxgene census model notebook:
+    1. Train model and minify adata
+    2. Save model with minified adata
+    3. Load model without adata (pull_anndata=False equivalent)
+    4. Load model again with user-provided minified adata
+
+    This should succeed because the model was saved with minified data support.
+    """
+    model, adata, _, _ = prep_model()
+
+    scvi.settings.seed = 1
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+
+    # Get the minified adata before saving
+    minified_adata = model.adata.copy()
+
+    # Save model with minified adata
+    model.save(save_path, overwrite=True, save_anndata=True)
+
+    # This simulates the HubModel.load_model workflow where:
+    # - Model is pulled without adata (pull_anndata=False)
+    # - User provides their own minified adata
+    # The key is that the model was saved with minified data support,
+    # so loading with minified adata should work.
+    loaded_model = SCVI.load(save_path, adata=minified_adata)
+
+    assert loaded_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+
+    # Verify the model works correctly
+    scvi.settings.seed = 1
+    params = loaded_model.get_likelihood_parameters()
+    assert params["mean"].shape == minified_adata.shape
+
+
+def test_scvi_non_minified_model_load_with_adata_having_latent_params(save_path):
+    """Test loading a non-minified model with adata that has latent params.
+
+    This is the workflow used in the cellxgene census model notebook:
+    1. Train model normally (non-minified)
+    2. Save model without minified adata
+    3. User has adata with latent params and empty X (minified adata from elsewhere)
+    4. User loads model with this adata
+    5. User then calls minify_adata() to properly set up the model
+
+    This should succeed because the adata has latent params (_scvi_latent_qzm/qzv),
+    which allows minify_adata() to be called afterward.
+    """
+    from scipy import sparse
+
+    model, adata, _, adata_before_setup = prep_model()
+
+    # Compute latent representation
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["_scvi_latent_qzm"] = qzm
+    adata.obsm["_scvi_latent_qzv"] = qzv
+
+    # Save model WITHOUT minifying (simulating a model that was saved non-minified)
+    model.save(save_path, overwrite=True, save_anndata=False)
+
+    # Create a minified-like adata: empty sparse X but with latent params
+    # This simulates downloading minified adata separately from the model
+    minified_like_adata = adata.copy()
+    minified_like_adata.X = sparse.csr_matrix(minified_like_adata.X.shape)  # empty sparse matrix
+    # Note: we don't set _scvi_adata_minify_type in uns (simulating the notebook workflow)
+
+    # This should work because the adata has latent params
+    loaded_model = SCVI.load(save_path, adata=minified_like_adata)
+
+    # Now we can call minify_adata() to properly set up the model
+    loaded_model.minify_adata(
+        use_latent_qzm_key="_scvi_latent_qzm",
+        use_latent_qzv_key="_scvi_latent_qzv",
+    )
+
+    assert loaded_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+
+    # Verify the model works correctly
+    scvi.settings.seed = 1
+    params = loaded_model.get_likelihood_parameters()
+    assert params["mean"].shape == adata.shape

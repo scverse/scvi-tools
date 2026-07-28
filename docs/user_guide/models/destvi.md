@@ -1,6 +1,6 @@
 # DestVI
 
-**DestVI** [^ref1] (Deconvolution of Spatial Transcriptomics profiles using Variational Inference)
+**DestVI** {cite:p}`Lopez22` (Deconvolution of Spatial Transcriptomics profiles using Variational Inference; Python class {class}`~scvi.model.DestVI`)
 posits a conditional generative model of spatial transcriptomics down to the sub-cell-type variation level which
 can be used to explore the spatial organization of a tissue and understanding gene expression variation between tissues and conditions.
 
@@ -12,6 +12,10 @@ The advantages of DestVI are:
 The limitations of DestVI include:
 
 -   Effectively requires a GPU for fast inference.
+
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
 
 ```{topic} Tutorial:
 
@@ -250,6 +254,5 @@ for automatic thresholding of cell type proportions, a spatial PCA analysis to f
 in spatial gene expression and the described frequentist test for differential expression. Further information
 can be found on [destvi_utils](https://destvi-utils.readthedocs.io/en/latest/installation.html)
 
-[^ref1]: Romain Lopez, Baoguo Li, Hadas Keren-Shaul, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Ido Yofe, Eyal David, Allon Wagner, Can Ergen, Yoseph Addadi, Ofra Golani, Franca Ronchese, Michael I Jordan, Ido Amit, Nir Yosef (2022). _DestVI identifies continuums of cell types in spatial transcriptomics data._ [Nature Biotechnology (in press)](https://www.biorxiv.org/content/10.1101/2021.05.10.443517v1)
 [^ref2]: Jakub Tomczak, Max Welling (2018),_VAE with a VampPrior_, [Proceedings of Machine Learning Research](https://proceedings.mlr.press/v84/tomczak18a.html)
 [^ref3]: Davide Risso, Fanny Perraudeau, Svetlana Gribkova, Sandrine Dudoit, Jean-Philippe Vert (2018). _A general and flexible method for signal extraction from single-cell RNA-seq data_, [Nature Communications] (https://www.nature.com/articles/s41467-017-02554-5)

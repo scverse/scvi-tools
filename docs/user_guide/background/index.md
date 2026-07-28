@@ -5,6 +5,7 @@
 
 codebase_overview
 counterfactual_prediction
+differential_abundance
 differential_expression
 transfer_learning
 variational_inference

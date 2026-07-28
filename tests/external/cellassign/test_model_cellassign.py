@@ -36,7 +36,7 @@ def test_cellassign():
 def test_cellassign_error_duplicates():
     adata, marker_df = get_test_adata_marker_mat()
     # Add a duplicate for internal test
-    marker_df = marker_df._append(marker_df.iloc[1], ignore_index=False)
+    marker_df = pd.concat([marker_df, marker_df.iloc[[1]]], ignore_index=False)
     CellAssign.setup_anndata(
         adata,
         "size_factor",

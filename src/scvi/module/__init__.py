@@ -34,15 +34,15 @@ def __getattr__(name: str):
 
     only when object is actually requested.
     """
-    if name == "JaxVAE":
+    if name == "MlxVAE":
         warnings.warn(
-            "In order to use the JaxVAE make sure to install scvi-tools[jax]",
+            "In order to use the MlxVAE make sure to install mlx",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
 
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
-        from ._jaxvae import JaxVAE as _JaxVAE
+        error_on_missing_dependencies("mlx")
+        from ._mlxvae import MlxVAE as _MlxVAE
 
-        return _JaxVAE
+        return _MlxVAE
     raise AttributeError(f"module {__name__!r} has no attribute {name}")

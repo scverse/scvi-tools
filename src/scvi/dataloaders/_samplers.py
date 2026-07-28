@@ -1,3 +1,5 @@
+from math import ceil
+
 from torch.utils.data import Dataset, DistributedSampler
 
 
@@ -70,3 +72,18 @@ class BatchDistributedSampler(DistributedSampler):
                     batch = [0] * self.batch_size
             if idx_in_batch > 0:
                 yield batch[:idx_in_batch]
+
+    def __len__(self) -> int:
+        """Return the number of batches (not individual samples) per replica.
+
+        The parent :class:`~torch.utils.data.DistributedSampler` returns the
+        number of *samples* assigned to this replica.  Since ``__iter__``
+        groups those samples into batches of ``self.batch_size``, the
+        DataLoader (which sets ``batch_size=None``) must report the correct
+        number of *batches* so that Lightning can detect the last batch and
+        trigger validation.
+        """
+        per_replica_samples = self.num_samples  # from DistributedSampler
+        if self.drop_last_batch:
+            return per_replica_samples // self.batch_size
+        return ceil(per_replica_samples / self.batch_size)

@@ -41,7 +41,7 @@ class EncoderDecoder(Module):
         The number of hidden layers.
     var_mode
         How to compute variance from model outputs,
-        see :class:`~scvi.external.sysvi._base_components.VarEncoder`.
+        see ``VarEncoder``.
         One of the following:
         * ```'sample_feature'``` - learn variance per sample and feature.
         * ```'feature'``` - learn variance per feature, constant across samples.
@@ -126,7 +126,7 @@ class EncoderDecoder(Module):
             q_m = torch.nan_to_num(q_m)
         q_v = self.var_encoder(q_)
 
-        outputs = {"q_dist": Normal(q_m, q_v.sqrt() + 1e-12)}
+        outputs = {"q_dist": Normal(q_m, q_v.sqrt() + 1e-12, normal_mu=q_m)}
 
         if self.sample:
             outputs["q"] = outputs["q_dist"].rsample()

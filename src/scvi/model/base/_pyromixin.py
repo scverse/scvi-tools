@@ -12,6 +12,7 @@ from scvi import settings
 from scvi.dataloaders import DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
 
@@ -19,9 +20,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from anndata import AnnData
-    from pyro import PyroBaseModuleClass
 
     from scvi.dataloaders import AnnDataLoader
+    from scvi.module.base import PyroBaseModuleClass
+    from scvi.train._config import KwargsLike
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +107,9 @@ class PyroSviTrainMixin:
         lr: float | None = None,
         training_plan: PyroTrainingPlan | None = None,
         datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
+        plan_config: KwargsLike | None = None,
+        plan_kwargs: KwargsLike | None = None,
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -133,7 +137,7 @@ class PyroSviTrainMixin:
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
         lr
-            Optimiser learning rate (default optimiser is :class:`~pyro.optim.ClippedAdam`).
+            Optimiser learning rate (default optimiser is :class:`~pyro.optim.clipped_adam.ClippedAdam`).
             Specifying optimiser via plan_kwargs overrides this choice of lr.
         training_plan
             Training plan :class:`~scvi.train.PyroTrainingPlan`.
@@ -142,13 +146,20 @@ class PyroSviTrainMixin:
         plan_kwargs
             Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        plan_config
+            Configuration object or mapping used to build
+            :class:`~scvi.train.PyroTrainingPlan`. Values in ``plan_kwargs`` and explicit arguments
+            take precedence.
+        trainer_config
+            Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
+            ``trainer_kwargs`` and explicit arguments take precedence.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
         if lr is not None and "optim" not in plan_kwargs.keys():
             plan_kwargs.update({"optim_kwargs": {"lr": lr}})
 
@@ -194,6 +205,7 @@ class PyroSviTrainMixin:
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=device,
+            trainer_config=trainer_config,
             **trainer_kwargs,
         )
         return runner()
@@ -477,7 +489,7 @@ class PyroSampleMixin:
         summary_frequency
             Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         sample_kwargs
-            Keyword arguments for :meth:`~scvi.model.base.PyroSampleMixin._get_posterior_samples`.
+            Keyword arguments for ``_get_posterior_samples``.
 
         Returns
         -------
@@ -661,22 +673,22 @@ class PyroSampleMixin:
             distribution summaries to compute and which names to use. See below for default
             returns.
         sample_kwargs
-            Keyword arguments for :meth:`~scvi.model.base.PyroSampleMixin._get_posterior_samples`.
+            Keyword arguments for ``_get_posterior_samples``.
 
         Returns
         -------
-        post_sample_means: Dict[str, :class:`np.ndarray`]
+        post_sample_means : dict[str, numpy.ndarray]
             Mean of the posterior distribution for each variable, a dictionary of numpy arrays for
             each variable;
-        post_sample_q05: Dict[str, :class:`np.ndarray`]
+        post_sample_q05 : dict[str, numpy.ndarray]
             5th quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, :class:`np.ndarray`]
+        post_sample_q95 : dict[str, numpy.ndarray]
             95th quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, :class:`np.ndarray`]
+        post_sample_stds : dict[str, numpy.ndarray]
             Standard deviation of the posterior distribution for each variable;
-        posterior_samples: Optional[Dict[str, :class:`np.ndarray`]]
+        posterior_samples : dict[str, numpy.ndarray], optional
             Posterior distribution samples for each variable as numpy arrays of shape
-            `(n_samples, ...)` (Optional).
+            `(n_samples, ...)`.
 
         Notes
         -----

@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data._constants import _SETUP_ARGS_KEY
+from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME, ADATA_MINIFY_TYPE
+from scvi.data._utils import _get_adata_minify_type
 from scvi.model import TOTALVI
 from scvi.model._utils import _init_library_size
 from scvi.model.base import SemisupervisedTrainingMixin
@@ -20,6 +21,8 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
     from mudata import MuData
+
+    from scvi._types import AnnOrMuData
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +94,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         n_latent: int = 20,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
@@ -102,7 +105,11 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         linear_classifier: bool = False,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(
+            adata,
+            empirical_protein_background_prior=empirical_protein_background_prior,
+            override_missing_proteins=override_missing_proteins,
+        )
         self._set_indices_and_labels()
         self.protein_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.PROTEIN_EXP_KEY
@@ -130,7 +137,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
             if empirical_protein_background_prior is not None
             else (self.summary_stats.n_proteins > 10)
         )
-        if emp_prior:
+        if emp_prior and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
@@ -159,7 +166,10 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
 
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        if (
+            not use_size_factor_key
+            and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -185,6 +195,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
             linear_classifier=linear_classifier,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             f"TotalANVI Model with the following params: \nunlabeled_category: "
             f"{self.unlabeled_category_}, n_latent:{n_latent}, gene_dispersion: {gene_dispersion},"
@@ -195,6 +206,14 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         self.semisupervised_history_ = None
 
         self.init_params_ = self._get_init_params(locals())
+        if self.registry_["setup_method_name"] == "setup_mudata":
+            original_dict = self.registry_["setup_args"]["modalities"]
+            self.modalities = {
+                "rna_layer": original_dict.get("rna_layer"),
+                "protein_layer": original_dict.get("protein_layer"),
+            }
+        else:
+            self.modalities = None
         self.was_pretrained = False
         self.n_labels = n_labels
 
@@ -204,7 +223,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         totalvi_model: TOTALVI,
         unlabeled_category: str,
         labels_key: str | None = None,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         **totalanvi_kwargs,
     ):
         """Initialize totalVI model with weights from pretrained :class:`~scvi.model.TOTALVI` model
@@ -214,14 +233,16 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         totalvi_model
             Pretrained totalvi model
         labels_key
-            key in `adata.obs` for label information. Label categories can not be different if
-            labels_key was used to setup the TOTALVI model. If None, uses the `labels_key` used to
-            setup the TOTALVI model. If that was None, and error is raised.
+            key in `adata.obs` or a MuData modality's `.obs` for label information. Label
+            categories can not be different if labels_key was used to setup the TOTALVI model.
+            If None, uses the `labels_key` used to setup the TOTALVI model. If that was None,
+            and error is raised.
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
-            AnnData object that has been registered via
-            :meth:`~scvi.external.TOTALANVI.setup_anndata`.
+            AnnData or MuData object that has been registered via
+            :meth:`~scvi.external.TOTALANVI.setup_anndata` or
+            :meth:`~scvi.external.TOTALANVI.setup_mudata`.
         totalanvi_kwargs
             kwargs for totalANVI model
         """
@@ -247,13 +268,16 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         else:
             totalvi_model._validate_anndata(adata)
 
-        totalvi_setup_args = deepcopy(totalvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
+        totalvi_registry = totalvi_model.adata_manager.registry
+        totalvi_setup_args = deepcopy(totalvi_registry[_SETUP_ARGS_KEY])
         if labels_key is None:
             raise ValueError(
                 "A `labels_key` is necessary as the TOTALVI model was initialized without one."
             )
         totalvi_setup_args.update({"labels_key": labels_key})
-        cls.setup_anndata(
+        setup_method_name = totalvi_registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        setup_method = getattr(cls, setup_method_name)
+        setup_method(
             adata,
             unlabeled_category=unlabeled_category,
             **totalvi_setup_args,
@@ -344,6 +368,10 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         if panel_key is not None:
             anndata_fields.insert(0, fields.CategoricalObsField("panel", panel_key))
 
+        adata_minify_type = _get_adata_minify_type(adata)
+        if adata_minify_type is not None:
+            anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
+
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
@@ -360,6 +388,8 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
+        labels_key: str | None = None,
+        unlabeled_category: str | None = None,
         modalities: dict[str, str] | None = None,
         **kwargs,
     ):
@@ -378,20 +408,25 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        %(param_labels_key)s
+        %(param_unlabeled_category)s
         %(param_modalities)s
 
         Examples
         --------
         >>> mdata = muon.read_10x_h5("pbmc_10k_protein_v3_filtered_feature_bc_matrix.h5")
-        >>> scvi.external.model.TOTALANVI.setup_mudata(
-                mdata, modalities={"rna_layer": "rna": "protein_layer": "prot"}
-            )
-        >>> vae = scvi.external.model.TOTALANVI(mdata)
+        >>> scvi.external.TOTALANVI.setup_mudata(
+        ...     mdata,
+        ...     labels_key="labels",
+        ...     unlabeled_category="Unknown",
+        ...     modalities={"rna_layer": "rna", "protein_layer": "prot"},
+        ... )
+        >>> vae = scvi.external.TOTALANVI(mdata)
         """
-        setup_method_args = cls._get_setup_method_args(**locals())
-
         if modalities is None:
             raise ValueError("Modalities cannot be None.")
+        modalities = cls._infer_labels_modality(mdata, labels_key, modalities)
+        setup_method_args = cls._get_setup_method_args(**locals())
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
 
         if panel_key is not None:
@@ -414,11 +449,12 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
                 is_count_data=True,
                 mod_required=True,
             ),
-            fields.MuDataCategoricalObsField(
+            fields.MuDataLabelsWithUnlabeledObsField(
                 REGISTRY_KEYS.LABELS_KEY,
-                None,
-                mod_key=None,
-            ),  # Default labels field for compatibility with TOTALVAE
+                labels_key,
+                unlabeled_category,
+                mod_key=modalities.labels_key,
+            ),
             fields.MuDataCategoricalObsField(
                 REGISTRY_KEYS.BATCH_KEY,
                 batch_key,
@@ -461,6 +497,44 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
                 ),
             )
 
+        mdata_minify_type = _get_adata_minify_type(mdata)
+        if mdata_minify_type is not None:
+            mudata_fields += cls._get_fields_for_mudata_minification(mdata_minify_type)
+
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)
+
+    @staticmethod
+    def _infer_labels_modality(
+        mdata: MuData,
+        labels_key: str | None,
+        modalities: dict[str, str],
+    ) -> dict[str, str]:
+        if labels_key is None:
+            return modalities
+
+        labels_mod_key = modalities.get("labels_key")
+        if labels_mod_key is not None:
+            if labels_key in mdata.obs and labels_key not in mdata[labels_mod_key].obs:
+                mdata[labels_mod_key].obs[labels_key] = mdata.obs[labels_key].copy()
+            return modalities
+
+        if labels_key in mdata.obs:
+            return modalities
+
+        candidate_mods = []
+        for modality_arg in ("rna_layer", "batch_key", "protein_layer"):
+            mod_key = modalities.get(modality_arg)
+            if mod_key is not None and mod_key not in candidate_mods:
+                candidate_mods.append(mod_key)
+        for mod_key in mdata.mod.keys():
+            if mod_key not in candidate_mods:
+                candidate_mods.append(mod_key)
+
+        for mod_key in candidate_mods:
+            if labels_key in mdata[mod_key].obs:
+                mdata.obs[labels_key] = mdata[mod_key].obs[labels_key].copy()
+                return {**modalities, "labels_key": mod_key}
+
+        return modalities

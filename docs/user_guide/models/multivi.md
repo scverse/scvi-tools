@@ -1,6 +1,6 @@
 # MultiVI
 
-**MultiVI** [^ref1] (Python class {class}`~scvi.model.MULTIVI`) multimodal generative model capable of
+**MultiVI** {cite:p}`AshuachGabitto21` (Python class {class}`~scvi.model.MULTIVI`) multimodal generative model capable of
 integrating multiome, scRNA-seq and scATAC-seq data. After training, it can be used for many common downstream tasks
 and also for imputation of a missing modality.
 
@@ -215,8 +215,3 @@ Differential expression analysis is achieved with {func}`~scvi.model.MULTIVI.dif
 ### Differential accessibility
 
 Differential accessibility analysis is achieved with {func}`~scvi.model.MULTIVI.differential_accessibility`. MultiVI tests differences in accessibility of $g_z\left( z_n, s_n \right)$.
-
-[^ref1]:
-    Tal Ashuach\*, Mariano I. Gabitto\*, Michael I. Jordan, Nir Yosef (2021),
-    _MultiVI: deep generative model for the integration of multi-modal data_,
-    `Biorxiv`.

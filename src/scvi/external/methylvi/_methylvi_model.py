@@ -157,16 +157,14 @@ class METHYLVI(VAEMixin, BSSeqMixin, UnsupervisedTrainingMixin, ArchesMixin, Bas
 
         Examples
         --------
-        MethylVI.setup_mudata(
-            mdata,
-            mc_layer="mc",
-            cov_layer="cov",
-            batch_key="Platform",
-            methylation_modalities=['mCG', 'mCH'],
-            modalities={
-                "batch_key": "mCG"
-            },
-        )
+        >>> MethylVI.setup_mudata(
+        ...     mdata,
+        ...     mc_layer="mc",
+        ...     cov_layer="cov",
+        ...     batch_key="Platform",
+        ...     methylation_modalities=["mCG", "mCH"],
+        ...     modalities={"batch_key": "mCG"},
+        ... )
 
         """
         if modalities is None:

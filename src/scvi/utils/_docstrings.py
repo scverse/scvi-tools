@@ -4,6 +4,10 @@ de_adata = """\
 adata
     AnnData object with equivalent structure to initial AnnData.
     If None, defaults to the AnnData object used to initialize the model."""
+de_mdata = """\
+mdata
+    MuData object with equivalent structure to initial MuData.
+    If None, defaults to the MuData object used to initialize the model."""
 de_groupby = """\
 groupby
     The key of the observations grouping to consider."""
@@ -78,6 +82,7 @@ fn_kwargs
 
 de_dsp = DocstringProcessor(
     de_adata=de_adata,
+    de_mdata=de_mdata,
     de_groupby=de_groupby,
     de_group1=de_group1,
     de_group2=de_group2,
@@ -207,6 +212,9 @@ setup_anndata_dsp = DocstringProcessor(
     idx_layer=idx_layer,
     returns=returns,
 )
+setup_anndata_dsp.__doc__ = (
+    "Docstring processor for the ``setup_anndata`` methods of scvi-tools models."
+)
 
 
 param_accelerator = """\
@@ -232,8 +240,8 @@ device
 param_return_device = """\
 return_device
     Returns the first or only device as determined by `accelerator` and `devices`.
-    Depending on the value, will either return a PyTorch device (`"torch"`), a Jax
-    device (`"jax"`), or neither (`None`)."""
+    Depending on the value, will either return a PyTorch device (`"torch"`),
+    or neither (`None`)."""
 
 param_validate_single_device = """\
 validate_single_device

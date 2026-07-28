@@ -136,9 +136,8 @@ class HubModel:
     ):
         """Push this model to huggingface.
 
-        If the dataset is too large to upload to huggingface, this will raise an
-         exception, prompting the user to upload the data elsewhere. Otherwise, the
-        data, model card, and metadata are all uploaded to the given model repo.
+        If the dataset is too large to upload to huggingface, this will raise an exception, prompting the user to upload the data elsewhere.
+        Otherwise, the data, model card, and metadata are all uploaded to the given model repo.
 
         Parameters
         ----------
@@ -150,7 +149,7 @@ class HubModel:
         repo_create
             Whether to create the repo
         repo_create_kwargs
-            Keyword arguments passed into :meth:`~huggingface_hub.create_repo` if
+            Keyword arguments passed into :meth:`~huggingface_hub.HfApi.create_repo` if
             ``repo_create=True``.
         collection_name
             The name of the collection to which the model belongs.
@@ -198,12 +197,12 @@ class HubModel:
         )
         if not push_anndata:
             kwargs["ignore_patterns"] = ["*.h5ad", "*.h5mu"]
-            api.upload_folder(
-                folder_path=self._local_dir,
-                repo_id=repo_name,
-                token=repo_token,
-                **kwargs,
-            )
+        api.upload_folder(
+            folder_path=self._local_dir,
+            repo_id=repo_name,
+            token=repo_token,
+            **kwargs,
+        )
 
         if collection_name == "test":
             collection_slug = "scvi-tools/test-674f56b9eb86e62d57eac5cf"
@@ -263,7 +262,7 @@ class HubModel:
             Whether to pull the :class:`~anndata.AnnData` object associated with the model. If
             ``True`` but the file does not exist, it will fail silently.
         kwargs
-            Additional keyword arguments to pass to :meth:`~huggingface_hub.snapshot_download`.
+            Additional keyword arguments to pass to :func:`~huggingface_hub.snapshot_download`.
         """
         if revision is None:
             warnings.warn(
@@ -308,7 +307,7 @@ class HubModel:
         push_anndata
             Whether to push the :class:`~anndata.AnnData` object associated with the model.
         **kwargs
-            Keyword arguments passed into :func:`~boto3.client`.
+            Keyword arguments passed into ``boto3.client``.
         """
         from boto3 import client
 
@@ -370,7 +369,7 @@ class HubModel:
             Whether to use unsigned requests. If ``True`` and ``config`` is passed in ``kwargs``,
             ``config`` will be overwritten.
         **kwargs
-            Keyword arguments passed into :func:`~boto3.client`.
+            Keyword arguments passed into ``boto3.client``.
 
         Returns
         -------

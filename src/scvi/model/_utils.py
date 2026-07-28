@@ -76,7 +76,7 @@ def get_max_epochs_heuristic(
 def parse_device_args(
     accelerator: str = "auto",
     devices: int | list[int] | str = "auto",
-    return_device: Literal["torch", "jax"] | None = None,
+    return_device: Literal["torch"] | None = None,
     validate_single_device: bool = False,
 ):
     """Parses device-related arguments.
@@ -88,9 +88,9 @@ def parse_device_args(
     %(param_return_device)s
     %(param_validate_single_device)s
     """
-    valid = [None, "torch", "jax"]
+    valid = [None, "torch"]
     if return_device not in valid:
-        return ValueError(f"`return_device` must be one of {valid}")
+        raise ValueError(f"`return_device` must be one of {valid}")
 
     _validate_single_device = validate_single_device and devices != "auto"
     cond1 = isinstance(devices, list) and len(devices) > 1
@@ -124,7 +124,7 @@ def parse_device_args(
         )
     elif _accelerator == "mps" and accelerator != "auto":
         warnings.warn(
-            "`accelerator` has been set to `mps`. Please note that not all PyTorch/Jax "
+            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
             "operations are supported with this backend. as a result, some models might be slower "
             "and less accurate than usual. Please verify your analysis!"
             "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
@@ -142,27 +142,34 @@ def parse_device_args(
 
     if devices == "auto" and _accelerator != "cpu":
         # auto device should not use multiple devices for non-cpu accelerators
-        _devices = [device_idx]
+        if _accelerator == "tpu":
+            # For TPU, device_idx from connector is a count (e.g., 1), not an index
+            # TPU device indices start from 0, so use [0] for single device
+            _devices = [0]
+            device_idx = 0
+        else:
+            _devices = [device_idx]
 
     if return_device == "torch":
         device = torch.device("cpu")
         if _accelerator != "cpu":
-            device = torch.device(f"{_accelerator}:{device_idx}")
-        return _accelerator, _devices, device
-    elif return_device == "jax" and is_package_installed("jax"):
-        import jax
+            if _accelerator == "tpu":
+                # TPU requires torch_xla and uses "xla" device type, not "tpu"
+                if not is_package_installed("torch_xla"):
+                    raise ImportError(
+                        "TPU support requires torch_xla. Please install it with:\n"
+                        "  pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html\n"
+                        "or for Colab:\n"
+                        "  pip install torch_xla[colab] -f https://storage.googleapis.com/libtpu-releases/index.html"
+                    )
+                import torch_xla.core.xla_model as xm
 
-        device = jax.devices("cpu")[0]
-        if _accelerator != "cpu":
-            if _accelerator == "mps":
-                device = jax.devices("METAL")[device_idx]  # MPS-JAX
+                device = xm.xla_device()
             else:
-                device = jax.devices(_accelerator)[device_idx]
+                device = torch.device(f"{_accelerator}:{device_idx}")
         return _accelerator, _devices, device
     else:
-        raise ImportError("Please install jax to use this functionality.")
-
-    return _accelerator, _devices
+        raise ImportError("Please install gpu support to use this functionality.")
 
 
 def scrna_raw_counts_properties(

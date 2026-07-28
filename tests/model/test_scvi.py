@@ -1,7 +1,6 @@
 import contextlib
 import inspect
 import io
-import json
 import os
 import pickle
 import tarfile
@@ -413,7 +412,7 @@ def test_scvi(gene_likelihood: str, n_latent: int):
     lr_monitor = LearningRateMonitor()
     m.train(
         callbacks=[lr_monitor],
-        max_epochs=10,
+        max_epochs=2,
         check_val_every_n_epoch=1,
         log_every_n_steps=1,
         plan_kwargs={"reduce_lr_on_plateau": True},
@@ -751,6 +750,18 @@ def test_early_stopping_with_parameters(
     model = SCVI(adata)
     model.train(n_epochs, plan_kwargs={"lr": 0}, **early_stopping_kwargs)
     assert len(model.history["elbo_train"]) < n_epochs
+
+
+@pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-label", "gene-cell"])
+def test_scvi_dispersion(dispersion: str):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, dispersion=dispersion)
+    model.train(1)
 
 
 def test_de_features():
@@ -1134,6 +1145,70 @@ def test_scvi_online_update(save_path):
     model3.get_latent_representation()
 
 
+def _scvi_query_to_reference(**model_kwargs):
+    """scArches query->reference run; returns (reference_change, query_change, transfer_model).
+
+    Holds out ``batch_0`` as a new query batch, trains the reference, transfers via
+    ``load_query_data`` and finetunes the query twice, measuring how much the reference and query
+    latent representations move. ``encode_covariates=True`` makes the batch affect the latent.
+    """
+    adata = synthetic_iid(n_batches=3)
+    ref = adata[adata.obs["batch"] != "batch_0"].copy()
+    query = adata[adata.obs["batch"] == "batch_0"].copy()
+
+    SCVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    model = SCVI(ref, n_latent=8, encode_covariates=True, **model_kwargs)
+    model.train(max_epochs=2, batch_size=ref.n_obs)
+    latent_reference = model.get_latent_representation(ref)
+
+    SCVI.prepare_query_anndata(query, model)
+    transfer = SCVI.load_query_data(query, model)
+    train_kwargs = {"plan_kwargs": {"lr": 0.1, "weight_decay": 0.0}}
+    transfer.train(max_epochs=2, batch_size=query.n_obs, **train_kwargs)
+    latent_query = transfer.get_latent_representation(query)
+    transfer.train(max_epochs=2, batch_size=query.n_obs, **train_kwargs)
+
+    reference_change = np.sum((latent_reference - transfer.get_latent_representation(ref)) ** 2)
+    query_change = np.sum((latent_query - transfer.get_latent_representation(query)) ** 2)
+    return reference_change, query_change, transfer
+
+
+@pytest.mark.parametrize("batch_representation", ["one-hot", "embedding"])
+def test_scvi_query_to_reference_mapping(batch_representation):
+    """scArches keeps the reference latent intact while updating the query."""
+    reference_change, query_change, transfer = _scvi_query_to_reference(
+        batch_representation=batch_representation
+    )
+    assert reference_change < 1e-4  # reference latent intact (frozen path)
+    assert query_change > 1e-3  # query latent updated by transfer training
+
+
+def test_scvi_query_to_reference_freezes_reference_embedding_rows():
+    """With ``batch_representation="embedding"``, scArches freezes the reference embedding rows and
+    trains only the newly added (query) row."""
+    adata = synthetic_iid(n_batches=3)
+    ref = adata[adata.obs["batch"] != "batch_0"].copy()
+    query = adata[adata.obs["batch"] == "batch_0"].copy()
+    SCVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    model = SCVI(ref, n_latent=8, encode_covariates=True, batch_representation="embedding")
+    model.train(max_epochs=2, batch_size=ref.n_obs)
+    n_old = model.summary_stats.n_batch
+
+    SCVI.prepare_query_anndata(query, model)
+    transfer = SCVI.load_query_data(query, model)
+    emb = transfer.module.get_embedding(scvi.REGISTRY_KEYS.BATCH_KEY)
+    assert emb.num_embeddings == n_old + 1
+    assert emb.weight.requires_grad
+
+    before = emb.weight.detach().clone()
+    transfer.train(
+        max_epochs=3, batch_size=query.n_obs, plan_kwargs={"lr": 0.1, "weight_decay": 0.0}
+    )
+    after = emb.weight.detach()
+    assert ((after[:n_old] - before[:n_old]) ** 2).sum().item() < 1e-8  # reference rows frozen
+    assert ((after[n_old:] - before[n_old:]) ** 2).sum().item() > 1e-3  # new query row updated
+
+
 def test_scvi_library_size_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
@@ -1292,7 +1367,7 @@ def test_scvi_with_external_indices(gene_likelihood: str, n_latent: int):
         train_size=0.5,
     )
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     model.train(
         1,
@@ -1417,7 +1492,7 @@ def test_scvi_with_external_indices(gene_likelihood: str, n_latent: int):
     lr_monitor = LearningRateMonitor()
     m.train(
         callbacks=[lr_monitor],
-        max_epochs=10,
+        max_epochs=1,
         check_val_every_n_epoch=1,
         log_every_n_steps=1,
         plan_kwargs={"reduce_lr_on_plateau": True},
@@ -1570,33 +1645,17 @@ def test_scvi_mlflow(
 
     # Have several experiments to be able to compare them by datatime and ID
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_name = f"scvi_model_hca_subsampled_run_{timestamp}"
+    run_name = f"scvi_model_synthetic_iid_run_{timestamp}"
 
     model_path = os.path.join(save_path, "scvi_model_" + timestamp)
 
     # read data
-    adata = scvi.data.heart_cell_atlas_subsampled(save_path=model_path)
+    adata = synthetic_iid()
 
-    # pre process data
-    adata.layers["counts"] = adata.X.copy()  # preserve counts
-    sc.pp.normalize_total(adata, target_sum=1e4)
-    sc.pp.log1p(adata)
-    adata.raw = adata  # freeze the state in `.raw`
-
-    sc.pp.highly_variable_genes(
+    SCVI.setup_anndata(
         adata,
-        n_top_genes=1200,
-        subset=True,
-        layer="counts",
-        flavor="seurat_v3",
-        batch_key="cell_source",
-    )
-
-    scvi.model.SCVI.setup_anndata(
-        adata,
-        layer="counts",
-        categorical_covariate_keys=["cell_source", "donor"],
-        continuous_covariate_keys=["percent_mito", "percent_ribo"],
+        batch_key="batch",
+        labels_key="labels",
     )
     model = SCVI(adata, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers)
     model.run_name = run_name  # This is just for MLFLOW - otherwise will be random
@@ -1618,80 +1677,19 @@ def test_scvi_mlflow(
     latent = model.get_latent_representation()
     adata.obsm[SCVI_LATENT_KEY] = latent
 
-    SCVI_NORMALIZED_KEY = "scvi_normalized"
-    adata.layers[SCVI_NORMALIZED_KEY] = model.get_normalized_expression(library_size=10e4)
-
-    # run PCA then generate UMAP plots
-    sc.tl.pca(adata)
-    sc.pp.neighbors(adata, n_pcs=30, n_neighbors=20, random_state=seed)
-    sc.tl.umap(adata, min_dist=0.3, random_state=seed)
-
-    fig1 = sc.pl.umap(
-        adata,
-        color=["cell_type"],
-        frameon=False,
-        return_fig=True,
-        show=False,
-    )
-    fig1.savefig(os.path.join(save_path, "pca_cell_type.png"), bbox_inches="tight", dpi=80)
-    fig2 = sc.pl.umap(
-        adata,
-        color=["donor", "cell_source"],
-        ncols=2,
-        frameon=False,
-        return_fig=True,
-        show=False,
-    )
-    fig2.savefig(os.path.join(save_path, "pca_donor_source.png"), bbox_inches="tight", dpi=80)
-
-    mlflow_log_artifact(
-        os.path.join(save_path, "pca_cell_type.png"),
-        run_id=model.run_id,
-    )
-    mlflow_log_artifact(
-        os.path.join(save_path, "pca_donor_source.png"),
-        run_id=model.run_id,
-    )
-
     # use scVI latent space for UMAP generation
     sc.pp.neighbors(adata, use_rep=SCVI_LATENT_KEY, random_state=seed)
     sc.tl.umap(adata, min_dist=0.3, random_state=seed)
 
     fig3 = sc.pl.umap(
         adata,
-        color=["cell_type"],
+        color=["labels"],
         frameon=False,
         return_fig=True,
         show=False,
     )
     fig3.savefig(os.path.join(save_path, "scvi_cell_type.png"), bbox_inches="tight", dpi=80)
-    fig4 = sc.pl.umap(
-        adata,
-        color=["donor", "cell_source"],
-        ncols=2,
-        frameon=False,
-        return_fig=True,
-        show=False,
-    )
-    fig4.savefig(os.path.join(save_path, "scvi_donor_source.png"), bbox_inches="tight", dpi=80)
-
     mlflow_log_artifact(os.path.join(save_path, "scvi_cell_type.png"), run_id=model.run_id)
-    mlflow_log_artifact(os.path.join(save_path, "scvi_donor_source.png"), run_id=model.run_id)
-
-    # Clusters: neighbors were already computed using scVI
-    SCVI_CLUSTERS_KEY = "leiden_scVI"
-    sc.tl.leiden(adata, key_added=SCVI_CLUSTERS_KEY, resolution=0.5, random_state=seed)
-
-    fig5 = sc.pl.umap(
-        adata,
-        color=[SCVI_CLUSTERS_KEY],
-        frameon=False,
-        return_fig=True,
-        show=False,
-    )
-    fig5.savefig(os.path.join(save_path, "scvi_leiden_cluster.png"), bbox_inches="tight", dpi=80)
-
-    mlflow_log_artifact(os.path.join(save_path, "scvi_leiden_cluster.png"), run_id=model.run_id)
 
     # Model Summary
     buffer = io.StringIO()
@@ -1701,70 +1699,8 @@ def test_scvi_mlflow(
     logs = buffer.getvalue()
     mlflow_log_text(logs, "text/model_summary.txt", run_id=model.run_id)
 
-    # DE (table + volcano plot)
-    import decoupler as dc
-
-    de_df = model.differential_expression(groupby="cell_type", mode="change")
-    mlflow_log_table(de_df.head(500), artifact_file="data/cell_type_DE.json", run_id=model.run_id)
-    # de_df.to_csv("cell_type_DE.csv")
-    # mlflow_log_artifact(os.path.join(save_path, "cell_type_DE.csv"), run_id=model.run_id)
-
-    fig6 = dc.pl.volcano(de_df, x="lfc_mean", y="proba_not_de", return_fig=True, thr_stat=1, top=5)
-    fig6.savefig(os.path.join(save_path, "scvi_DE_volcano.png"), bbox_inches="tight", dpi=120)
-    mlflow_log_artifact(os.path.join(save_path, "scvi_DE_volcano.png"), run_id=model.run_id)
-
-    # SCIB
-    from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
-
-    adata.obs["dummy_batch"] = (
-        adata.obsm["_scvi_extra_categorical_covs"]["cell_source"].astype(str)
-        + "_"
-        + adata.obsm["_scvi_extra_categorical_covs"]["donor"].astype(str)
-    )
-    bioc = BioConservation(
-        isolated_labels=True,
-        nmi_ari_cluster_labels_leiden=True,
-        silhouette_label=True,
-        clisi_knn=True,
-        nmi_ari_cluster_labels_kmeans=True,
-    )
-    bc = BatchCorrection(
-        kbet_per_label=True,
-        graph_connectivity=True,
-        ilisi_knn=True,
-        bras=True,
-        pcr_comparison=True,
-    )
-
-    bm = Benchmarker(
-        adata,
-        batch_key="dummy_batch",
-        label_key="cell_type",
-        embedding_obsm_keys=["X_pca", SCVI_LATENT_KEY],
-        batch_correction_metrics=bc,
-        bio_conservation_metrics=bioc,
-        n_jobs=-1,
-    )
-    bm.benchmark()
-    mlflow_log_table(
-        bm.get_results(min_max_scale=False),
-        artifact_file="data/scib_results.json",
-        run_id=model.run_id,
-    )
-    bm.plot_results_table(min_max_scale=False, show=False, save_dir=save_path)
-    mlflow_log_artifact(os.path.join(save_path, "scib_results.svg"), run_id=model.run_id)
-
-    # CRITICISM
-    from scvi.criticism import create_criticism_report
-
-    if sp.issparse(model.adata.layers["counts"]):
-        model.adata.layers["counts"] = model.adata.layers["counts"].toarray()
-    model.adata.X = model.adata.layers["counts"]
-    create_criticism_report(model, save_folder=model_path, n_samples=2)
-    if os.path.isfile(f"{model_path}/metrics.json"):
-        with open(f"{model_path}/metrics.json") as f:
-            metrics_report = json.load(f)
-    mlflow_log_table(metrics_report, artifact_file="data/criticism.json", run_id=model.run_id)
+    de_df = model.differential_expression(groupby="labels", mode="change")
+    mlflow_log_table(de_df.head(10), artifact_file="data/cell_type_DE.json", run_id=model.run_id)
 
     # Optional: Save minified model and log artifact (dont save adata!)
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)

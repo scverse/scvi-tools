@@ -1,6 +1,6 @@
 # ResolVI
 
-**resolVI** (Python class {class}`~scvi.external.RESOLVI`) is a generative model of single-cell resolved spatial
+**resolVI** {cite:p}`Ergen25` (Python class {class}`~scvi.external.RESOLVI`) is a generative model of single-cell resolved spatial
 transcriptomics that can subsequently be used for many common downstream tasks.
 
 The advantages of resolVI are:
@@ -13,6 +13,10 @@ The limitations of resolVI include:
 -   Effectively requires a GPU for fast inference.
 -   Latent space is not interpretable, unlike that of a linear method.
 -   Assumes single cells are observed and do not work with low-resolution ST like Visium or Slide-Seq.
+
+:::{note}
+Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
+:::
 
 ```{topic} Tutorials:
 
@@ -30,6 +34,10 @@ ResolVI accepts as input the observed expression of the cell itself, its spatial
 as well as the distance between these cells. Additionally, a vector of categorical covariates $S$, representing
 batch, donor, etc., is an optional input to the model. ResolVI provides a semi-supervised mode, adjusting the prior in
 the latent space for different cell types and training a classifier to predict cell types from latent embeddings.
+
+Spatial neighbor graph construction, used internally to determine each cell's neighbors, automatically uses a
+GPU-accelerated [rapids-singlecell](https://rapids-singlecell.readthedocs.io/) backend when it is installed, falling back to a CPU-based implementation
+otherwise.
 
 ## Generative process
 
@@ -84,7 +92,7 @@ The latent variables, along with their description, are summarized in the follow
 
 ```{eval-rst}
 .. list-table::
-   :widths: 20 90 15of ce
+   :widths: 20 90 15 45
    :header-rows: 1
 
    * - Latent variable

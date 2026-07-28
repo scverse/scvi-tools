@@ -6,15 +6,17 @@ import pytest
 import torch
 from anndata.experimental import AnnCollection
 from scipy.sparse import csr_matrix
-from tests.data.utils import generic_setup_adata_manager
 
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.dataloaders import CollectionAdapter
 from scvi.model import SCANVI, SCVI
+from tests.data.utils import generic_setup_adata_manager
 
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
+    __test__ = False
+
     def __init__(self, *args, **kwargs):
         self.n_samples_per_label = kwargs.pop("n_samples_per_label")
         self.epoch_to_labeled_indices = {}
@@ -130,41 +132,6 @@ def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
         nprocs=num_processes,
         join=True,
     )
-
-
-# @pytest.mark.multigpu
-# @pytest.mark.parametrize("num_processes", [1, 2])
-# def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
-#     adata = scvi.data.synthetic_iid()
-#     SCANVI.setup_anndata(
-#         adata,
-#         "labels",
-#         "label_0",
-#         batch_key="batch",
-#     )
-#     file_path = save_path + "/dist_file"
-#     if os.path.exists(file_path):  # Check if the file exists
-#         os.remove(file_path)
-#     datasplitter_kwargs = {}
-#     # Multi-GPU settings
-#     datasplitter_kwargs["distributed_sampler"] = True
-#     datasplitter_kwargs["drop_last"] = False
-#     if num_processes == 1:
-#         datasplitter_kwargs["distributed_sampler"] = False
-#     model = SCANVI(adata, n_latent=10)
-#
-#     # initializes the distributed backend that takes care of synchronizing processes
-#     torch.distributed.init_process_group(
-#         "nccl",  # backend that works on all systems
-#         init_method=f"file://{save_path}/dist_file",
-#         rank=0,
-#         world_size=num_processes,
-#         store=None,
-#     )
-#
-#     model.train(1, datasplitter_kwargs=datasplitter_kwargs)
-#
-#     torch.distributed.destroy_process_group()
 
 
 def test_anncollection(save_path: str):

@@ -60,7 +60,7 @@ class METHYLANVI(VAEMixin, SemisupervisedTrainingMixin, BSSeqMixin, ArchesMixin,
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.methylanvi.METHYLANVAE`
+        Keyword args for :class:`~scvi.external.methylvi.METHYLANVAE`
 
     Examples
     --------
@@ -202,18 +202,16 @@ class METHYLANVI(VAEMixin, SemisupervisedTrainingMixin, BSSeqMixin, ArchesMixin,
 
         Examples
         --------
-        METHYLANVI.setup_mudata(
-            mdata,
-            mc_layer="mc",
-            cov_layer="cov",
-            labels_key="CellType",
-            unlabeled_category="Unknown",
-            methylation_contexts=["mCG", "mCH"],
-            categorical_covariate_keys=["Platform"],
-            modalities={
-                "categorical_covariate_keys": "mCG"
-            },
-        )
+        >>> METHYLANVI.setup_mudata(
+        ...     mdata,
+        ...     mc_layer="mc",
+        ...     cov_layer="cov",
+        ...     labels_key="CellType",
+        ...     unlabeled_category="Unknown",
+        ...     methylation_contexts=["mCG", "mCH"],
+        ...     categorical_covariate_keys=["Platform"],
+        ...     modalities={"categorical_covariate_keys": "mCG"},
+        ... )
 
         """
         if modalities is None:

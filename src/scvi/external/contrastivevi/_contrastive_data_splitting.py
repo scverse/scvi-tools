@@ -21,8 +21,10 @@ class ContrastiveDataSplitter(DataSplitter):
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via
         ``setup_anndata``.
-    background_indices: Indices for background samples in adata.
-    target_indices: Indices for target samples in adata.
+    background_indices
+        Indices for background samples in adata.
+    target_indices
+        Indices for target samples in adata.
     train_size
         float, or None (default is 0.9)
     validation_size
@@ -58,7 +60,7 @@ class ContrastiveDataSplitter(DataSplitter):
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
         pin_memory: bool = False,
-        external_indexing: list[np.array, np.array, np.array] | None = None,
+        external_indexing: list[np.ndarray] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(

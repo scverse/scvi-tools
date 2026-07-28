@@ -5,13 +5,21 @@ from functools import wraps
 
 def error_on_missing_dependencies(*modules):
     missing_modules = []
+    import_errors = {}
     for module in modules:
         try:
             importlib.import_module(module)
-        except ImportError:
+        except ImportError as e:
             missing_modules.append(module)
+            import_errors[module] = str(e)
     if len(missing_modules) > 0:
-        raise ModuleNotFoundError(f"Please install {missing_modules} to use this functionality.")
+        errors_detail = "; ".join(
+            f"{m} ({import_errors[m]})" if import_errors.get(m) else m for m in missing_modules
+        )
+        raise ModuleNotFoundError(
+            f"Please install {missing_modules} to use this functionality. "
+            f"Import errors: {errors_detail}"
+        )
 
 
 def dependencies(*modules) -> Callable:
@@ -32,5 +40,5 @@ def is_package_installed(module):
     try:
         importlib.import_module(module)  # Try importing the package
         return True  # If no exception is raised, the package is installed
-    except ImportError:
+    except (ImportError, OSError):
         return False  # If ImportError is raised, the package is not installed

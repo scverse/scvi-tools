@@ -149,7 +149,10 @@ def _initialize_model(cls, adata, registry, attr_dict, datamodule):
     if not adata:
         adata = None
 
-    if datamodule:
+    # Always override saved datamodule (serialized as string) with the actual object.
+    if "datamodule" in non_kwargs:
+        non_kwargs["datamodule"] = datamodule
+    elif datamodule:
         non_kwargs["datamodule"] = datamodule
 
     if "registry" in inspect.signature(cls).parameters:
