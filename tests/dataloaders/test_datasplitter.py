@@ -4,11 +4,11 @@ from math import ceil, floor
 
 import numpy as np
 import pytest
-from sparse_utils import TestSparseModel
-from tests.data.utils import generic_setup_adata_manager
 
 from scvi.data import synthetic_iid
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
+from tests.data.utils import generic_setup_adata_manager
+from tests.dataloaders.sparse_utils import TestSparseModel
 
 
 @pytest.mark.parametrize("DataSplitter_cls", [DataSplitter, SemiSupervisedDataSplitter])

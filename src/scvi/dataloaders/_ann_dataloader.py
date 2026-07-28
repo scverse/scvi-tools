@@ -67,7 +67,7 @@ class AnnDataLoader(DataLoader):
     -----
     If `sampler` is not specified, a :class:`~torch.utils.data.BatchSampler` instance is
     passed in as the sampler, which retrieves a minibatch of data with one call to
-    :meth:`~scvi.data.AnnTorchDataset.__getitem__`. This is useful for fast access to
+    ``__getitem__`` on :class:`~scvi.data.AnnTorchDataset`. This is useful for fast access to
     sparse matrices as retrieving single observations and then collating is inefficient.
     """
 

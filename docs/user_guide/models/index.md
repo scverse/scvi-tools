@@ -11,6 +11,7 @@ cytovi
 decipher
 destvi
 diagvi
+drvi
 gimvi
 jointembeddingscvi
 linearscvi

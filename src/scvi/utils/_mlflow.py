@@ -1,7 +1,7 @@
 import os
 import sys
 import warnings
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 
@@ -35,7 +35,7 @@ def mlflow_log_artifact(
 
 @dependencies("mlflow")
 def mlflow_log_table(
-    data: Union[dict[str, Any], "pd.DataFrame"],
+    data: dict[str, Any] | pd.DataFrame,
     artifact_file: str | None = None,
     run_id: str | None = None,
     max_size_mb: float = 1.0,
