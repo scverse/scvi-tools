@@ -151,7 +151,7 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
 
         Returns
         -------
-        latent_representation : np.ndarray
+        latent_representation : numpy.ndarray
             Low-dimensional representation for each cell
         """
         self._check_if_trained(warn=False)

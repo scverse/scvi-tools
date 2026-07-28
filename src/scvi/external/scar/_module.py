@@ -221,7 +221,7 @@ class SCAR_VAE(VAE):
 
     def __init__(
         self,
-        ambient_profile: torch.tensor,
+        ambient_profile: torch.Tensor,
         n_input: int,
         n_hidden: int = 150,
         n_latent: int = 15,

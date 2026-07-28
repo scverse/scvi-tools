@@ -271,11 +271,12 @@ CARD_HTML = """
 LIST_START_HTML = """
 <div id="cards-container">
 
-<nav class="navbar tutorials-nav">
-    <div class="tags-container">
-        <div id="dropdown-filter-tags">
-            <div class="filter-menu all-tag-selected">
-                <div class="filter filter-btn" data-tag="all">All</div>
+<nav class="navbar">
+    <div class="tabs-container">
+        <div class="filter-subtitle">Tutorials classes</div>
+        <div id="dropdown-filter-tabs">
+            <div class="tab-menu all-group-selected">
+                <div class="tab tab-btn" data-group="all">All</div>
             </div>
         </div>
     </div>
@@ -283,10 +284,13 @@ LIST_START_HTML = """
 
 <hr class="tutorials-hr">
 
-<nav class="navbar">
-    <div class="tabs-container">
-        <div class="tab-menu">
-            <div class="tab tab-selected" data-group="all">All</div>
+<nav class="navbar tutorials-nav">
+    <div class="tags-container">
+        <div class="filter-subtitle">Tutorials Tags (which can be selected multi tags)</div>
+        <div id="dropdown-filter-tags">
+            <div class="filter-menu all-tag-selected">
+                <div class="filter filter-btn" data-tag="all">All</div>
+            </div>
         </div>
     </div>
 </nav>

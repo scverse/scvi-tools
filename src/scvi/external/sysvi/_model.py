@@ -66,7 +66,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         registry: dict | None = None,
         prior: Literal["standard_normal", "vamp"] = "vamp",
         n_prior_components: int = 5,
-        pseudoinputs_data_indices: np.array | None = None,
+        pseudoinputs_data_indices: np.ndarray | None = None,
         **model_kwargs,
     ):
         super().__init__(adata, registry)

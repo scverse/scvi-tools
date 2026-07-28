@@ -70,7 +70,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         * ``"nb"``: :class:`~scvi.distributions.NegativeBinomial`.
         * ``"zinb"``: :class:`~scvi.distributions.ZeroInflatedNegativeBinomial`.
         * ``"poisson"``: :class:`~scvi.distributions.Poisson`.
-        * ``"normal"``: :class:`~torch.distributions.Normal`.
+        * ``"normal"``: :class:`~torch.distributions.normal.Normal`.
     latent_distribution
         Distribution to use for the latent space. One of the following:
 
@@ -554,7 +554,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         tensors: dict[str, torch.Tensor],
         inference_outputs: dict[str, torch.Tensor | Distribution | None],
         generative_outputs: dict[str, Distribution | None],
-        kl_weight: torch.tensor | float = 1.0,
+        kl_weight: torch.Tensor | float = 1.0,
     ) -> LossOutput:
         """Compute the loss."""
         from torch.distributions import kl_divergence
