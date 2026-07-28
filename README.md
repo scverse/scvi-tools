@@ -11,6 +11,7 @@
 [![PyPIDownloads][pepy-badge]][pepy-link]
 [![CondaDownloads][conda-badge]][conda-link]
 [![Docs][docs-badge]][docs-link]
+[![Tests][tests-badge]][tests-link]
 [![Build][build-badge]][build-link]
 [![Coverage][coverage-badge]][coverage-link]
 
@@ -116,8 +117,8 @@ professional services, travel, workshops, and a variety of other needs.
 Copyright (c) 2026, Yosef Lab, Weizmann Institute of Science
 
 [anndata]: https://anndata.readthedocs.io/en/latest/
-[build-badge]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/badge.svg
-[build-link]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/
+[build-badge]: https://github.com/scverse/scvi-tools/actions/workflows/build.yaml/badge.svg
+[build-link]: https://github.com/scverse/scvi-tools/actions/workflows/build.yaml/
 [codebase overview]: https://docs.scvi-tools.org/en/stable/user_guide/background/codebase_overview.html
 [conda-badge]: https://img.shields.io/conda/dn/conda-forge/scvi-tools?logo=Anaconda
 [conda-link]: https://anaconda.org/conda-forge/scvi-tools
@@ -141,4 +142,6 @@ Copyright (c) 2026, Yosef Lab, Weizmann Institute of Science
 [scanpy]: http://scanpy.readthedocs.io/
 [scvi-tools]: https://scvi-tools.org/
 [skeleton repository]: https://github.com/scverse/simple-scvi
+[tests-badge]: https://img.shields.io/github/actions/workflow/status/scverse/scvi-tools/test.yaml?branch=main&label=tests
+[tests-link]: https://github.com/scverse/scvi-tools/actions/workflows/test.yaml
 [user guide]: https://docs.scvi-tools.org/en/stable/user_guide/index.html

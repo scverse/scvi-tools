@@ -110,6 +110,7 @@ def test_resolvi_downstream(adata):
     )
 
 
+@pytest.mark.optional
 def test_resolvi_normalized_expression_gene_list(adata):
     RESOLVI.setup_anndata(adata, size_factor_key="cell_area")
     model = RESOLVI(adata)
@@ -134,6 +135,7 @@ def test_resolvi_normalized_expression_gene_list(adata):
         model.get_normalized_expression_importance(n_samples=30, transform_batch=0)
 
 
+@pytest.mark.optional
 def test_resolvi_downstream_size_scaling(adata):
     RESOLVI.setup_anndata(adata, size_factor_key="cell_area")
     model = RESOLVI(adata, size_scaling=True)

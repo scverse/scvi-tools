@@ -398,6 +398,7 @@ class MappedCollectionDataModule(LightningDataModule):
         batch,
         dataloader_idx,
     ):
+        """Convert a lamindb MappedCollection batch to the dictionary scvi-tools expects."""
         X_KEY: str = "X"
         BATCH_KEY: str = "batch"
         LABEL_KEY: str = "labels"
@@ -717,6 +718,7 @@ class TileDBDataModule(LightningDataModule):
         batch,
         dataloader_idx: int,
     ) -> dict[str, torch.Tensor | None]:
+        """Convert a tiledbsoma batch to the dictionary scvi-tools expects."""
         # DataModule hook: transform the ExperimentDataset data batch
         # (X: ndarray, obs_df: DataFrame)
         # into X & batch variable tensors for scVI (using batch_encoder on scvi_batch)

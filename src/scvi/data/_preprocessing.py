@@ -78,7 +78,7 @@ def poisson_gene_selection(
 
     Returns
     -------
-    Depending on `inplace` returns calculated metrics (:class:`~pd.DataFrame`) or
+    Depending on `inplace` returns calculated metrics (:class:`~pandas.DataFrame`) or
     updates `.var` with the following fields
 
     highly_variable : bool

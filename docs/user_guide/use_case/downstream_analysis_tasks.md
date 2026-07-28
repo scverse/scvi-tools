@@ -1,7 +1,7 @@
 # Perform downstream analysis tasks of SCVI models
 
 :::{note}
-to run scvi-tools with scanpy support, use: pip install scvi-tools[scanpy]
+scanpy is a required dependency of scvi-tools, so a plain `pip install scvi-tools` is enough for the analyses below.
 :::
 
 SCVI provides useful tools for exploring and understanding the learned latent representations, as well as for interpreting various aspects of your single-cell dataset.

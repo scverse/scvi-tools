@@ -255,7 +255,7 @@ class TOTALVI(
         adversarial_classifier: bool | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        external_indexing: list[np.array] = None,
+        external_indexing: list[np.ndarray] = None,
         **kwargs,
     ):
         """Trains the model using amortized variational inference.

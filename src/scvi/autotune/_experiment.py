@@ -334,7 +334,7 @@ class AutotuneExperiment:
     experiment_name
         Name of the experiment, used for logging purposes. Defaults to a unique ID.
     logging_dir
-        Base directory to store experiment logs. Defaults to :attr:`~scvi.settings.logging_dir`.
+        Base directory to store experiment logs. Defaults to :attr:`~scvi._settings.ScviConfig.logging_dir`.
     save_checkpoints
         If True, checkpoints will be saved and reported to Ray. Default False.
     scheduler_kwargs

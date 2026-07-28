@@ -36,7 +36,7 @@ batch, donor, etc., is an optional input to the model. ResolVI provides a semi-s
 the latent space for different cell types and training a classifier to predict cell types from latent embeddings.
 
 Spatial neighbor graph construction, used internally to determine each cell's neighbors, automatically uses a
-GPU-accelerated {mod}`rapids_singlecell` backend when it is installed, falling back to a CPU-based implementation
+GPU-accelerated [rapids-singlecell](https://rapids-singlecell.readthedocs.io/) backend when it is installed, falling back to a CPU-based implementation
 otherwise.
 
 ## Generative process

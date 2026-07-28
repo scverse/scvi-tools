@@ -53,7 +53,7 @@ class PosteriorPredictiveCheck:
     Parameters
     ----------
     adata
-        :class:`~AnnOrMudata` object with raw counts in either ``adata.X`` or ``adata.layers``.
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` object with raw counts in either ``adata.X`` or ``adata.layers``.
     models_dict
         Dictionary of models to compare.
     count_layer_key
