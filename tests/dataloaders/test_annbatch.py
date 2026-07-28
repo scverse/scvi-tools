@@ -229,6 +229,18 @@ def test_annbatch_scvi_downstream_tasks(save_path: str):
 @pytest.mark.dataloader
 def test_annbatch_memory_contract(save_path: str):
     """setup_annbatch uses far less steady-state RSS than setup_anndata."""
+    numba_cache_dir = os.path.join(save_path, "annbatch_numba_cache")
+    os.makedirs(numba_cache_dir, exist_ok=True)
+
+    # annbatch 0.2.1 imports a cached numba function. In environments where numba
+    # has already been imported, set the cache location directly before annbatch is imported.
+    try:
+        import numba
+
+        numba.config.CACHE_DIR = numba_cache_dir
+    except ImportError:
+        pass
+
     paths, _ = _synthetic_files(save_path, "annbatch_memory", batch_size=2000)
     collection_path = os.path.join(save_path, "annbatch_memory_collection.zarr")
     scvi.model.SCVI.setup_annbatch(
@@ -258,6 +270,11 @@ def rss():
     gc.collect()
     return proc.memory_info().rss
 
+
+# Keep package import/JIT/cache overhead out of the setup memory contract. anndata
+# and scvi are already imported above before the baseline is captured.
+if mode == "annbatch":
+    import annbatch  # noqa: F401
 
 before = rss()
 if mode == "anndata":
@@ -289,8 +306,11 @@ print(
 """
 
     def _probe(mode: str) -> dict[str, int | bool]:
+        env = os.environ.copy()
+        env["NUMBA_CACHE_DIR"] = numba_cache_dir
         out = subprocess.check_output(
             [sys.executable, "-c", script, mode, json.dumps(paths), collection_path],
+            env=env,
             text=True,
         )
         # Scan from the end for the JSON line; the subprocess may emit trailing

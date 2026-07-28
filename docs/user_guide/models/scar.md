@@ -14,9 +14,9 @@ This model was ported from another [GitHub](https://github.com/Novartis/scar).
 ```
 >>> adata = anndata.read_h5ad(path_to_anndata)
 >>> raw_adata = anndata.read_h5ad(path_to_raw_anndata)
->>> scvi_external.SCAR.setup_anndata(adata, batch_key="batch")
->>> scvi_external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
->>> vae = scvi_external.SCAR(adata, ambient_profile="ambient_profile")
+>>> scvi.external.SCAR.setup_anndata(adata, batch_key="batch")
+>>> scvi.external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
+>>> vae = scvi.external.SCAR(adata, ambient_profile="ambient_profile")
 >>> vae.train()
 >>> adata.obsm["X_scAR"] = vae.get_latent_representation()
 >>> adata.layers['denoised'] = vae.get_denoised_counts()
@@ -37,7 +37,7 @@ This model was ported from another [GitHub](https://github.com/Novartis/scar).
 ```
 >>> adata = anndata.read_h5ad(path_to_anndata)
 >>> raw_adata = anndata.read_h5ad(path_to_raw_anndata)
->>> scvi_external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
+>>> scvi.external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
 ```
 
 ### Option 2: Calculate the ambient profile using a kneeplot

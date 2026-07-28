@@ -1,11 +1,13 @@
 import os
 import pickle
+import warnings
 from typing import Literal
 
 import numpy as np
 import torch
 from anndata import AnnData, read_h5ad
 
+from scvi import settings
 from scvi.data._download import _download
 
 
@@ -34,18 +36,22 @@ def _load_legacy_saved_gimvi_files(
         if os.path.exists(seq_data_path):
             adata_seq = read_h5ad(seq_data_path)
         elif not os.path.exists(seq_data_path):
-            Warning(
+            warnings.warn(
                 "Save path contains no saved anndata and no adata was passed. "
-                "Model will be loaded without anndata."
+                "Model will be loaded without anndata.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
     if load_spatial_adata:
         spatial_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
         if os.path.exists(spatial_data_path):
             adata_spatial = read_h5ad(spatial_data_path)
         elif not os.path.exists(spatial_data_path):
-            Warning(
+            warnings.warn(
                 "Save path contains no saved anndata and no adata was passed. "
-                "Model will be loaded without anndata."
+                "Model will be loaded without anndata.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
     return (
@@ -91,18 +97,22 @@ def _load_saved_gimvi_files(
         if os.path.exists(seq_data_path):
             adata_seq = read_h5ad(seq_data_path)
         elif not os.path.exists(seq_data_path):
-            Warning(
+            warnings.warn(
                 "Save path contains no saved anndata and no adata was passed. "
-                "Model will be loaded without anndata."
+                "Model will be loaded without anndata.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
     if load_spatial_adata:
         spatial_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
         if os.path.exists(spatial_data_path):
             adata_spatial = read_h5ad(spatial_data_path)
         elif not os.path.exists(spatial_data_path):
-            Warning(
+            warnings.warn(
                 "Save path contains no saved anndata and no adata was passed. "
-                "Model will be loaded without anndata."
+                "Model will be loaded without anndata.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
     return (

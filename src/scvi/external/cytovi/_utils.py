@@ -186,7 +186,7 @@ def get_balanced_sample_indices(
 
     Returns
     -------
-    np.ndarray
+    numpy.ndarray
         Array of indices (from the original `adata`) corresponding to the balanced subset.
     """
     if sample_key not in adata.obs.columns:

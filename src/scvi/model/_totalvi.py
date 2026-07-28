@@ -255,7 +255,7 @@ class TOTALVI(
         adversarial_classifier: bool | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        external_indexing: list[np.array] = None,
+        external_indexing: list[np.ndarray] = None,
         **kwargs,
     ):
         """Trains the model using amortized variational inference.
@@ -397,6 +397,7 @@ class TOTALVI(
             libraries += [library.cpu()]
         return torch.cat(libraries).numpy()
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -590,6 +591,7 @@ class TOTALVI(
         else:
             return scale_list_gene, scale_list_pro
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_protein_foreground_probability(
         self,
@@ -1036,6 +1038,7 @@ class TOTALVI(
 
         return np.concatenate(scdl_list, axis=0)
 
+    @de_dsp.dedent
     @torch.inference_mode()
     def get_feature_correlation_matrix(
         self,

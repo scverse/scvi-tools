@@ -67,6 +67,7 @@ import scvi
    external.SysVI
    external.SCVIVA
    external.DIAGVI
+   external.DRVI
    external.JointEmbeddingSCVI
    external.Tangram
 ```
@@ -171,6 +172,7 @@ from this platform, and model generators can upload their own pre-trained `scvi-
    :nosignatures:
 
    criticism.PosteriorPredictiveCheck
+   criticism.create_criticism_report
 ```
 
 ## Utilities

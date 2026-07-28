@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import anndata
@@ -300,9 +301,11 @@ class SemisupervisedTrainingMixin:
             scdl = dataloader
             for param in [indices, batch_size]:
                 if param is not None:
-                    Warning(
+                    warnings.warn(
                         f"Using {param} after custom Dataloader was initialize is redundant, "
                         f"please re-initialize with selected {param}",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
                     )
 
         attributions = None
@@ -513,7 +516,11 @@ class SemisupervisedTrainingMixin:
                 batch_size=batch_size if batch_size != 128 else None,
             )
             self._datamodule = datamodule
-            Warning("Warning: SCANVI sampler is not available with custom dataloader")
+            warnings.warn(
+                "SCANVI sampler is not available with custom dataloader",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
             sampler_callback = []
 
         training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
@@ -559,7 +566,11 @@ class SemisupervisedTrainingMixin:
         >>> attrs_df = model.get_ranked_features(attrs)
         """
         if attrs is None:
-            Warning("Missing Attributions matrix")
+            warnings.warn(
+                "Missing Attributions matrix",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
             return
 
         adata = self._validate_anndata(adata)

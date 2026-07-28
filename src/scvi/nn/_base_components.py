@@ -244,7 +244,7 @@ class Encoder(nn.Module):
         used for numerical stability
     var_activation
         Callable used to ensure positivity of the variance.
-        Defaults to :meth:`torch.exp`.
+        Defaults to :func:`torch.exp`.
     return_dist
         Directly return the distribution of z instead of its parameters.
     **kwargs
