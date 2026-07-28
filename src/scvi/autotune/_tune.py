@@ -101,7 +101,7 @@ def run_autotune(
         to the model class name.
     logging_dir
         Base directory to store experiment logs.
-        Defaults to :attr:`~scvi.settings.ScviConfig.logging_dir`.
+        Defaults to :attr:`~scvi._settings.ScviConfig.logging_dir`.
     save_checkpoints
         If True, checkpoints will be saved and reported to Ray. Default False.
     scheduler_kwargs

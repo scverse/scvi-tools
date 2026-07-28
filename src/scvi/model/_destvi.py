@@ -86,8 +86,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cell_type_mapping: np.ndarray,
         decoder_state_dict: OrderedDict,
         px_decoder_state_dict: OrderedDict,
-        px_r: torch.tensor,
-        per_ct_bias: torch.tensor,
+        px_r: torch.Tensor,
+        per_ct_bias: torch.Tensor,
         n_hidden: int,
         n_latent: int,
         n_layers: int,
@@ -412,7 +412,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         mc_samples: int = 5000,
         batch_size: int | None = None,
         return_dist: bool = False,
-    ) -> np.ndarray(np.ndarray, np.ndarray):
+    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         """Return the latent representation for each cell.
 
         This is typically denoted as :math:`z_n`.

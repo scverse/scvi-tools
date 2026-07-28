@@ -1287,8 +1287,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         An instance of :class:`~scvi.module.base.PyroBaseModuleClass`. This object
         should have callable `model` and `guide` attributes or methods.
     loss_fn
-        A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
-        If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
+        A Pyro loss. Should be a subclass of :class:`~pyro.infer.elbo.ELBO`.
+        If `None`, defaults to :class:`~pyro.infer.trace_elbo.Trace_ELBO`.
     optim
         A Pytorch optimizer class, e.g., :class:`~torch.optim.Adam`. If `None`,
         defaults to :class:`torch.optim.Adam`.
@@ -1301,7 +1301,7 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         Number of epochs to scale weight on KL divergences from 0 to 1.
         Overrides `n_steps_kl_warmup` when both are not `None`.
     scale_elbo
-        Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
+        Scale ELBO using :func:`~pyro.poutine.handlers.scale`. Potentially useful for avoiding
         numerical inaccuracy when working with very large ELBO.
     """
 
@@ -1426,13 +1426,13 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         An instance of :class:`~scvi.module.base.PyroBaseModuleClass`. This object
         should have callable `model` and `guide` attributes or methods.
     loss_fn
-        A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
-        If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
+        A Pyro loss. Should be a subclass of :class:`~pyro.infer.elbo.ELBO`.
+        If `None`, defaults to :class:`~pyro.infer.trace_elbo.Trace_ELBO`.
     optim
-        A Pyro optimizer instance, e.g., :class:`~pyro.optim.Adam`. If `None`,
-        defaults to :class:`pyro.optim.Adam` optimizer with a learning rate of `1e-3`.
+        A Pyro optimizer instance, e.g., :func:`~pyro.optim.pytorch_optimizers.Adam`. If `None`,
+        defaults to :func:`~pyro.optim.pytorch_optimizers.Adam` optimizer with a learning rate of `1e-3`.
     optim_kwargs
-        Keyword arguments for **default** optimiser :class:`pyro.optim.Adam`.
+        Keyword arguments for **default** optimiser :func:`~pyro.optim.pytorch_optimizers.Adam`.
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
         Only activated when `n_epochs_kl_warmup` is set to None.
@@ -1440,7 +1440,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         Number of epochs to scale weight on KL divergences from 0 to 1.
         Overrides `n_steps_kl_warmup` when both are not `None`.
     scale_elbo
-        Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
+        Scale ELBO using :func:`~pyro.poutine.handlers.scale`. Potentially useful for avoiding
         numerical inaccuracy when working with very large ELBO.
     blocked
         A list of Pyro parameters to block during training.
@@ -1523,10 +1523,10 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         return torch.optim.Adam([self._dummy_param])
 
     def optimizer_step(self, *args, **kwargs):
-        pass
+        """No-op, as the Pyro optimizer steps inside the training step."""
 
     def backward(self, *args, **kwargs):
-        pass
+        """No-op, as Pyro computes the gradients inside the training step."""
 
 
 class ClassifierTrainingPlan(pl.LightningModule):

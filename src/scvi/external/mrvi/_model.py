@@ -105,11 +105,11 @@ class MRVI(
     scale_observations
         Whether to scale loss by the number of observations per sample.
     px_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module.DecoderZXAttention`.
+        Keyword args for ``DecoderZXAttention``.
     qz_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module.EncoderUZ`.
+        Keyword args for ``EncoderUZ``.
     qu_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module.EncoderXU`.
+        Keyword args for ``EncoderXU``.
 
     Notes
     -----

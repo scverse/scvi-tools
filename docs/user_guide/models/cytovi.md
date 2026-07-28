@@ -223,5 +223,5 @@ This approach allows label-free imputation of unobserved modalities, such as gen
 ```
 
 The k-nearest neighbor search underlying this step automatically uses a GPU-accelerated
-{mod}`rapids_singlecell` backend when it is installed, falling back to a CPU-based implementation
+[rapids-singlecell](https://rapids-singlecell.readthedocs.io/) backend when it is installed, falling back to a CPU-based implementation
 otherwise.
