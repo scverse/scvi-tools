@@ -299,7 +299,7 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         kl_weight=1.0,
         labelled_tensors=None,
         classification_ratio=None,
-    ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Returns the reconstruction loss and the Kullback divergences"""
         qz1 = inference_outputs["qz"]
         z1 = inference_outputs["z"]

@@ -14,4 +14,8 @@ ENV SCVI_PATH="/usr/local/lib/python3.13/site-packages/scvi-tools"
 COPY . ${SCVI_PATH}
 
 ARG DEPENDENCIES=""
-RUN uv pip install --system "scvi-tools[${DEPENDENCIES}] @ ${SCVI_PATH}"
+RUN if [ -n "${DEPENDENCIES}" ]; then \
+        uv pip install --system --no-cache "scvi-tools[${DEPENDENCIES}] @ ${SCVI_PATH}"; \
+    else \
+        uv pip install --system --no-cache "scvi-tools @ ${SCVI_PATH}"; \
+    fi

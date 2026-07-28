@@ -212,6 +212,9 @@ setup_anndata_dsp = DocstringProcessor(
     idx_layer=idx_layer,
     returns=returns,
 )
+setup_anndata_dsp.__doc__ = (
+    "Docstring processor for the ``setup_anndata`` methods of scvi-tools models."
+)
 
 
 param_accelerator = """\
