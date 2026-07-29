@@ -85,7 +85,7 @@ optional-dependencies.diagvi = [ "geomloss", "torch-geometric" ]
 # for files sharing or handling
 optional-dependencies.file-sharing = [ "fcswrite", "gdown", "pooch", "readfcs" ]
 # scvi.hub dependencies
-optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub" ]
+optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub", "requests" ]
 # for models interpretability
 optional-dependencies.interpretability = [ "captum", "decoupler", "shap" ]
 optional-dependencies.metal = [ "mlx", "mlx-metal", "torchaudio", "torchvision" ]

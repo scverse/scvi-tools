@@ -1,13 +1,16 @@
 import re
 
-import requests
+from scvi.utils import dependencies
 
 
+@dependencies("requests")
 def validate_url(url: str, error_format: bool = False, error_response: bool = False) -> bool:
     """Validates a URL.
 
     Source: https://stackoverflow.com/questions/7160737/how-to-validate-a-url-in-python-malformed-or-not
     """
+    import requests
+
     regex = re.compile(
         r"^(?:http|ftp)s?://"  # http:// or https://
         r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|"
@@ -34,7 +37,10 @@ def validate_url(url: str, error_format: bool = False, error_response: bool = Fa
     return valid
 
 
+@dependencies("requests")
 def validate_colab_notebook(colab_url: str) -> bool:
+    import requests
+
     raw_url = colab_url.replace(
         "https://colab.research.google.com/github/", "https://raw.githubusercontent.com/"
     ).replace("/blob/", "/")
