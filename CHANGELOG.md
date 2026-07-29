@@ -14,7 +14,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
     several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
 - Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.
-- Fix {mod}`scvi.hub` eagerly requiring `huggingface_hub` at package-import time {pr}`3950`.
+- Fix `scvi.hub` eagerly requiring `huggingface_hub` at package-import time {pr}`3950`.
 
 #### Changed
 
