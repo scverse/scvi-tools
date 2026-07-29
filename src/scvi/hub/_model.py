@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 import anndata
 import mudata
 import rich
-from huggingface_hub import ModelCard, snapshot_download
 from rich.markdown import Markdown
 
 from scvi import settings
@@ -26,6 +25,7 @@ from ._constants import _SCVI_HUB
 
 if TYPE_CHECKING:
     from anndata import AnnData
+    from huggingface_hub import ModelCard
 
     from scvi.model.base import BaseModelClass
 
@@ -59,6 +59,7 @@ class HubModel:
     2. :doc:`/tutorials/notebooks/hub/scvi_hub_upload_and_large_files`
     """
 
+    @dependencies("huggingface_hub")
     def __init__(
         self,
         local_dir: str,
@@ -66,6 +67,8 @@ class HubModel:
         metadata: HubMetadata | str | None = None,
         model_card: HubModelCardHelper | ModelCard | str | None = None,
     ):
+        from huggingface_hub import ModelCard
+
         self._local_dir = local_dir
         self._repo_name = repo_name
 
@@ -235,6 +238,7 @@ class HubModel:
             )
 
     @classmethod
+    @dependencies("huggingface_hub")
     def pull_from_huggingface_hub(
         cls,
         repo_name: str,
@@ -264,6 +268,8 @@ class HubModel:
         kwargs
             Additional keyword arguments to pass to :func:`~huggingface_hub.snapshot_download`.
         """
+        from huggingface_hub import ModelCard, snapshot_download
+
         if revision is None:
             warnings.warn(
                 "No revision was passed, so the default (latest) revision will be used.",
@@ -340,6 +346,7 @@ class HubModel:
 
     @classmethod
     @dependencies("boto3")
+    @dependencies("huggingface_hub")
     def pull_from_s3(
         cls,
         s3_bucket: str,
@@ -377,6 +384,7 @@ class HubModel:
         """
         from boto3 import client
         from botocore import UNSIGNED, config
+        from huggingface_hub import ModelCard
 
         if unsigned:
             kwargs["config"] = config.Config(signature_version=UNSIGNED)

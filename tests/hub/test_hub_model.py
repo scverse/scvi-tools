@@ -11,6 +11,8 @@ import pytest
 import scvi
 from scvi.criticism import create_criticism_report
 from scvi.data import synthetic_iid
+
+pytest.importorskip("huggingface_hub")
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
 from scvi.hub._constants import _SCVI_HUB
 

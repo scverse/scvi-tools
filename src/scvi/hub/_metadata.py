@@ -5,11 +5,10 @@ import os
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING
 
-from huggingface_hub import ModelCard, ModelCardData
-
 from scvi.data import AnnDataManager
 from scvi.data._utils import _is_minified
 from scvi.model.base._save_load import _load_saved_files
+from scvi.utils import dependencies
 
 from ._constants import _SCVI_HUB
 from ._template import (
@@ -24,6 +23,7 @@ from ._url import validate_url
 
 if TYPE_CHECKING:
     import torch
+    from huggingface_hub import ModelCard
 
 
 @dataclass
@@ -263,7 +263,10 @@ class HubModelCardHelper:
             **kwargs,
         )
 
+    @dependencies("huggingface_hub")
     def _to_model_card(self) -> ModelCard:
+        from huggingface_hub import ModelCard, ModelCardData
+
         # define tags
         tags = [
             "biology",
