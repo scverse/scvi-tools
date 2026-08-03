@@ -92,6 +92,7 @@ optional-dependencies.metal = [ "mlx", "mlx-metal", "torchaudio", "torchvision" 
 # for mlflow
 optional-dependencies.mlflow = [ "gputil", "mlflow>=3.9", "nvidia-ml-py", "psutil" ]
 optional-dependencies.optional = [
+  "fastcluster",
   "igraph",
   "leidenalg",
   "pynndescent",
