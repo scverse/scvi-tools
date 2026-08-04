@@ -91,6 +91,26 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     f"Got `{type(x_model.module).__name__}` (from `{type(x_model).__name__}`), "
                     "whose inference()/generative() API is not compatible."
                 )
+            x_model_var_names = np.asarray(x_model.get_var_names())
+            adata_var_names = np.asarray(self.get_var_names())
+            if not np.array_equal(x_model_var_names, adata_var_names):
+                raise ValueError(
+                    "`x_model` was registered on data with different genes (or a different "
+                    "gene order) than `adata`. VIVS reuses `x_model`'s encoder/decoder "
+                    "weights column-for-column, so gene order must match exactly."
+                )
+            x_model_batch_mapping = x_model.adata_manager.get_state_registry(
+                REGISTRY_KEYS.BATCH_KEY
+            ).categorical_mapping
+            adata_batch_mapping = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.BATCH_KEY
+            ).categorical_mapping
+            if not np.array_equal(x_model_batch_mapping, adata_batch_mapping):
+                raise ValueError(
+                    "`x_model` was registered with a different batch category mapping than "
+                    "`adata`. Reusing its module would feed batch indices through the wrong "
+                    "one-hot columns for the frozen encoder/decoder."
+                )
             x_module = x_model.module
 
         self.module = self._module_cls(

@@ -50,14 +50,34 @@ class ImportanceScoreNet(nn.Module):
         # original's `self.log_std = 0.0` plain attribute (not a trained flax param).
         self.register_buffer("log_std", torch.zeros(()))
 
+    def _norm1(self, h: torch.Tensor) -> torch.Tensor:
+        """Apply ``self.norm1``, falling back to running stats for singleton batches.
+
+        ``DataSplitter`` defaults to ``drop_last=False``, so the final training minibatch
+        can have exactly one cell; ``BatchNorm1d`` can't compute a batch variance from a
+        single sample and raises. Reuse the running statistics accumulated so far instead
+        of crashing training on that straggler batch.
+        """
+        if self.training and h.shape[0] == 1:
+            return torch.nn.functional.batch_norm(
+                h,
+                self.norm1.running_mean,
+                self.norm1.running_var,
+                self.norm1.weight,
+                self.norm1.bias,
+                training=False,
+                eps=self.norm1.eps,
+            )
+        return self.norm1(h)
+
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> dict[str, torch.Tensor]:
         if self.linear:
-            h = self.norm1(x)
+            h = self._norm1(x)
             h = self.dropout1(h)
             h = self.dense_out(h)
         else:
             h = self.dense1(x)
-            h = self.norm1(h)
+            h = self._norm1(h)
             h = torch.nn.functional.leaky_relu(h)
             h = self.dropout1(h)
             h = self.dense_out(h)
@@ -114,6 +134,21 @@ class VIVSModule(BaseModuleClass):
         )
         self._phase: str = "x"
 
+    def train(self, mode: bool = True):
+        """Force ``x_module`` back to eval mode once it's frozen.
+
+        Lightning calls ``self.module.train()`` at the start of every epoch, which
+        recursively re-enables training mode (and BatchNorm running-stat updates) on
+        every child module -- including ``x_module``, undoing the ``eval()``/
+        ``requires_grad_(False)`` freeze applied after phase "x" (or set up-front for a
+        user-supplied, already-trained ``x_model``). Re-freeze it here so it stays a fixed
+        knockoff sampler through phase "xy" instead of drifting on every forward pass.
+        """
+        super().train(mode)
+        if self.x_module_is_pretrained or self._phase != "x":
+            self.x_module.eval()
+        return self
+
     def _get_inference_input(self, tensors):
         return self.x_module._get_inference_input(tensors)
 
@@ -160,13 +195,17 @@ class VIVSModule(BaseModuleClass):
         y = tensors[VIVS_REGISTRY_KEYS.Y_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         xy_out = self.xy_module(self.xy_input(x, batch_index), y)
-        zeros = torch.zeros_like(xy_out["loss"])
-        # xy_out["loss"] is already reduced to a 0-dim scalar (all_loss.mean()), so
-        # LossOutput can't infer n_obs_minibatch from reconstruction_loss.shape[0];
-        # pass it explicitly instead.
+        # Average across responses only, keeping one value per cell: `ElboMetric` sums
+        # `reconstruction_loss` over the minibatch and divides by total observations across
+        # batches, so handing it `xy_out["loss"]` (already averaged over cells too) would
+        # make it treat a per-batch mean as a per-batch sum and mis-weight a short final
+        # batch. `loss` (used for backprop) is unaffected: mean-of-means over equal-size
+        # groups equals the overall mean.
+        per_cell_loss = xy_out["all_loss"].mean(dim=-1)
+        zeros = torch.zeros_like(per_cell_loss)
         return LossOutput(
-            loss=xy_out["loss"],
-            reconstruction_loss=xy_out["loss"],
+            loss=per_cell_loss.mean(),
+            reconstruction_loss=per_cell_loss,
             kl_local=zeros,
             n_obs_minibatch=x.shape[0],
         )
