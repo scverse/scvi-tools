@@ -335,6 +335,12 @@ class BSSeqMixin:
         """
         mdata = self._validate_anndata(mdata)
 
+        if groupby is not None and groupby not in mdata.obs.columns and not mdata.is_view:
+            # `groupby` may reference a per-modality obs column (e.g. "mod1:labels").
+            # Older mudata versions pulled such columns into the global `.obs`
+            # automatically; newer versions require this to be done explicitly.
+            mdata.pull_obs()
+
         def change_fn(a, b):
             return a - b
 
