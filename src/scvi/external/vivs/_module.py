@@ -74,7 +74,7 @@ class VIVSModule(BaseModuleClass):
 
     ``self.x_module`` (a :class:`~scvi.module.VAE`) is used only to sample conditional
     "knockoff" replacements of ``X`` for the CRT; ``self.xy_module`` (an
-    :class:`~scvi.external.vivs.ImportanceScoreNet`) predicts ``Y`` from ``X`` and its
+    ``ImportanceScoreNet``) predicts ``Y`` from ``X`` and its
     negative log-likelihood is the CRT test statistic. The two are trained sequentially,
     not jointly (see :class:`~scvi.external.VIVS`), so ``self._phase`` switches which
     component ``loss()`` optimizes.
@@ -130,8 +130,15 @@ class VIVSModule(BaseModuleClass):
 
     @staticmethod
     def normalize_log_cpm(x: torch.Tensor) -> torch.Tensor:
-        """Log-CPM normalization shared by every CRT statistic computation."""
-        return torch.log1p(1e6 * x / x.sum(dim=-1, keepdim=True))
+        """Log-CPM normalization shared by every CRT statistic computation.
+
+        Clamps the per-cell library size away from 0: group-level knockoff substitution
+        (in ``get_hier_importance``) can zero out a sparse cell's entire count vector when
+        the knockoff draw for a whole gene-cluster happens to sample all zeros, which would
+        otherwise produce a 0/0 NaN here and crash the downstream ``Normal(...).log_prob``.
+        """
+        library = x.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+        return torch.log1p(1e6 * x / library)
 
     def xy_input(self, x: torch.Tensor, batch_index: torch.Tensor) -> torch.Tensor:
         """Build the importance-score net's input: normalized X, optionally + one-hot batch."""

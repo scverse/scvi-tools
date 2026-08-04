@@ -58,7 +58,7 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         API (e.g. :class:`~scvi.model.DestVI`, :class:`~scvi.external.RESOLVI`,
         :class:`~scvi.external.GIMVI`) are not supported here.
     **module_kwargs
-        Additional keyword arguments passed to :class:`~scvi.external.vivs.VIVSModule`.
+        Additional keyword arguments passed to ``VIVSModule``.
     """
 
     _module_cls = VIVSModule

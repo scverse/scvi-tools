@@ -95,6 +95,7 @@ optional-dependencies.optional = [
   "fastcluster",
   "igraph",
   "leidenalg",
+  "plotnine",
   "pynndescent",
   "scvi-tools[autotune,diagvi,file-sharing,hub,interpretability,mlflow,parallel,regseq]",
 ]

@@ -11,7 +11,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Add {class}`scvi.external.VIVS`, a conditional-randomization-test model for gene-level
     variable selection against niche composition or other `obsm` responses, ported from the
-    original [VIVS](https://github.com/YosefLab/VIVS) JAX implementation, {pr}`395X`.
+    original [VIVS](https://github.com/YosefLab/VIVS) JAX implementation, {pr}`3954`.
 
 #### Fixed
 
