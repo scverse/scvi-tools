@@ -9,7 +9,7 @@ import torch.distributions as dist
 from mudata import MuData
 
 from scvi.data import synthetic_iid
-from scvi.external import SCVIVA, TOTALANVI
+from scvi.external import TOTALANVI
 from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI, AmortizedLDA
 
 if TYPE_CHECKING:
@@ -20,11 +20,9 @@ if TYPE_CHECKING:
 
 @pytest.fixture(scope="session")
 def adata():
-    adata = synthetic_iid(batch_size=500, generate_coordinates=True)
+    adata = synthetic_iid(batch_size=500)
     adata.obs["sample"] = np.random.choice(10, size=adata.n_obs)
     adata.obs["sample_str"] = [chr(i + ord("a")) for i in adata.obs["sample"]]
-    adata.obsm["qz1_m"] = np.random.normal(size=(adata.shape[0], 20))
-    adata.layers["counts"] = adata.X.copy()
     return adata
 
 
@@ -41,7 +39,7 @@ def mdata():
 
 @pytest.fixture(
     scope="session",
-    params=[SCVI, SCANVI, TOTALVI, SCVIVA, MULTIVI, TOTALANVI],
+    params=[SCVI, SCANVI, TOTALVI, MULTIVI, TOTALANVI],
 )
 def model(request, adata, mdata):
     model_cls = request.param
@@ -49,41 +47,6 @@ def model(request, adata, mdata):
 
     if model_cls is SCVI:
         model_cls.setup_anndata(adata=adata, batch_key="batch")
-    elif model_cls is SCVIVA:
-        setup_kwargs = {
-            "sample_key": "batch",
-            "labels_key": "labels",
-            "cell_coordinates_key": "coordinates",
-            "expression_embedding_key": "qz1_m",
-            "expression_embedding_niche_key": "qz1_m_niche_ct",
-            "niche_composition_key": "neighborhood_composition",
-            "niche_indexes_key": "niche_indexes",
-            "niche_distances_key": "niche_distances",
-        }
-        model_cls.preprocessing_anndata(adata, k_nn=5, **setup_kwargs)
-
-        model_cls.setup_anndata(
-            adata,
-            layer="counts",
-            batch_key="batch",
-            **setup_kwargs,
-        )
-        model_inst = SCVIVA(
-            adata,
-            prior_mixture=False,
-            semisupervised=True,
-            linear_classifier=True,
-        )
-
-        model_inst.train(
-            max_epochs=1,
-            train_size=0.8,
-            validation_size=0.2,
-            early_stopping=True,
-            check_val_every_n_epoch=1,
-            accelerator="cpu",
-        )
-        return model_inst
     elif model_cls is SCANVI:
         model_cls.setup_anndata(
             adata=adata, labels_key="labels", unlabeled_category="NA", batch_key="batch"

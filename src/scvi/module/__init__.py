@@ -6,7 +6,6 @@ from scvi.utils import error_on_missing_dependencies
 from ._amortizedlda import AmortizedLDAPyroModule
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
-from ._mrdeconv import MRDeconv
 from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
 from ._scanvae import SCANVAE
@@ -23,7 +22,6 @@ __all__ = [
     "Classifier",
     "PEAKVAE",
     "VAEC",
-    "MRDeconv",
     "MULTIVAE",
     "AmortizedLDAPyroModule",
 ]

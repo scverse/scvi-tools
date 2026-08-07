@@ -7,7 +7,6 @@ from . import utils
 from ._amortizedlda import AmortizedLDA
 from ._autozi import AUTOZI
 from ._condscvi import CondSCVI
-from ._destvi import DestVI
 from ._linear_scvi import LinearSCVI
 from ._multivi import MULTIVI
 from ._peakvi import PEAKVI
@@ -24,7 +23,6 @@ __all__ = [
     "SCANVI",
     "PEAKVI",
     "CondSCVI",
-    "DestVI",
     "MULTIVI",
     "AmortizedLDA",
     "utils",

@@ -61,6 +61,28 @@ nitpick_ignore = [
     ("py:class", "optional"),
     ("py:class", "return"),
     ("py:meth", "save_hyperparameters"),
+    # Type hint resolves to the private defining module instead of the public re-export.
+    ("py:class", "scvi.external.contrastivevi._contrastive_dataloader.ContrastiveDataLoader"),
+    # Spatial models and DiagVI were removed from the public API in v1.6; CHANGELOG.md
+    # keeps historical references to them that can no longer resolve.
+    ("py:class", "scvi.external.DestVI"),
+    ("py:class", "scvi.external.GimVI"),
+    ("py:class", "scvi.external.GIMVI"),
+    ("py:class", "scvi.external.GIMVI.save"),
+    ("py:class", "scvi.external.ResolVI"),
+    ("py:class", "scvi.external.RESOLVI"),
+    ("py:meth", "scvi.external.RESOLVI.differential_expression"),
+    ("py:class", "scvi.external.SCVIVA"),
+    ("py:class", "scvi.external.DiagVI"),
+    ("py:class", "scvi.external.DIAGVI"),
+    ("py:class", "scvi.external.Stereoscope"),
+    ("py:class", "scvi.external.RNAStereoscope"),
+    ("py:class", "scvi.external.SpatialStereoscope"),
+    ("py:class", "scvi.external.SpatialStereoscope.from_rna_model"),
+    ("py:class", "scvi.external.SpatialStereoscope.setup_anndata"),
+    ("py:class", "scvi.external.Tangram"),
+    ("py:class", "scvi.model.DestVI"),
+    ("py:func", "scvi.model.DestVI.from_rna_model"),
 ]
 
 html_context = {
@@ -178,6 +200,9 @@ exclude_patterns = [
     "**.ipynb_checkpoints",
     "tutorials/notebooks/.github/**",
     "tutorials/notebooks/README.md",
+    # Spatial models were removed from scvi-tools in v1.6; these tutorials no longer have
+    # a home in the docs nav (docs/tutorials/index_spatial.md was removed).
+    "tutorials/notebooks/spatial/**",
 ]
 
 # extlinks config
