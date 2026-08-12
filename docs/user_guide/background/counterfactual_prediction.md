@@ -45,6 +45,8 @@ The described approach to counterfactual prediction has also been used in a vari
 
 For more details on how counterfactual prediction is used in another method implemented in scvi-tools, see the {doc}`/user_guide/models/mrvi`.
 
+For a worked example comparing two counterfactual-prediction mechanisms head-to-head on real data — scGen's learned latent-shift-and-decode and plain `scvi.model.SCVI`'s `transform_batch` argument, both evaluated against naive baselines with `scib_metrics.perturbation` on Kang et al. 2018 — see the {doc}`/tutorials/notebooks/scrna/perturbation_benchmarking_tutorial_kang2018`.
+
 [^ref1]:
     Judea Pearl. Causality. Cambridge university press, 2009.
 [^ref2]:

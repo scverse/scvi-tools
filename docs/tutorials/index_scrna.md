@@ -20,6 +20,7 @@ notebooks/scrna/DRVI_pipeline
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
 notebooks/scrna/Tahoe100_mrVI
+notebooks/scrna/perturbation_benchmarking_tutorial_kang2018
 ```
 
 ```{customcard}
@@ -140,4 +141,11 @@ Use JointEmbeddingSCVI for improving SCVI for low-count cells through self-super
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
 Analyze Tahoe100M cells dataset with MrVI in PyTorch
+```
+
+```{customcard}
+:path: notebooks/scrna/perturbation_benchmarking_tutorial_kang2018
+:tags: Analysis, Benchmarking, Differential-comparison
+
+Benchmark scGen and scVI perturbation-response predictions against naive baselines with scib-metrics and pertpy on Kang et al. 2018, and evaluate latent spaces (including MrVI) with the standard scib-metrics bio-conservation/batch-correction benchmarker
 ```
