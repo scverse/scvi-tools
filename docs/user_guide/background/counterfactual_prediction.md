@@ -43,6 +43,8 @@ The described approach to counterfactual prediction has also been used in a vari
 - predicting chemical perturbation responses in different cell types [^ref2][^ref3]
 - predicting infection/perturbation responses across species [^ref4]
 
+scGen[^ref4] is a direct example of this style of counterfactual prediction: it learns a latent space in which the shift between conditions (e.g., control vs. stimulated) is captured as a vector, then predicts a held-out cell's counterfactual expression under the unseen condition by applying that shift and decoding back to gene space. For a worked example, see the [scGen perturbation-response prediction tutorial](https://pertpy.readthedocs.io/en/stable/tutorials/notebooks/scgen_perturbation_prediction.html) in pertpy, which trains on Kang et al. 2018, holds out stimulated CD4 T cells during training, and evaluates the predicted stimulated profiles against the real held-out cells.
+
 For more details on how counterfactual prediction is used in another method implemented in scvi-tools, see the {doc}`/user_guide/models/mrvi`.
 
 [^ref1]:
