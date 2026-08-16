@@ -20,7 +20,7 @@ notebooks/scrna/DRVI_pipeline
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
 notebooks/scrna/Tahoe100_mrVI
-https://pertpy.readthedocs.io/en/stable/tutorials/notebooks/scgen_perturbation_prediction.html
+scGen: Perturbation Response Prediction <https://pertpy.readthedocs.io/en/stable/tutorials/notebooks/scgen_perturbation_prediction.html>
 ```
 
 ```{customcard}
