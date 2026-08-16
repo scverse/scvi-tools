@@ -54,6 +54,7 @@ nitpick_ignore = [
     ("py:class", "huggingface_hub.repocard.ModelCard"),
     ("py:class", "ml_collections.config_dict.config_dict.FrozenConfigDict"),
     ("py:class", "numpy._typing.TypeAliasType"),
+    ("py:class", "numpy._typing._array_like.TypeAliasType"),
     ("py:class", "pathlib._local.Path"),
     ("py:class", "Distribution"),
     ("py:class", "LongTensor"),

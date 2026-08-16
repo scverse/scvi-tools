@@ -20,6 +20,7 @@ notebooks/scrna/DRVI_pipeline
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
 notebooks/scrna/Tahoe100_mrVI
+scGen: Perturbation Response Prediction <https://pertpy.readthedocs.io/en/stable/tutorials/notebooks/scgen_perturbation_prediction.html>
 ```
 
 ```{customcard}
@@ -140,4 +141,12 @@ Use JointEmbeddingSCVI for improving SCVI for low-count cells through self-super
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
 Analyze Tahoe100M cells dataset with MrVI in PyTorch
+```
+
+```{customcard}
+:path: https://pertpy.readthedocs.io/en/stable/tutorials/notebooks/scgen_perturbation_prediction.html
+:title: scGen: Perturbation Response Prediction
+:tags: Analysis, Differential-comparison
+
+Use scGen (pertpy) to predict single-cell perturbation responses on Kang et al. 2018, holding out stimulated CD4 T cells and evaluating predictions against the real held-out cells
 ```
