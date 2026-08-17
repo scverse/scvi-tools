@@ -13,6 +13,21 @@ Perform integration of spatial proteomics and single-cell transcriptomics data w
 Perform integration of spatial and single-cell transcriptomics data with DiagVI <https://scviva-tools.readthedocs.io/en/latest/tutorials/DiagVI_spatial_transcriptomics.html>
 ```
 
+<!--
+The local notebooks below are superseded by scviva-tools' hosted versions (linked above)
+but are kept out of `exclude_patterns` since user_guide/models/diagvi.md still
+cross-references them with {doc}. This hidden toctree keeps them built and referenceable
+without showing a duplicate nav entry.
+-->
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+notebooks/multimodal/DiagVI_spatial_proteomics
+notebooks/multimodal/DiagVI_spatial_transcriptomics
+```
+
 ```{customcard}
 :path: notebooks/multimodal/totalVI
 :tags: Analysis, Integration, Differential-comparison, Dimensionality-reduction, Removal-of-variance

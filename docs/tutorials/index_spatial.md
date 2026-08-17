@@ -12,6 +12,26 @@ Go through the Stereoscope workflow to map single-cell data <https://scviva-tool
 Spatially map lymph node cell types using Cell2location <https://scviva-tools.readthedocs.io/en/latest/tutorials/cell2location_lymph_node_spatial_tutorial.html>
 ```
 
+<!--
+The local notebooks below are superseded by scviva-tools' hosted versions (linked above)
+but are kept out of `exclude_patterns` since the model pages in user_guide/models/ still
+cross-reference them with {doc}. This hidden toctree keeps them built and referenceable
+without showing a duplicate nav entry.
+-->
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+notebooks/spatial/resolVI_tutorial
+notebooks/spatial/scVIVA_tutorial
+notebooks/spatial/DestVI_tutorial
+notebooks/spatial/gimvi_tutorial
+notebooks/spatial/tangram_scvi_tools
+notebooks/spatial/stereoscope_heart_LV_tutorial
+notebooks/spatial/cell2location_lymph_node_spatial_tutorial
+```
+
 ```{customcard}
 :path: https://scviva-tools.readthedocs.io/en/latest/tutorials/resolVI_tutorial.html
 :title: resolVI: Correcting Noise and Bias in Spatial Transcriptomics
