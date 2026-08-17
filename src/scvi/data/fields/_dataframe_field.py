@@ -212,8 +212,14 @@ class CategoricalDataFrameField(BaseDataFrameField):
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY].copy()
 
         # extend mapping for new categories
+        # `pd.unique` (unlike `np.unique`) does not sort, so it tolerates columns that mix
+        # strings with missing values (e.g. NaN), which `np.unique` raises a TypeError on.
+        # `_get_original_column` returns a column shaped (n, 1), so flatten before `pd.unique`.
+        # NaN is dropped: it marks missing data rather than a real category, and
+        # `CategoricalDtype` disallows null categories.
         missing_categories = (
-            pd.Index(np.unique(self._get_original_column(adata_target)))
+            pd.Index(pd.unique(self._get_original_column(adata_target).reshape(-1)))
+            .dropna()
             .difference(pd.Index(mapping))
             .to_numpy()
         )
