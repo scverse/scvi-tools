@@ -60,6 +60,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/jointembeddingscvi`
      - Improving SCVI for low-count cells through self-supervised augmentation
      - :cite:p:`Svensson26`
+   * - `scGen <https://scgen.readthedocs.io/en/stable/index.html>`__
+     - Prediction of single-cell perturbation responses via latent space vector arithmetic
+     - :cite:p:`Lotfollahi19`
 ```
 
 ## ATAC-seq analysis
@@ -149,7 +152,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/multivi`
      - Integration of paired/unpaired multiome data, missing modality imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`AshuachGabitto21`
-   * - :doc:`/user_guide/models/diagvi`
+   * - `DiagVI <https://scviva-tools.readthedocs.io/en/latest/user_guide/models/diagvi.html>`__
      - Diagonal integration of unpaired multiome data, dimensionality reduction, cross-modality imputation, cell label transfer
      -
 
@@ -165,22 +168,22 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - Model
      - Tasks
      - Reference
-   * - :doc:`/user_guide/models/destvi`
+   * - `DestVI <https://scviva-tools.readthedocs.io/en/latest/user_guide/models/destvi.html>`__
      - Multi-resolution deconvolution, cell-type-specific gene expression imputation, comparative analysis
      - :cite:p:`Lopez22`
-   * - :doc:`/user_guide/models/stereoscope`
+   * - `Stereoscope <https://scviva-tools.readthedocs.io/en/latest/user_guide/models/stereoscope.html>`__
      - Deconvolution
      - :cite:p:`Andersson20`
-   * - :doc:`/user_guide/models/gimvi`
+   * - `gimVI <https://scviva-tools.readthedocs.io/en/latest/user_guide/models/gimvi.html>`__
      - Imputation of missing spatial genes
      - :cite:p:`Lopez19`
-   * - :doc:`/user_guide/models/tangram`
+   * - `Tangram <https://scviva-tools.readthedocs.io/en/latest/user_guide/models/tangram.html>`__
      - Deconvolution, single cell spatial mapping
      - :cite:p:`Biancalani21`
-   * - :doc:`/user_guide/models/resolvi`
+   * - `resolVI <https://scviva-tools.readthedocs.io/en/latest/user_guide/models/resolvi.html>`__
      - Generative model of single-cell resolved spatial transcriptomics
      - :cite:p:`Ergen25`
-   * - :doc:`/user_guide/models/scviva`
+   * - `scVIVA <https://scviva-tools.readthedocs.io/en/latest/user_guide/models/scviva.html>`__
      - Representation of cells and their environments in spatial transcriptomics
      - :cite:p:`Levy25`
 ```
