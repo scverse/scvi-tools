@@ -9,8 +9,8 @@ notebooks/multimodal/totalVI_reference_mapping
 notebooks/multimodal/cite_scrna_integration_w_totalVI
 notebooks/multimodal/MultiVI_tutorial
 notebooks/multimodal/totalanvi
-notebooks/multimodal/DiagVI_spatial_proteomics
-notebooks/multimodal/DiagVI_spatial_transcriptomics
+Integration of scRNA-seq and spatial proteomics data with DiagVI <https://scviva-tools.readthedocs.io/en/latest/tutorials/DiagVI_spatial_proteomics.html>
+Integration of scRNA-seq and spatial transcriptomics data with DiagVI <https://scviva-tools.readthedocs.io/en/latest/tutorials/DiagVI_spatial_transcriptomics.html>
 ```
 
 ```{customcard}
@@ -56,14 +56,16 @@ Use TotalANVI to perform semi-supervised analysis of CITE-seq data, leveraging p
 ```
 
 ```{customcard}
-:path: notebooks/multimodal/DiagVI_spatial_proteomics
+:path: https://scviva-tools.readthedocs.io/en/latest/tutorials/DiagVI_spatial_proteomics.html
+:title: DiagVI: Integration of scRNA-seq and Spatial Proteomics
 :tags: Analysis, Integration, Modality-imputation, Dimensionality-reduction
 
 Perform integration of spatial proteomics and single-cell transcriptomics data with DiagVI
 ```
 
 ```{customcard}
-:path: notebooks/multimodal/DiagVI_spatial_transcriptomics
+:path: https://scviva-tools.readthedocs.io/en/latest/tutorials/DiagVI_spatial_transcriptomics.html
+:title: DiagVI: Integration of scRNA-seq and Spatial Transcriptomics
 :tags: Analysis, Integration, Modality-imputation, Dimensionality-reduction
 
 Perform integration of spatial and single-cell transcriptomics data with DiagVI
