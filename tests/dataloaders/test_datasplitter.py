@@ -228,3 +228,24 @@ def test_datasplitter_load_sparse_tensor(
         expected_sparse_layout=sparse_format.split("_")[0],
         external_indexing=[np.array(train_ind), np.array(valid_ind)],
     )
+
+
+@pytest.mark.parametrize("sparse_format", ["csr_matrix", "csc_matrix"])
+def test_datasplitter_input_csr_mode(
+    sparse_format: str,
+    accelerator: str,
+    devices: list | str | int,
+):
+    # INPUT_CSR keeps X sparse (CSR) past on_after_batch_transfer; CSC is
+    # normalized to CSR. The helper splitter asserts the post-transfer layout.
+    adata = synthetic_iid(sparse_format=sparse_format)
+    TestSparseModel.setup_anndata(adata)
+    model = TestSparseModel(adata)
+    model.train(accelerator=accelerator, devices=devices, sparse_mode="INPUT_CSR")
+
+
+def test_datasplitter_invalid_sparse_mode():
+    adata = synthetic_iid()
+    manager = generic_setup_adata_manager(adata)
+    with pytest.raises(ValueError, match="sparse_mode"):
+        DataSplitter(manager, sparse_mode="NOT_A_MODE")

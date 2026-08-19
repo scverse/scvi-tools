@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+import torch
 from anndata import AnnData
 from anndata.abc import CSCDataset, CSRDataset
 from anndata.io import read_elem
@@ -85,6 +86,18 @@ def scipy_to_torch_sparse(x: sp_sparse.csr_matrix | sp_sparse.csc_matrix) -> Ten
         raise TypeError(
             "`x` must be of type `scipy.sparse.csr_matrix` or `scipy.sparse.csc_matrix`."
         )
+
+
+def normalize_to_csr(x: Tensor) -> Tensor:
+    """Return a sparse CSR tensor, converting from CSC if needed.
+
+    CSR is the only sparse layout with reliable autograd support for
+    :func:`torch.sparse.mm` across supported PyTorch versions (see issue #2550).
+    CSR input and dense input are returned unchanged.
+    """
+    if x.layout is torch.sparse_csc:
+        return x.to_sparse_csr()
+    return x
 
 
 def get_anndata_attribute(
