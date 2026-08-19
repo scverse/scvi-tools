@@ -38,6 +38,7 @@ We can see the advantage with larger data, while for the small data, there's no 
 
 ### 3. **Memory Utilization**
    - **Larger Memory Pool:** When using multiple GPUs, each GPU can hold a part of the model and data, effectively creating a larger memory pool. This allows for larger batch sizes or more complex models.
+   - **Shared Memory Deduplication:** In subprocess-based DDP, each rank loads its own copy of `adata` into memory, which can be costly for large datasets. scvi-tools automatically uses POSIX shared memory to deduplicate `adata.X` across all ranks on the same node, so only one physical copy is kept in memory. For example, with 100K obs x 1000 genes (~400 MB), 8 GPUs go from 3.2 GB total to just 400 MB. This is auto-enabled when DDP is detected and works with both dense numpy and scipy sparse matrices.
 
 ## Using MultiGPU training in SCVI-Tools
 
@@ -69,7 +70,35 @@ model.train(
 )
 ```
 
-3. There are a few limitations with the current implementation:
+3. **Shared memory for data deduplication:**
+
+   By default, shared memory is auto-enabled when DDP is detected (`share_memory=None`). You can explicitly control this behavior:
+
+   ```python
+   # Explicitly enable shared memory
+   model.train(
+       ...,
+       accelerator="gpu",
+       devices=-1,
+       strategy="ddp_find_unused_parameters_true",
+       datasplitter_kwargs={"share_memory": True},
+   )
+
+   # Explicitly disable shared memory
+   model.train(
+       ...,
+       accelerator="gpu",
+       devices=-1,
+       strategy="ddp_find_unused_parameters_true",
+       datasplitter_kwargs={"share_memory": False},
+   )
+   ```
+
+   :::{note}
+   Shared memory deduplication only applies to dense numpy or scipy sparse `adata.X`. If `adata` is backed (h5ad on disk) or uses dask arrays, shared memory is automatically skipped since those formats already avoid full in-memory copies.
+   :::
+
+4. There are a few limitations with the current implementation:
    - During an interactive session, like in a jupyter notebook, we can only train 1 model in multi GPU mode, per session.
    It means that we can't train SCANVI model from SCVI model if the SCVI model was trained in the same notebook. Therefore, need to train and save the SCVI model in another session and load it in the other session. This is a torch lightning caveat.
    - It can't run with early stopping right now (and some models, like totalvi, use early stopping by default), so we disable early stopping once running with DDP. the reason is that the validation loop should be running on one device only and not multiGPU.
