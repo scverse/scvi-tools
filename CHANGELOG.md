@@ -11,6 +11,14 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
+- Stop sending `mps` negative binomial sampling through the CPU unconditionally in
+    {class}`scvi.distributions.NegativeBinomial`,
+    {class}`scvi.distributions.ZeroInflatedNegativeBinomial` and
+    {class}`scvi.distributions.NegativeBinomialMixture`. The `aten::_standard_gamma` and
+    `aten::poisson` kernels that detour worked around ship in torch 2.12 and 2.14
+    respectively, so it is now taken only when the running build actually lacks them. This
+    also fixes {class}`scvi.distributions.NegativeBinomialMixture` returning CPU samples for
+    parameters on `mps`, {pr}`3981`.
 - Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
     several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
 - Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.

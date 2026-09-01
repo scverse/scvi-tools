@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import warnings
+from functools import cache
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -17,6 +19,9 @@ from scvi import settings
 
 from ._constraints import optional_constraint
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
     """Used in Mac Mx devices while broadcasting a tensor
@@ -31,6 +36,30 @@ def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
     lgamma tensor that performs on a copied version of the tensor
     """
     return torch.lgamma(x.contiguous())
+
+
+@cache
+def _mps_supports(op: Callable[[torch.Tensor], torch.Tensor]) -> bool:
+    """Whether ``op`` has an MPS kernel in the torch build in use.
+
+    ``aten::_standard_gamma`` gained one in torch 2.12 and ``aten::poisson`` in
+    2.14, so the answer depends on the installed version. It is probed rather
+    than version-compared because source and nightly builds report versions
+    that a comparison reads wrongly.
+
+    Callers must check ``torch.backends.mps.is_available()`` first; this is only
+    reached from a distribution whose parameters already live on ``mps``.
+    """
+    try:
+        op(torch.ones(1, device="mps"))
+    except (NotImplementedError, RuntimeError):
+        return False
+    return True
+
+
+def _needs_cpu_detour(on_mps: bool, op: Callable[[torch.Tensor], torch.Tensor]) -> bool:
+    """Whether sampling ``op`` has to be routed through the CPU."""
+    return on_mps and not _mps_supports(op)
 
 
 def log_zinb_positive(
@@ -273,13 +302,10 @@ def _convert_counts_logits_to_mean_disp(
 def _gamma(theta: torch.Tensor, mu: torch.Tensor, on_mps: bool = False) -> Gamma:
     concentration = theta
     rate = theta / mu
+    if _needs_cpu_detour(on_mps, torch._standard_gamma):
+        concentration, rate = concentration.to("cpu"), rate.to("cpu")
     # Important remark: Gamma is parametrized by the rate = 1/scale!
-    gamma_d = (
-        Gamma(concentration=concentration.to("cpu"), rate=rate.to("cpu"))
-        if on_mps  # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
-        else Gamma(concentration=concentration, rate=rate)
-    )
-    return gamma_d
+    return Gamma(concentration=concentration, rate=rate)
 
 
 class Poisson(PoissonTorch):
@@ -378,9 +404,8 @@ class NegativeBinomial(Distribution):
         scale: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
-        self.on_mps = (
-            mu.device.type == "mps" if total_count is None else total_count.device.type == "mps"
-        )  # TODO: This is used until torch will solve the MPS issues
+        self._device = mu.device if total_count is None else total_count.device
+        self.on_mps = self._device.type == "mps"
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
             raise ValueError(
@@ -429,18 +454,16 @@ class NegativeBinomial(Distribution):
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
-        gamma_d = self._gamma()  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
+        gamma_d = self._gamma()
         p_means = gamma_d.sample(sample_shape)
 
         # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
-        counts = (
-            PoissonTorch(l_train).sample().to("mps")
-            if self.on_mps  # TODO: NEED TORCH MPS FIX for 'aten::poisson'
-            else PoissonTorch(l_train).sample()
-        )  # Shape : (n_samples, n_cells_batch, n_vars)
-        return counts
+        if _needs_cpu_detour(self.on_mps, torch.poisson):
+            l_train = l_train.to("cpu")
+        counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+        return counts.to(self._device)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         if self._validate_args:
@@ -632,9 +655,8 @@ class NegativeBinomialMixture(Distribution):
             self.mu2,
             self.mixture_logits,
         ) = broadcast_all(mu1, theta1, mu2, mixture_logits)
-        self.on_mps = (
-            mu1.device.type == "mps"
-        )  # TODO: This is used until torch will solve the MPS issues
+        self._device = mu1.device
+        self.on_mps = self._device.type == "mps"
         super().__init__(validate_args=validate_args)
 
         if theta2 is not None:
@@ -673,14 +695,16 @@ class NegativeBinomialMixture(Distribution):
             theta = self.theta1
         else:
             theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-        gamma_d = _gamma(theta, mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
+        gamma_d = _gamma(theta, mu, self.on_mps)
         p_means = gamma_d.sample(sample_shape)
 
         # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
+        if _needs_cpu_detour(self.on_mps, torch.poisson):
+            l_train = l_train.to("cpu")
         counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_features)
-        return counts
+        return counts.to(self._device)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         """Log probability."""
