@@ -53,7 +53,7 @@ def _load_smfish(save_path: str = "data/", use_high_level_cluster=True) -> annda
             known_hash="a6bba682cf6804e4c1db07cbd2cb16a08143e0b814fd1bd1f936596aa1e27fd1",
             fname="smfish.h5ad",
             path=save_path,
-            progressbar=True,
+            downloader=pooch.HTTPDownloader(progressbar=True, retry_if_failed=3),
         )
     )
     if use_high_level_cluster:

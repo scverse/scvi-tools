@@ -25,7 +25,7 @@ def _load_retina(save_path: str = "data/") -> AnnData:
             known_hash="5363642ff02647d6868494b962ec962a5d2e3d90703415e245e7c1727c66cf21",
             fname="retina.h5ad",
             path=save_path,
-            progressbar=True,
+            downloader=pooch.HTTPDownloader(progressbar=True, retry_if_failed=3),
         )
     )
     return adata
@@ -46,7 +46,7 @@ def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
             known_hash="c583eaef3835960405c6f1124f5fda36da80db3f940b76c9b2432a8d2e0b80ce",
             fname="mpfc-starmap.h5ad",
             path=save_path,
-            progressbar=True,
+            downloader=pooch.HTTPDownloader(progressbar=True, retry_if_failed=3),
         )
     )
     return adata
@@ -63,7 +63,7 @@ def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
             known_hash="934a7179624a4c7c7dec1d5d53de5367fcd0054e5f19b7e245ecf2ecc88c188c",
             fname="fc-dropseq.h5ad",
             path=save_path,
-            progressbar=True,
+            downloader=pooch.HTTPDownloader(progressbar=True, retry_if_failed=3),
         )
     )
     # reorder labels such that layers of the cortex are in order
@@ -104,7 +104,7 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
             known_hash=known_hash,
             fname=f"simulation_{name}.h5ad",
             path=save_path,
-            progressbar=True,
+            downloader=pooch.HTTPDownloader(progressbar=True, retry_if_failed=3),
         )
     )
     return adata
