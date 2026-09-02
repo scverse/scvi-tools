@@ -124,10 +124,11 @@ def parse_device_args(
         )
     elif _accelerator == "mps" and accelerator != "auto":
         warnings.warn(
-            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
-            "operations are supported with this backend. as a result, some models might be slower "
-            "and less accurate than usual. Please verify your analysis!"
-            "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
+            "`accelerator` has been set to `mps`. Not all PyTorch operations are implemented "
+            "for this backend, so some models may be slower or may fail on unsupported ops; "
+            "refer to https://github.com/pytorch/pytorch/issues/77764 for more details. "
+            "Results will not be bit-identical to CPU or CUDA runs because RNG streams differ "
+            "per backend.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )

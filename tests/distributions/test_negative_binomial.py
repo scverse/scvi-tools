@@ -7,13 +7,13 @@ from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 from scvi.distributions import _negative_binomial as nb_module
+from scvi.distributions import _utils as dist_utils
 from scvi.distributions._negative_binomial import (
     _gamma,
-    _mps_supports,
-    _needs_cpu_detour,
     log_nb_positive,
     log_zinb_positive,
 )
+from scvi.distributions._utils import _mps_supports, _needs_cpu_detour
 
 
 def test_zinb_distribution():
@@ -114,7 +114,7 @@ def test_gamma_stays_on_mps_when_the_kernel_exists():
 def test_cpu_detour_is_taken_only_for_mps_without_a_kernel(
     monkeypatch, on_mps, kernel_present, expected
 ):
-    monkeypatch.setattr(nb_module, "_mps_supports", lambda op: kernel_present)
+    monkeypatch.setattr(dist_utils, "_mps_supports", lambda op: kernel_present)
     assert _needs_cpu_detour(on_mps, torch.poisson) is expected
 
 
