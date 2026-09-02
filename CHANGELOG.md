@@ -26,6 +26,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix `load_query_data` crashing with `TypeError: '<' not supported between instances of
     'str' and 'float'` when extending batch categories for query data whose batch column
     contains missing values, {pr}`3962`.
+- Fix {func}`~scvi.data.purified_pbmc_dataset` returning a duplicated `cd4_t_helper` batch {pr}`3985`.
 
 #### Changed
 
