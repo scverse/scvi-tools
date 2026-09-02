@@ -30,12 +30,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Changed
 
-- Reword the `mps` accelerator warning in {func}`scvi.model._utils.parse_device_args` to drop the
-    claim that results are "less accurate". Operator coverage remains a real limitation and is
-    still warned about, but a comparison of `lgamma`, `digamma`, `log`, `exp`, `softmax`, `sum`,
-    `matmul` and a negative-binomial ELBO gradient against a float64 reference showed MPS float32
-    within float32 noise of CPU float32. The warning now covers the coverage gap and the fact that
-    RNG streams differ per backend, {pr}`3981`.
 - Updated dockerfile to py3.13, {pr}`3920`.
 - Updated several github workflows with recent github actions modules, {pr}`3916`.
 - Align the repository with the [scverse cookiecutter template](https://github.com/scverse/cookiecutter-scverse) v0.8.0 and track it via `.cruft.json`, so template updates arrive as automated pull requests, {pr}`3607`.
