@@ -26,11 +26,13 @@ def _load_purified_pbmc_dataset(
         "cytotoxic_t",
         "naive_cytotoxic",
         "b_cells",
-        "cd4_t_helper",
         "cd34",
         "cd56_nk",
         "cd14_monocytes",
     ]
+    # the raw file has 11 batches but only 10 unique cell types: batch "7" is a byte-for-byte
+    # duplicate of batch "0" (both "cd4_t_helper"), from a copy-paste bug in the original scVI
+    adata = adata[adata.obs["batch"].astype(str) != "7"].copy()
     if subset_datasets is not None:
         row_indices = []
         for dataset in subset_datasets:
