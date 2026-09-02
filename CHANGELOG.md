@@ -14,6 +14,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
     several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
 - Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.
+- Fix `scvi.hub` eagerly requiring `huggingface_hub` at package-import time {pr}`3950`.
+- Fix `load_query_data` crashing with `TypeError: '<' not supported between instances of
+    'str' and 'float'` when extending batch categories for query data whose batch column
+    contains missing values, {pr}`3962`.
 
 #### Changed
 

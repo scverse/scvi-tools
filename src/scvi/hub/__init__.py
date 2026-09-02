@@ -1,10 +1,5 @@
-from scvi.utils import error_on_missing_dependencies
-
-error_on_missing_dependencies("huggingface_hub")
-
-
-from ._metadata import HubMetadata, HubModelCardHelper  # noqa: E402
-from ._model import HubModel  # noqa: E402
+from ._metadata import HubMetadata, HubModelCardHelper
+from ._model import HubModel
 
 __all__ = [
     "HubModel",

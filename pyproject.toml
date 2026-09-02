@@ -85,7 +85,7 @@ optional-dependencies.diagvi = [ "geomloss", "torch-geometric" ]
 # for files sharing or handling
 optional-dependencies.file-sharing = [ "fcswrite", "gdown", "pooch", "readfcs" ]
 # scvi.hub dependencies
-optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub" ]
+optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub", "requests" ]
 # for models interpretability
 optional-dependencies.interpretability = [ "captum", "decoupler", "shap" ]
 optional-dependencies.metal = [ "mlx", "mlx-metal", "torchaudio", "torchvision" ]
@@ -187,10 +187,10 @@ envs.hatch-test.overrides.matrix.deps.env-vars = [
 envs.hatch-test.dependency-groups = [ "dev", "test" ]
 envs.test-cuda.template = "hatch-test"
 envs.test-cuda.features = [ "cuda", "optional" ]
-envs.test-metal.template = "hatch-test"
-envs.test-metal.features = [ "metal", "optional" ]
 envs.test-dataloaders.template = "hatch-test"
 envs.test-dataloaders.features = [ "dataloaders", "optional" ]
+envs.test-metal.template = "hatch-test"
+envs.test-metal.features = [ "metal", "optional" ]
 envs.test-resolution.template = "hatch-test"
 envs.test-resolution.features = [ "optional" ]
 envs.test-resolution.env-vars.UV_PRERELEASE = "allow"
@@ -268,11 +268,11 @@ ini_options.markers = [
 ini_options.xfail_strict = true
 
 [tool.coverage]
+run.source = [ "scvi" ]
 run.omit = [
   "**/test_*.py",
 ]
 run.patch = [ "subprocess" ]
-run.source = [ "scvi" ]
 
 [tool.jupytext]
 formats = "ipynb,md"
