@@ -4,6 +4,8 @@ import anndata
 import pytest
 
 import scvi
+
+pytest.importorskip("huggingface_hub")
 from scvi.hub import HubMetadata, HubModelCardHelper
 
 

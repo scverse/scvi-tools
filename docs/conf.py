@@ -40,6 +40,14 @@ templates_path = ["_templates"]
 nitpicky = True  # Warn about broken links
 needs_sphinx = "4.0"
 
+# The spatial/multimodal tutorial notebooks superseded by scviva-tools (resolVI, scVIVA,
+# DestVI, gimVI, Tangram, Stereoscope, Cell2location, DiagVI) are no longer linked from any
+# toctree now that their index cards point to the scviva-tools-hosted versions instead, but
+# they're kept in the build (not `exclude_patterns`) since docs/user_guide/models/*.md still
+# cross-reference them with {doc}. Remove this once those model pages are updated (planned for
+# v1.6) and the notebooks themselves are removed.
+suppress_warnings = ["toc.not_included"]
+
 # Bare (unqualified) names used in type annotations that autodoc/autodoc-typehints
 # should resolve against their fully-qualified, intersphinx-resolvable targets.
 autodoc_type_aliases = {
@@ -54,6 +62,7 @@ nitpick_ignore = [
     ("py:class", "huggingface_hub.repocard.ModelCard"),
     ("py:class", "ml_collections.config_dict.config_dict.FrozenConfigDict"),
     ("py:class", "numpy._typing.TypeAliasType"),
+    ("py:class", "numpy._typing._array_like.TypeAliasType"),
     ("py:class", "pathlib._local.Path"),
     ("py:class", "Distribution"),
     ("py:class", "LongTensor"),
