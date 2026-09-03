@@ -11,6 +11,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
+- Fix {class}`scvi.module.MULTIVAE`'s accessibility reconstruction loss crashing on `mps` for
+    RNA+protein-only `MULTIVI` configurations (`n_input_regions=0`): `BCELoss` asserts on a
+    zero-element `mps` tensor, so the loss over zero features is now returned directly as zero
+    (correct on every backend) rather than routed through the op, {pr}`3989`.
 - Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
     several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
 - Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.
