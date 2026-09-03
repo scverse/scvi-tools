@@ -9,6 +9,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add {class}`scvi.external.SENADVAE` for causal perturbation modeling in single-cell genomics {pr}`3571`.
+
 #### Fixed
 
 - Fix {class}`scvi.module.MULTIVAE`'s accessibility reconstruction loss crashing on `mps` for
