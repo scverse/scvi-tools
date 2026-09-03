@@ -673,12 +673,14 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
             libsize_acc = unsqz(libsize_acc, n_samples)
 
         # sample from the mixed representation
-        untran_z = Normal(qz_m, qz_v.sqrt()).rsample()
+        qz = Normal(qz_m, qz_v.sqrt())
+        untran_z = qz.rsample()
         z = self.z_encoder_accessibility.z_transformation(untran_z)
 
         outputs = {
             "x": x,
             "z": z,
+            "qz": qz,
             "qz_m": qz_m,
             "qz_v": qz_v,
             "z_expr": z_expr,
