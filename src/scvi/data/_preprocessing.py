@@ -21,6 +21,7 @@ def _binomial_probe(count: torch.Tensor) -> torch.Tensor:
     """Single-tensor probe for ``torch.binomial``, matching the ``_mps_supports`` signature."""
     return torch.binomial(count, torch.full_like(count, 0.5))
 
+
 if TYPE_CHECKING:
     from pathlib import Path
 

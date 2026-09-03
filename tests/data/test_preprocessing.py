@@ -46,9 +46,7 @@ def test_poisson_gene_selection_binomial_cpu_detour_forced(monkeypatch):
 
     n_top_genes = 10
     adata = synthetic_iid()
-    poisson_gene_selection(
-        adata, batch_key="batch", n_top_genes=n_top_genes, accelerator="cpu"
-    )
+    poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes, accelerator="cpu")
     assert np.sum(adata.var["highly_variable"]) == n_top_genes
 
 
@@ -60,9 +58,7 @@ def test_poisson_gene_selection_on_mps():
 
     n_top_genes = 10
     adata = synthetic_iid()
-    poisson_gene_selection(
-        adata, batch_key="batch", n_top_genes=n_top_genes, accelerator="mps"
-    )
+    poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes, accelerator="mps")
     assert np.sum(adata.var["highly_variable"]) == n_top_genes
 
 
