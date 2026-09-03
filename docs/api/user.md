@@ -70,6 +70,7 @@ import scvi
    external.DRVI
    external.JointEmbeddingSCVI
    external.Tangram
+   external.VIVS
 ```
 
 ## Data loading
