@@ -13,7 +13,11 @@ from scvi.distributions._negative_binomial import (
     log_nb_positive,
     log_zinb_positive,
 )
-from scvi.distributions._utils import _mps_supports, _needs_cpu_detour
+from scvi.distributions._utils import (
+    _mps_supports,
+    _mps_supports_lgamma_on_noncontiguous,
+    _needs_cpu_detour,
+)
 
 
 def test_zinb_distribution():
@@ -150,3 +154,40 @@ def test_cpu_detour_path_still_samples_correctly(monkeypatch):
     assert samples.device == mu.device
     assert (samples.mean(0) - mu).abs().mean() <= 1e0
     assert _gamma(theta, mu, on_mps=True).concentration.device.type == "cpu"
+
+
+def test_lgamma_noncontiguous_support_probe_answers_without_a_device():
+    supported = _mps_supports_lgamma_on_noncontiguous()
+    assert isinstance(supported, bool)
+    if not torch.backends.mps.is_available():
+        assert supported is False
+
+
+@pytest.mark.parametrize(
+    ("on_mps", "supports_noncontiguous", "expected_is_plain_lgamma"),
+    [(False, False, True), (False, True, True), (True, True, True), (True, False, False)],
+)
+def test_lgamma_fn_uses_the_contiguous_wrapper_only_when_mps_needs_it(
+    monkeypatch, on_mps, supports_noncontiguous, expected_is_plain_lgamma
+):
+    monkeypatch.setattr(
+        nb_module, "_mps_supports_lgamma_on_noncontiguous", lambda: supports_noncontiguous
+    )
+    fn = nb_module._lgamma_fn(on_mps)
+    assert (fn is torch.lgamma) == expected_is_plain_lgamma
+    assert (fn is nb_module.torch_lgamma_mps) == (not expected_is_plain_lgamma)
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_log_prob_matches_with_and_without_the_lgamma_contiguous_detour(monkeypatch):
+    """The contiguous-copy detour changes nothing numerically once lgamma supports it."""
+    theta = 100.0 + torch.rand(8, device="mps")
+    mu = 15.0 * torch.ones(64, 8, device="mps")
+    x = torch.randint(0, 20, (64, 8), device="mps").float()
+    dist = NegativeBinomial(mu=mu, theta=theta)
+
+    lp_with_detour = dist.log_prob(x)
+    monkeypatch.setattr(nb_module, "_mps_supports_lgamma_on_noncontiguous", lambda: True)
+    lp_without_detour = dist.log_prob(x)
+
+    assert torch.equal(lp_with_detour, lp_without_detour)

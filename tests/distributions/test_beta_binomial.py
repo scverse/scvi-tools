@@ -1,6 +1,7 @@
 import pytest
 import torch
 
+import scvi.distributions._beta_binomial as beta_binomial_module
 from scvi.distributions import BetaBinomial
 
 
@@ -43,3 +44,34 @@ def test_beta_binomial_distribution():
     # Should fail without a complete parameterization 1 or 2
     with pytest.raises(ValueError):
         BetaBinomial(total_count=total_count, alpha=alpha, gamma=gamma)
+
+
+def test_sample_cpu_detour_forced(monkeypatch):
+    """Forces the CPU detour the way a torch without MPS '_sample_dirichlet'/'binomial' kernels
+    would."""
+    monkeypatch.setattr(beta_binomial_module, "_needs_cpu_detour", lambda on_mps, op: True)
+
+    alpha = torch.ones(64, 8) * 2
+    beta = torch.ones(64, 8) * 2
+    total_count = torch.ones(64, 8) * 100
+    dist = BetaBinomial(total_count=total_count, alpha=alpha, beta=beta)
+
+    samples = dist.sample((16,))
+    assert samples.shape == (16, 64, 8)
+    assert (samples >= 0).all()
+    assert (samples <= 100).all()
+    assert samples.device == alpha.device
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_sample_stays_on_mps():
+    alpha = torch.ones(64, 8, device="mps") * 2
+    beta = torch.ones(64, 8, device="mps") * 2
+    total_count = torch.ones(64, 8, device="mps") * 100
+    dist = BetaBinomial(total_count=total_count, alpha=alpha, beta=beta)
+
+    samples = dist.sample((16,))
+    assert samples.device.type == "mps"
+    assert samples.shape == (16, 64, 8)
+    assert (samples >= 0).all()
+    assert (samples <= 100).all()

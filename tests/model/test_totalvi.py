@@ -7,6 +7,7 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
+import scvi.model._totalvi as totalvi_module
 from scvi import REGISTRY_KEYS
 from scvi.data import pbmcs_10x_cite_seq, synthetic_iid
 from scvi.model import TOTALVI
@@ -792,3 +793,39 @@ def test_totalvi_dispersion(gene_dispersion: str, protein_dispersion: str):
         protein_dispersion=protein_dispersion,
     )
     model.train(1)
+
+
+def test_get_denoised_samples_gamma_cpu_detour_forced(monkeypatch):
+    """Forces the CPU detour the way a torch without an MPS '_standard_gamma' kernel would."""
+    monkeypatch.setattr(totalvi_module, "_needs_cpu_detour", lambda on_mps, op: True)
+
+    adata = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    model = TOTALVI(adata, n_latent=5)
+    model.train(1, train_size=0.5)
+
+    samples = model._get_denoised_samples(n_samples=2)
+    n_proteins = adata.obsm["protein_expression"].shape[1]
+    assert samples.shape == (adata.n_obs, adata.n_vars + n_proteins, 2)
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_get_denoised_samples_on_mps():
+    adata = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    model = TOTALVI(adata, n_latent=5)
+    model.train(1, train_size=0.5, accelerator="mps")
+
+    samples = model._get_denoised_samples(n_samples=2)
+    n_proteins = adata.obsm["protein_expression"].shape[1]
+    assert samples.shape == (adata.n_obs, adata.n_vars + n_proteins, 2)

@@ -33,6 +33,19 @@ def _needs_cpu_detour(on_mps: bool, op: Callable[[torch.Tensor], torch.Tensor]) 
     return on_mps and not _mps_supports(op)
 
 
+@cache
+def _mps_supports_lgamma_on_noncontiguous() -> bool:
+    """Whether ``torch.lgamma`` can run on a non-contiguous (broadcast-expanded) MPS tensor.
+
+    Probed rather than version-compared for the same reason as :func:`_mps_supports`.
+    """
+    try:
+        torch.lgamma(torch.ones(1, 4, device="mps").expand(4, 4))
+    except (NotImplementedError, RuntimeError):
+        return False
+    return True
+
+
 def subset_distribution(
     my_distribution: torch.distributions.Distribution,
     index: torch.Tensor,

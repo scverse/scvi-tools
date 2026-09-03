@@ -9,11 +9,17 @@ import pandas as pd
 import torch
 from scipy.sparse import issparse
 
+from scvi.distributions._utils import _needs_cpu_detour
 from scvi.model._utils import parse_device_args
 from scvi.utils import dependencies, track
 from scvi.utils._docstrings import devices_dsp
 
 from ._utils import _check_nonnegative_integers
+
+
+def _binomial_probe(count: torch.Tensor) -> torch.Tensor:
+    """Single-tensor probe for ``torch.binomial``, matching the ``_mps_supports`` signature."""
+    return torch.binomial(count, torch.full_like(count, 0.5))
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -152,8 +158,8 @@ def poisson_gene_selection(
         expected_fraction_zeros /= data.shape[0]
 
         # Compute probability of enriched zeros through sampling from Binomial distributions.
-        # TODO:  TORCH MPS FIX - 'aten::binomial' is not currently implemented for the MPS device
-        if device.type == "mps":
+        needs_cpu_detour = _needs_cpu_detour(device.type == "mps", _binomial_probe)
+        if needs_cpu_detour:
             observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros.to("cpu"))
             expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros.to("cpu"))
         else:
@@ -168,7 +174,7 @@ def poisson_gene_selection(
             style="tqdm",  # do not change
         ):
             obs_exp_bool_mat = observed_zero.sample() > expected_zero.sample()
-            extra_zeros += obs_exp_bool_mat.to("mps") if device.type == "mps" else obs_exp_bool_mat
+            extra_zeros += obs_exp_bool_mat.to(device) if needs_cpu_detour else obs_exp_bool_mat
 
         prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
 

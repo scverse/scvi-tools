@@ -9,16 +9,32 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Extend native `mps` support across the rest of scvi-tools' gamma/Poisson/Dirichlet/Binomial
+    sampling and `lgamma` call sites, on top of
+    {class}`scvi.distributions.NegativeBinomial`, {class}`scvi.distributions.ZeroInflatedNegativeBinomial`
+    and {class}`scvi.distributions.NegativeBinomialMixture`. The CPU detours these relied on for
+    `aten::_standard_gamma`, `aten::poisson`, `aten::_sample_dirichlet` and `aten::binomial` are
+    now taken only when the installed torch build actually lacks the kernel (probed at runtime,
+    not hardcoded), so training and sampling stay on `mps` end-to-end as torch's MPS backend gains
+    coverage. This reaches {class}`scvi.distributions.ZeroInflatedGamma` and
+    {class}`scvi.distributions.BetaBinomial` (previously had no `mps` handling at all),
+    {class}`scvi.module.VAE`'s Poisson likelihood, {class}`scvi.module.AutoZIVAE`,
+    {class}`scvi.model.TOTALVI` and {class}`scvi.model.base.RNASeqMixin`'s posterior predictive
+    sampling, {class}`scvi.external.velovi.VELOVI`'s Dirichlet mixture weights,
+    {class}`scvi.external.drvi.DRVI`'s log-space negative binomial, and
+    {func}`~scvi.data.poisson_gene_selection`'s Binomial zero-enrichment test. Also drops the
+    `.clone()` workaround for 3D `BatchNorm1d` on `mps` in {class}`scvi.nn.FCLayers` and the
+    `.contiguous()` workaround for `torch.lgamma` on non-contiguous `mps` tensors once the
+    corresponding kernel is available, {pr}`3981`.
+- `accelerator="auto"` now resolves to `mps` on Apple silicon instead of silently falling back
+    to `cpu`, matching the existing `auto` behavior on CUDA machines, {pr}`3981`.
+
 #### Fixed
 
-- Stop sending `mps` negative binomial sampling through the CPU unconditionally in
-    {class}`scvi.distributions.NegativeBinomial`,
-    {class}`scvi.distributions.ZeroInflatedNegativeBinomial` and
-    {class}`scvi.distributions.NegativeBinomialMixture`. The `aten::_standard_gamma` and
-    `aten::poisson` kernels that detour worked around ship in torch 2.12 and 2.14
-    respectively, so it is now taken only when the running build actually lacks them. This
-    also fixes {class}`scvi.distributions.NegativeBinomialMixture` returning CPU samples for
-    parameters on `mps`, {pr}`3981`.
+- Fix {class}`scvi.module.MULTIVAE`'s accessibility reconstruction loss crashing on `mps` for
+    RNA+protein-only `MULTIVI` configurations (`n_input_regions=0`): `BCELoss` asserts on a
+    zero-element `mps` tensor, so the loss over zero features is now returned directly as zero
+    (correct on every backend) rather than routed through the op, {pr}`3989`.
 - Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
     several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
 - Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.

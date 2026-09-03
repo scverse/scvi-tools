@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -16,7 +17,10 @@ from torch.distributions.utils import (
 from scvi import settings
 
 from ._constraints import optional_constraint
-from ._utils import _needs_cpu_detour
+from ._utils import _mps_supports_lgamma_on_noncontiguous, _needs_cpu_detour
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
@@ -32,6 +36,13 @@ def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
     lgamma tensor that performs on a copied version of the tensor
     """
     return torch.lgamma(x.contiguous())
+
+
+def _lgamma_fn(on_mps: bool) -> Callable[[torch.Tensor], torch.Tensor]:
+    """Pick the lgamma implementation, using the contiguous-copy detour only if still needed."""
+    if on_mps and not _mps_supports_lgamma_on_noncontiguous():
+        return torch_lgamma_mps
+    return torch.lgamma
 
 
 def log_zinb_positive(
@@ -448,7 +459,7 @@ class NegativeBinomial(Distribution):
                     stacklevel=settings.warnings_stacklevel,
                 )
 
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_nb_positive(
             value, mu=self.mu, theta=self.theta, eps=self._eps, lgamma_fn=lgamma_fn
         )
@@ -575,7 +586,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_zinb_positive(
             value, self.mu, self.theta, self.zi_logits, eps=1e-08, lgamma_fn=lgamma_fn
         )
@@ -688,7 +699,7 @@ class NegativeBinomialMixture(Distribution):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_mixture_nb(
             value,
             self.mu1,

@@ -4,12 +4,14 @@ import anndata as ad
 import numpy as np
 import pytest
 import scanpy as sc
+import torch
 from mudata import MuData
 
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
 from scvi.model import MULTIVI
+from scvi.module import MULTIVAE
 from scvi.utils import attrdict
 
 
@@ -548,3 +550,60 @@ def test_multivi_dispersion(dispersion: str, protein_dispersion: str):
         protein_dispersion=protein_dispersion,
     )
     model.train(1)
+
+
+def test_get_reconstruction_loss_accessibility_handles_empty_regions():
+    """RNA+protein-only MULTIVI configurations pass n_input_regions=0; the accessibility loss
+    over zero features must be zero, not crash."""
+    module = MULTIVAE(n_input_regions=0, n_input_genes=10)
+    x = torch.zeros(4, 0)
+    p = torch.zeros(4, 0)
+    d = torch.zeros(4, 0)
+
+    loss = module.get_reconstruction_loss_accessibility(x, p, d)
+
+    assert loss.shape == (4,)
+    assert torch.equal(loss, torch.zeros(4))
+
+
+def test_get_reconstruction_loss_accessibility_nonempty_regions_unaffected():
+    torch.manual_seed(0)
+    module = MULTIVAE(n_input_regions=5, n_input_genes=10)
+    x = torch.randint(0, 2, (4, 5)).float()
+    p = torch.rand(4, 5)
+    d = torch.rand(4, 5)
+
+    loss = module.get_reconstruction_loss_accessibility(x, p, d)
+
+    reg_factor = torch.sigmoid(module.region_factors)
+    expected = torch.nn.BCELoss(reduction="none")(p * d * reg_factor, (x > 0).float()).sum(dim=-1)
+    assert torch.equal(loss, expected)
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_get_reconstruction_loss_accessibility_empty_regions_on_mps():
+    module = MULTIVAE(n_input_regions=0, n_input_genes=10).to("mps")
+    x = torch.zeros(4, 0, device="mps")
+    p = torch.zeros(4, 0, device="mps")
+    d = torch.zeros(4, 0, device="mps")
+
+    loss = module.get_reconstruction_loss_accessibility(x, p, d)
+
+    assert loss.device.type == "mps"
+    assert loss.shape == (4,)
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_multivi_rna_protein_only_trains_on_mps():
+    """The n_input_regions=0 (no ATAC) configuration used to crash accelerator='mps' training
+    via an empty-tensor BCELoss call."""
+    mdata = synthetic_iid(return_mudata=True)
+    del mdata.mod["accessibility"]
+    mdata.update()
+    MULTIVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+    )
+    model = MULTIVI(mdata, n_latent=5)
+    model.train(max_epochs=1, accelerator="mps")

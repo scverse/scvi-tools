@@ -1,4 +1,5 @@
 import pytest
+import torch
 
 
 def test_poisson_gene_selection():
@@ -32,6 +33,37 @@ def test_poisson_gene_selection():
     adata.X = 0.25 * X
     with pytest.raises(ValueError):
         poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
+
+
+def test_poisson_gene_selection_binomial_cpu_detour_forced(monkeypatch):
+    """Forces the CPU detour the way a torch without an MPS 'binomial' kernel would."""
+    import numpy as np
+
+    import scvi.data._preprocessing as preprocessing_module
+    from scvi.data import poisson_gene_selection, synthetic_iid
+
+    monkeypatch.setattr(preprocessing_module, "_needs_cpu_detour", lambda on_mps, op: True)
+
+    n_top_genes = 10
+    adata = synthetic_iid()
+    poisson_gene_selection(
+        adata, batch_key="batch", n_top_genes=n_top_genes, accelerator="cpu"
+    )
+    assert np.sum(adata.var["highly_variable"]) == n_top_genes
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_poisson_gene_selection_on_mps():
+    import numpy as np
+
+    from scvi.data import poisson_gene_selection, synthetic_iid
+
+    n_top_genes = 10
+    adata = synthetic_iid()
+    poisson_gene_selection(
+        adata, batch_key="batch", n_top_genes=n_top_genes, accelerator="mps"
+    )
+    assert np.sum(adata.var["highly_variable"]) == n_top_genes
 
 
 @pytest.mark.internet
