@@ -20,14 +20,12 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     {class}`scvi.distributions.BetaBinomial` (previously had no `mps` handling at all),
     {class}`scvi.module.VAE`'s Poisson likelihood, {class}`scvi.module.AutoZIVAE`,
     {class}`scvi.model.TOTALVI` and {class}`scvi.model.base.RNASeqMixin`'s posterior predictive
-    sampling, {class}`scvi.external.velovi.VELOVI`'s Dirichlet mixture weights,
-    {class}`scvi.external.drvi.DRVI`'s log-space negative binomial, and
+    sampling, {class}`scvi.external.VELOVI`'s Dirichlet mixture weights,
+    {class}`scvi.external.DRVI`'s log-space negative binomial, and
     {func}`~scvi.data.poisson_gene_selection`'s Binomial zero-enrichment test. Also drops the
     `.clone()` workaround for 3D `BatchNorm1d` on `mps` in {class}`scvi.nn.FCLayers` and the
     `.contiguous()` workaround for `torch.lgamma` on non-contiguous `mps` tensors once the
     corresponding kernel is available, {pr}`3981`.
-- `accelerator="auto"` now resolves to `mps` on Apple silicon instead of silently falling back
-    to `cpu`, matching the existing `auto` behavior on CUDA machines, {pr}`3981`.
 
 #### Fixed
 
