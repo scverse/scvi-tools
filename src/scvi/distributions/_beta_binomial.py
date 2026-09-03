@@ -1,9 +1,16 @@
 import torch
 from pyro.distributions import BetaBinomial as BetaBinomialDistribution
+from pyro.distributions import Binomial
 from torch.distributions import constraints
 from torch.distributions.utils import broadcast_all
 
 from ._constraints import open_interval, optional_constraint
+from ._utils import _needs_cpu_detour
+
+
+def _binomial_probe(count: torch.Tensor) -> torch.Tensor:
+    """Single-tensor probe for ``torch.binomial``, matching the ``_mps_supports`` signature."""
+    return torch.binomial(count, torch.full_like(count, 0.5))
 
 
 class BetaBinomial(BetaBinomialDistribution):
@@ -114,6 +121,24 @@ class BetaBinomial(BetaBinomialDistribution):
             total_count=total_count,
             validate_args=validate_args,
         )
+
+    @torch.inference_mode()
+    def sample(self, sample_shape: torch.Size | tuple = ()) -> torch.Tensor:
+        """Sample from the distribution."""
+        device = self.total_count.device
+        on_mps = device.type == "mps"
+
+        beta = self._beta
+        if _needs_cpu_detour(on_mps, torch._sample_dirichlet):
+            beta = beta.__class__(beta.concentration1.cpu(), beta.concentration0.cpu())
+        probs = beta.sample(sample_shape)
+
+        total_count = self.total_count.to(probs.device)
+        if _needs_cpu_detour(on_mps, _binomial_probe):
+            total_count, probs = total_count.cpu(), probs.cpu()
+
+        counts = Binomial(total_count, probs, validate_args=False).sample()
+        return counts.to(device)
 
     def __repr__(self) -> str:
         param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]

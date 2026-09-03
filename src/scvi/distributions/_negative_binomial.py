@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -16,6 +17,10 @@ from torch.distributions.utils import (
 from scvi import settings
 
 from ._constraints import optional_constraint
+from ._utils import _mps_supports_lgamma_on_noncontiguous, _needs_cpu_detour
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
@@ -31,6 +36,13 @@ def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
     lgamma tensor that performs on a copied version of the tensor
     """
     return torch.lgamma(x.contiguous())
+
+
+def _lgamma_fn(on_mps: bool) -> Callable[[torch.Tensor], torch.Tensor]:
+    """Pick the lgamma implementation, using the contiguous-copy detour only if still needed."""
+    if on_mps and not _mps_supports_lgamma_on_noncontiguous():
+        return torch_lgamma_mps
+    return torch.lgamma
 
 
 def log_zinb_positive(
@@ -273,13 +285,10 @@ def _convert_counts_logits_to_mean_disp(
 def _gamma(theta: torch.Tensor, mu: torch.Tensor, on_mps: bool = False) -> Gamma:
     concentration = theta
     rate = theta / mu
+    if _needs_cpu_detour(on_mps, torch._standard_gamma):
+        concentration, rate = concentration.to("cpu"), rate.to("cpu")
     # Important remark: Gamma is parametrized by the rate = 1/scale!
-    gamma_d = (
-        Gamma(concentration=concentration.to("cpu"), rate=rate.to("cpu"))
-        if on_mps  # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
-        else Gamma(concentration=concentration, rate=rate)
-    )
-    return gamma_d
+    return Gamma(concentration=concentration, rate=rate)
 
 
 class Poisson(PoissonTorch):
@@ -378,9 +387,8 @@ class NegativeBinomial(Distribution):
         scale: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
-        self.on_mps = (
-            mu.device.type == "mps" if total_count is None else total_count.device.type == "mps"
-        )  # TODO: This is used until torch will solve the MPS issues
+        self._device = mu.device if total_count is None else total_count.device
+        self.on_mps = self._device.type == "mps"
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
             raise ValueError(
@@ -429,18 +437,16 @@ class NegativeBinomial(Distribution):
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
-        gamma_d = self._gamma()  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
+        gamma_d = self._gamma()
         p_means = gamma_d.sample(sample_shape)
 
         # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
-        counts = (
-            PoissonTorch(l_train).sample().to("mps")
-            if self.on_mps  # TODO: NEED TORCH MPS FIX for 'aten::poisson'
-            else PoissonTorch(l_train).sample()
-        )  # Shape : (n_samples, n_cells_batch, n_vars)
-        return counts
+        if _needs_cpu_detour(self.on_mps, torch.poisson):
+            l_train = l_train.to("cpu")
+        counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+        return counts.to(self._device)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         if self._validate_args:
@@ -453,7 +459,7 @@ class NegativeBinomial(Distribution):
                     stacklevel=settings.warnings_stacklevel,
                 )
 
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_nb_positive(
             value, mu=self.mu, theta=self.theta, eps=self._eps, lgamma_fn=lgamma_fn
         )
@@ -580,7 +586,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_zinb_positive(
             value, self.mu, self.theta, self.zi_logits, eps=1e-08, lgamma_fn=lgamma_fn
         )
@@ -632,9 +638,8 @@ class NegativeBinomialMixture(Distribution):
             self.mu2,
             self.mixture_logits,
         ) = broadcast_all(mu1, theta1, mu2, mixture_logits)
-        self.on_mps = (
-            mu1.device.type == "mps"
-        )  # TODO: This is used until torch will solve the MPS issues
+        self._device = mu1.device
+        self.on_mps = self._device.type == "mps"
         super().__init__(validate_args=validate_args)
 
         if theta2 is not None:
@@ -673,14 +678,16 @@ class NegativeBinomialMixture(Distribution):
             theta = self.theta1
         else:
             theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-        gamma_d = _gamma(theta, mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
+        gamma_d = _gamma(theta, mu, self.on_mps)
         p_means = gamma_d.sample(sample_shape)
 
         # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
+        if _needs_cpu_detour(self.on_mps, torch.poisson):
+            l_train = l_train.to("cpu")
         counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_features)
-        return counts
+        return counts.to(self._device)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         """Log probability."""
@@ -692,7 +699,7 @@ class NegativeBinomialMixture(Distribution):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_mixture_nb(
             value,
             self.mu1,

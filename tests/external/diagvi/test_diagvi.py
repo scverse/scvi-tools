@@ -1600,6 +1600,8 @@ def test_predict_celltype_cross_modal_default(trained_semi_supervised_model):
     assert results["probabilities"].shape[0] == N_OBS_SPATIAL
     # N_LABELS + 1 because LabelsWithUnlabeledObsField adds "unknown" category
     assert results["probabilities"].shape[1] == N_LABELS + 1
+    # The unlabeled category is a sentinel, not a cell type prediction target.
+    assert np.all(results["probabilities"][:, -1] == 0)
     assert len(results["confidence"]) == N_OBS_SPATIAL
 
 

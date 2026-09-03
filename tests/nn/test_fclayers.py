@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import pytest
 import torch
 from torch import nn
 
+import scvi.nn._base_components as base_components_module
 from scvi.nn import FCLayers
 
 # ---------------------------------------------------------------------------
@@ -63,6 +65,51 @@ def test_apply_batch_norm_2d_passthrough():
 
     assert out.shape == (8, n_features)
     assert torch.allclose(out, bn(x))
+
+
+def test_batchnorm_slice_probe_returns_bool():
+    """The probe is cached and answers with a bool on any machine, mps or not."""
+    result = base_components_module._mps_supports_batchnorm_slice()
+    assert isinstance(result, bool)
+    if not torch.backends.mps.is_available():
+        assert result is False
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_apply_batch_norm_3d_on_mps_matches_manual_slicing():
+    n_features = 16
+    bn = nn.BatchNorm1d(n_features).to("mps")
+    bn.eval()
+
+    fc = FCLayers(n_in=n_features, n_out=n_features, use_batch_norm=True, dropout_rate=0.0).to(
+        "mps"
+    )
+    x = torch.randn(4, 8, n_features, device="mps")
+    out = fc._apply_batch_norm(bn, x)
+
+    expected = torch.cat([bn(x[i]).unsqueeze(0) for i in range(x.size(0))], dim=0)
+    assert out.shape == (4, 8, n_features)
+    assert torch.allclose(out, expected)
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_apply_batch_norm_3d_clones_when_mps_lacks_slicing_support(monkeypatch):
+    """Forces the legacy clone-based fallback and checks it still gives the right answer."""
+    monkeypatch.setattr(base_components_module, "_mps_supports_batchnorm_slice", lambda: False)
+
+    n_features = 16
+    bn = nn.BatchNorm1d(n_features).to("mps")
+    bn.eval()
+
+    fc = FCLayers(n_in=n_features, n_out=n_features, use_batch_norm=True, dropout_rate=0.0).to(
+        "mps"
+    )
+    x = torch.randn(4, 8, n_features, device="mps")
+    out = fc._apply_batch_norm(bn, x)
+
+    expected = torch.cat([bn(x[i].clone()).unsqueeze(0) for i in range(x.size(0))], dim=0)
+    assert out.shape == (4, 8, n_features)
+    assert torch.allclose(out, expected)
 
 
 # ---------------------------------------------------------------------------
