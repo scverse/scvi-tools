@@ -1204,6 +1204,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             REGISTRY_KEYS.LABELS_KEY
         )
         label_categories = label_registry.get("categorical_mapping", None)
+        unlabeled_category = label_registry.get("unlabeled_category", None)
 
         # Get latent representations for target modality
         self.module.eval()
@@ -1226,6 +1227,12 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         # Concatenate all logits and compute predictions
         all_logits = torch.cat(all_logits, dim=0)
+        if unlabeled_category is not None:
+            unlabeled_mask = torch.as_tensor(
+                label_categories == unlabeled_category,
+                device=all_logits.device,
+            )
+            all_logits = all_logits.masked_fill(unlabeled_mask.unsqueeze(0), -torch.inf)
         probabilities = torch.nn.functional.softmax(all_logits, dim=-1).numpy()
         predicted_indices = torch.argmax(all_logits, dim=1).numpy()
         confidence = probabilities.max(axis=1)
