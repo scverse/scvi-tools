@@ -1587,13 +1587,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata_manager.view_registry(hide_state_registries=hide_state_registries)
 
     def view_setup_method_args(self) -> None:
-        """Prints setup kwargs used to produce a given registry.
-
-        Parameters
-        ----------
-        registry
-            Registry produced by an AnnDataManager.
-        """
+        """Prints setup kwargs used to produce this model's registry."""
         model_name = self.registry_[_MODEL_NAME_KEY]
         setup_args = self.registry_[_SETUP_ARGS_KEY]
         if model_name is not None and setup_args is not None:
@@ -1612,19 +1606,19 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         version = self.registry_[_SCVI_VERSION_KEY]
         rich.print(f"Anndata setup with scvi-tools version {version}.")
         rich.print()
-        self.view_setup_method_args(self._registry)
+        self.view_setup_method_args()
 
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
 
-        ss = AnnDataManager._get_summary_stats_from_registry(self._registry)
-        dr = self._get_data_registry_from_registry(self._registry)
+        ss = AnnDataManager._get_summary_stats_from_registry(self.registry_)
+        dr = AnnDataManager._get_data_registry_from_registry(self.registry_)
         console.print(self._view_summary_stats(ss))
         console.print(self._view_data_registry(dr))
 
-        if not hide_state_registries:
-            for field in self.fields:
+        if not hide_state_registries and self.adata_manager is not None:
+            for field in self.adata_manager.fields:
                 state_registry = self.get_state_registry(field.registry_key)
                 t = field.view_state_registry(state_registry)
                 if t is not None:
@@ -1727,7 +1721,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             of the setup method that will be used to update the existing values
             in the registry of this instance.
         """
-        self._registry[_SETUP_ARGS_KEY].update(setup_method_args)
+        self.registry_[_SETUP_ARGS_KEY].update(setup_method_args)
 
     def get_normalized_expression(self, *args, **kwargs):
         """Not implemented for this model class.

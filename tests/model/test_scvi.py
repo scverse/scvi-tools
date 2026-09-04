@@ -221,6 +221,9 @@ def test_scvi(gene_likelihood: str, n_latent: int):
     # test view_anndata_setup
     model.view_anndata_setup()
     model.view_anndata_setup(hide_state_registries=True)
+    # test view_registry
+    model.view_registry()
+    model.view_registry(hide_state_registries=True)
 
     assert model.is_trained is True
     z = model.get_latent_representation()
