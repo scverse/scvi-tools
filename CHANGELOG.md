@@ -24,6 +24,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     contains missing values, {pr}`3962`.
 - Fix {func}`~scvi.data.purified_pbmc_dataset` returning a duplicated `cd4_t_helper` batch {pr}`3985`.
 - Fix builtin datasets downloads failing outright on a single transient, {pr}`3987`.
+- Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`
+    raising `AttributeError: '...' object has no attribute '_registry'`: these methods were
+    adapted from {class}`~scvi.data.AnnDataManager` but kept reaching for the manager's
+    `_registry`/`fields` attributes instead of the model's `registry_`/`adata_manager`, {pr}`3991`.
 
 #### Changed
 
