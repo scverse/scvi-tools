@@ -204,7 +204,7 @@ def purified_pbmc_dataset(
         index for subsetting the following list of datasets
         which are used to form the ``PurifiedPBMCDataset``:
         "cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic",
-        "b_cells", "cd4_t_helper", "cd34", "cd56_nk", "cd14_monocytes".
+        "b_cells", "cd34", "cd56_nk", "cd14_monocytes".
 
     Returns
     -------

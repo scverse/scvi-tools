@@ -4,6 +4,7 @@ import os
 import anndata
 import pandas as pd
 
+from scvi.data._download import _pooch_retrieve_with_retries
 from scvi.utils import dependencies
 
 logger = logging.getLogger(__name__)
@@ -44,11 +45,9 @@ _subtype_to_high_level_mapping = {
 
 @dependencies("pooch")
 def _load_smfish(save_path: str = "data/", use_high_level_cluster=True) -> anndata.AnnData:
-    import pooch
-
     save_path = os.path.abspath(save_path)
     adata = anndata.read_h5ad(
-        pooch.retrieve(
+        _pooch_retrieve_with_retries(
             url="https://exampledata.scverse.org/scvi-tools/smfish.h5ad",
             known_hash="a6bba682cf6804e4c1db07cbd2cb16a08143e0b814fd1bd1f936596aa1e27fd1",
             fname="smfish.h5ad",

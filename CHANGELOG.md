@@ -15,6 +15,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
+- Fix {class}`scvi.module.MULTIVAE`'s accessibility reconstruction loss crashing on `mps` for
+    RNA+protein-only `MULTIVI` configurations (`n_input_regions=0`): `BCELoss` asserts on a
+    zero-element `mps` tensor, so the loss over zero features is now returned directly as zero
+    (correct on every backend) rather than routed through the op, {pr}`3989`.
 - Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
     several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
 - Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.
@@ -22,6 +26,15 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix `load_query_data` crashing with `TypeError: '<' not supported between instances of
     'str' and 'float'` when extending batch categories for query data whose batch column
     contains missing values, {pr}`3962`.
+- Fix {func}`~scvi.data.purified_pbmc_dataset` returning a duplicated `cd4_t_helper` batch {pr}`3985`.
+- Fix builtin datasets downloads failing outright on a single transient, {pr}`3987`.
+- Fix `setup_annbatch` crashing with `AttributeError: 'Group' object has no attribute 'asstr'`
+    when reading `var` names from h5ad files written by `anndata>=0.13` with `pandas>=3.0`,
+    which encodes the index as a `nullable-string-array` group instead of a plain string
+    dataset, {pr}`3993`.
+- Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`
+    raising `AttributeError: '...' object has no attribute '_registry'`, {pr}`3995`.
+
 
 #### Changed
 

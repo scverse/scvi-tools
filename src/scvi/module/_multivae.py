@@ -914,6 +914,10 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
 
     def get_reconstruction_loss_accessibility(self, x, p, d):
         """Computes the reconstruction loss for the accessibility data."""
+        if x.shape[-1] == 0:
+            # BCELoss asserts on a zero-element tensor on MPS; the loss over no features is 0
+            # regardless of backend, so skip the call rather than special-case the device.
+            return torch.zeros(x.shape[:-1], device=x.device, dtype=x.dtype)
         reg_factor = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
         return torch.nn.BCELoss(reduction="none")(p * d * reg_factor, (x > 0).float()).sum(dim=-1)
 
