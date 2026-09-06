@@ -170,7 +170,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         self.extra_payload_autotune = extra_payload_autotune
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
-            if library_log_means is None or library_log_means is None:
+            if library_log_means is None or library_log_vars is None:
                 raise ValueError(
                     "If not using observed_lib_size, "
                     "must provide library_log_means and library_log_vars."

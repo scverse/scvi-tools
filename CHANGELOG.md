@@ -28,6 +28,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     when reading `var` names from h5ad files written by `anndata>=0.13` with `pandas>=3.0`,
     which encodes the index as a `nullable-string-array` group instead of a plain string
     dataset, {pr}`3993`.
+- Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`
+    raising `AttributeError: '...' object has no attribute '_registry'`, {pr}`3995`.
+
 
 #### Changed
 
