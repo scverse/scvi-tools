@@ -24,6 +24,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     contains missing values, {pr}`3962`.
 - Fix {func}`~scvi.data.purified_pbmc_dataset` returning a duplicated `cd4_t_helper` batch {pr}`3985`.
 - Fix builtin datasets downloads failing outright on a single transient, {pr}`3987`.
+- Fix `setup_annbatch` crashing with `AttributeError: 'Group' object has no attribute 'asstr'`
+    when reading `var` names from h5ad files written by `anndata>=0.13` with `pandas>=3.0`,
+    which encodes the index as a `nullable-string-array` group instead of a plain string
+    dataset, {pr}`3993`.
 
 #### Changed
 
