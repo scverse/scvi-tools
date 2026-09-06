@@ -11,6 +11,7 @@ from io import StringIO
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import h5py
 import numpy as np
 import pandas as pd
 import pyro
@@ -1376,9 +1377,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             if continuous_covariate_keys:
                 obs_keys += list(continuous_covariate_keys)
 
-            def _get_var_names_from_path(path: str) -> list[str]:
-                import h5py
+            def _read_str_array(obj) -> list[str]:
+                if isinstance(obj, h5py.Group):
+                    # newer anndata encodings (e.g. nullable-string-array) store the
+                    # actual strings under a nested "values" dataset
+                    obj = obj["values"]
+                return list(obj.asstr()[:])
 
+            def _get_var_names_from_path(path: str) -> list[str]:
                 with h5py.File(path, "r") as f:
                     if layer is None and "raw" in f and "var" in f["raw"]:
                         var_grp = f["raw/var"]
@@ -1389,11 +1395,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     else:
                         idx_key = var_grp.attrs.get("_index", None)
                     if idx_key and idx_key in var_grp:
-                        return list(var_grp[idx_key].asstr()[:])
+                        return _read_str_array(var_grp[idx_key])
                     # fallback: try common index column names
                     for col in ("_index", "index", "gene_ids", "gene_names"):
                         if col in var_grp:
-                            return list(var_grp[col].asstr()[:])
+                            return _read_str_array(var_grp[col])
                     raise ValueError(f"Cannot find var index in {path}")
 
             def _get_var_names_from_collection(store_path: str) -> list[str]:
@@ -1415,8 +1421,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 )
 
             def _load_adata_from_path(path: str) -> ad.AnnData:
-                import h5py
-
                 # Use h5py directly to avoid ad.experimental.read_lazy, which creates
                 # dask arrays for ALL elements including uns — breaking on zero-shape datasets.
                 f = h5py.File(path, "r")
