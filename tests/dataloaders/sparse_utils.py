@@ -35,6 +35,23 @@ class TestSparseDataSplitter(scvi.dataloaders.DataSplitter):
         return batch
 
 
+class TestInputCSRDataSplitter(scvi.dataloaders.DataSplitter):
+    """Asserts X stays sparse CSR after transfer (INPUT_CSR mode); rest is dense."""
+
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        batch = super().on_after_batch_transfer(batch, dataloader_idx)
+
+        X = batch.get(scvi.REGISTRY_KEYS.X_KEY)
+        assert isinstance(X, torch.Tensor)
+        assert X.layout is torch.sparse_csr  # kept sparse; CSC normalized to CSR
+
+        for key, val in batch.items():
+            if key != scvi.REGISTRY_KEYS.X_KEY and isinstance(val, torch.Tensor):
+                assert val.layout is torch.strided
+
+        return batch
+
+
 class TestSparseTrainingPlan(scvi.train.TrainingPlan):
     def training_step(self, batch, batch_idx):
         pass
@@ -94,13 +111,22 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
         devices: int | list[int] | str = "auto",
         expected_sparse_layout: Literal["csr", "csc"] = None,
         external_indexing: list[np.array, np.array, np.array] | None = None,
+        sparse_mode: str = "TRANSPORT",
     ):
-        data_splitter = TestSparseDataSplitter(
-            self.adata_manager,
-            expected_sparse_layout=expected_sparse_layout,
-            load_sparse_tensor=True,
-            external_indexing=external_indexing,
-        )
+        if sparse_mode == "INPUT_CSR":
+            data_splitter = TestInputCSRDataSplitter(
+                self.adata_manager,
+                load_sparse_tensor=True,
+                sparse_mode="INPUT_CSR",
+                external_indexing=external_indexing,
+            )
+        else:
+            data_splitter = TestSparseDataSplitter(
+                self.adata_manager,
+                expected_sparse_layout=expected_sparse_layout,
+                load_sparse_tensor=True,
+                external_indexing=external_indexing,
+            )
         training_plan = TestSparseTrainingPlan(self.module)
         runner = TrainRunner(
             self,

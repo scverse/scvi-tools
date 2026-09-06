@@ -178,7 +178,35 @@ class FCLayers(nn.Module):
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
         cov_list = cont_list + one_hot_cat_list
+
+        # Sparse fast path: keep a CSR input sparse through the first linear layer
+        # (x @ W.T), densifying only afterwards for BatchNorm/activation/dropout.
+        sparse_input = isinstance(x, torch.Tensor) and x.layout in (
+            torch.sparse_csr,
+            torch.sparse_csc,
+        )
+        if sparse_input and x.layout is torch.sparse_csc:
+            # CSC@dense backward is unreliable on older PyTorch (issue #2550).
+            x = x.to_sparse_csr()
+
         for i, layers in enumerate(self.fc_layers):
+            if i == 0 and sparse_input:
+                linear = layers[0]
+                weight = linear.weight  # [n_out, n_in (+ covariates)]
+                n_in = x.shape[1]
+                # Split the linear: sparse x-block plus dense covariate-block. This
+                # reproduces the dense path's concat-then-matmul without densifying x.
+                h = torch.sparse.mm(x, weight[:, :n_in].t())
+                if cov_list and self.inject_into_layer(i):
+                    cov = torch.cat(cov_list, dim=-1).to(dtype=weight.dtype)
+                    h = h + cov @ weight[:, n_in:].t()
+                if linear.bias is not None:
+                    h = h + linear.bias
+                x = h  # dense from here on
+                for layer in layers[1:]:
+                    if layer is not None:
+                        x = layer(x)
+                continue
             for layer in layers:
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
