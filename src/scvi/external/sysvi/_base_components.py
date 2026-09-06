@@ -59,7 +59,7 @@ class EncoderDecoder(Module):
         n_input: int,
         n_output: int,
         n_cat_list: list[int],
-        n_cont: int,
+        n_continuous: int,
         n_hidden: int = 256,
         n_layers: int = 3,
         var_mode: Literal["sample_feature", "feature"] = "feature",
@@ -73,7 +73,7 @@ class EncoderDecoder(Module):
         self.decoder_y = FCLayers(
             n_in=n_input,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
+            n_continuous=n_continuous,
             n_out=n_hidden,
             n_hidden=n_hidden,
             n_layers=n_layers,
@@ -116,7 +116,7 @@ class EncoderDecoder(Module):
         parametrized with the predicted parameters.
         """
         cat_list = [batch_index] + cat_list
-        q_ = self.decoder_y(x, *cat_list, cont=cont)
+        q_ = self.decoder_y(x, *cat_list, cont_input=cont)
         q_m = self.mean_encoder(q_)
         if q_m.isnan().any() or q_m.isinf().any():
             warnings.warn(
