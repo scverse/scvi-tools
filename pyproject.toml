@@ -14,7 +14,7 @@ maintainers = [
 authors = [
   { name = "The scvi-tools development team" },
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
@@ -23,7 +23,6 @@ classifiers = [
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -175,9 +174,9 @@ envs.hatch-test.installer = "uv"
 envs.hatch-test.features = [ "optional" ]
 envs.hatch-test.matrix = [
   # Test every supported Python version with normal deps
-  { deps = [ "stable" ], python = [ "3.12", "3.13", "3.14" ] },
+  { deps = [ "stable" ], python = [ "3.13", "3.14", "3.15" ] },
   # Test the newest supported Python version also with pre-release deps
-  { deps = [ "pre" ], python = [ "3.14" ] },
+  { deps = [ "pre" ], python = [ "3.15" ] },
 ]
 # If the matrix variable `deps` is set to "pre",
 # set the environment variable `UV_PRERELEASE` to "allow".
