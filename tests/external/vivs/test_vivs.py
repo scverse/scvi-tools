@@ -36,6 +36,36 @@ def test_importance_score_net_linear_binary_shapes():
     assert torch.isfinite(out["loss"])
 
 
+def test_importance_score_net_singleton_minibatch_training_mode():
+    """A batch_size=1 minibatch must not crash BatchNorm1d during training.
+
+    ``DataSplitter`` defaults to ``drop_last=False``, so the final training minibatch
+    can have exactly one cell. Regression test for the ``_norm1`` running-stats fallback.
+    """
+    from scvi.external.vivs._module import ImportanceScoreNet
+
+    net = ImportanceScoreNet(n_input=20, n_responses=5, n_hidden=8, loss_type="mse", linear=False)
+    net.train()
+    # Warm up running stats with a normal-size batch first.
+    net(torch.rand(16, 20), torch.randn(16, 5))
+
+    out = net(torch.rand(1, 20), torch.randn(1, 5))
+    assert out["h"].shape == (1, 5)
+    assert torch.isfinite(out["loss"])
+
+
+def test_importance_score_net_linear_singleton_minibatch_training_mode():
+    from scvi.external.vivs._module import ImportanceScoreNet
+
+    net = ImportanceScoreNet(n_input=20, n_responses=1, loss_type="binary", linear=True)
+    net.train()
+    net(torch.rand(16, 20), (torch.rand(16, 1) > 0.5).float())
+
+    out = net(torch.rand(1, 20), (torch.rand(1, 1) > 0.5).float())
+    assert out["h"].shape == (1, 1)
+    assert torch.isfinite(out["loss"])
+
+
 def test_vivs_module_phase_x_loss():
     from scvi.external.vivs._module import VIVSModule
     from scvi.module.base import LossOutput
@@ -144,6 +174,48 @@ def test_vivs_untrained_x_model_raises(vivs_adata):
     VIVS.setup_anndata(vivs_adata, y_obsm_key="protein_expression", batch_key="batch")
     with pytest.raises(ValueError, match="must already be trained"):
         VIVS(vivs_adata, x_model=scvi_model)
+
+
+def test_vivs_pretrained_x_model_gene_order_mismatch_raises(vivs_adata):
+    """A pretrained x_model registered on genes in a different order must be rejected.
+
+    Otherwise VIVS would silently reuse each frozen encoder/decoder weight column for
+    the wrong gene, mis-assigning every knockoff and p-value.
+    """
+    from scvi.external.vivs._model import VIVS
+    from scvi.model import SCVI
+
+    SCVI.setup_anndata(vivs_adata, batch_key="batch")
+    scvi_model = SCVI(vivs_adata, n_hidden=8, n_latent=4)
+    scvi_model.train(max_epochs=1)
+
+    reordered_adata = vivs_adata[:, ::-1].copy()
+    VIVS.setup_anndata(reordered_adata, y_obsm_key="protein_expression", batch_key="batch")
+    with pytest.raises(ValueError, match="different genes"):
+        VIVS(reordered_adata, x_model=scvi_model)
+
+
+def test_vivs_pretrained_x_model_batch_mapping_mismatch_raises(vivs_adata):
+    """A pretrained x_model registered with a different batch category set must be rejected.
+
+    Otherwise the frozen encoder/decoder would read batch indices through the wrong
+    one-hot columns.
+    """
+    from scvi.external.vivs._model import VIVS
+    from scvi.model import SCVI
+
+    SCVI.setup_anndata(vivs_adata, batch_key="batch")
+    scvi_model = SCVI(vivs_adata, n_hidden=8, n_latent=4)
+    scvi_model.train(max_epochs=1)
+
+    extra_batch_adata = vivs_adata.copy()
+    extra_batch_adata.obs["batch"] = extra_batch_adata.obs["batch"].astype("object")
+    extra_batch_adata.obs.loc[extra_batch_adata.obs_names[0], "batch"] = "batch_2"
+    extra_batch_adata.obs["batch"] = extra_batch_adata.obs["batch"].astype("category")
+
+    VIVS.setup_anndata(extra_batch_adata, y_obsm_key="protein_expression", batch_key="batch")
+    with pytest.raises(ValueError, match="different batch category mapping"):
+        VIVS(extra_batch_adata, x_model=scvi_model)
 
 
 def test_vivs_predict_t(vivs_adata):
