@@ -9,6 +9,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add support for Python 3.15, {pr}`3997`.
+
 #### Fixed
 
 - Fix {class}`scvi.module.MULTIVAE`'s accessibility reconstruction loss crashing on `mps` for
@@ -42,6 +44,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Removed
 
+- Removed support for Python 3.12, {pr}`3997`.
 - Removed the `tests`, `test`, `editing`, `dev`, `docs` and `docsbuild` extras in favour of the `dev`, `test` and `doc` dependency groups, {pr}`3607`.
 
 ### 1.5.0 (2026-07-08)
