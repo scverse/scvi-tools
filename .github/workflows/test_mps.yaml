@@ -61,6 +61,7 @@ jobs:
           COLUMNS: 120
           PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.0
           PYTORCH_ENABLE_MPS_FALLBACK: 1
+          SCVI_ALLOW_MPS_AUTO: "1"
         run: uvx hatch run $HATCH_ENV:run-cov -v --color=yes --accelerator mps --devices auto
 
       - name: Generate coverage report
