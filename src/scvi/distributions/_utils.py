@@ -35,15 +35,18 @@ def _needs_cpu_detour(on_mps: bool, op: Callable[[torch.Tensor], torch.Tensor]) 
 
 @cache
 def _mps_supports_lgamma_on_noncontiguous() -> bool:
-    """Whether ``torch.lgamma`` can run on a non-contiguous (broadcast-expanded) MPS tensor.
+    """Whether ``torch.lgamma`` is correct on a non-contiguous (broadcast-expanded) MPS tensor.
 
-    Probed rather than version-compared for the same reason as :func:`_mps_supports`.
+    Probed rather than version-compared for the same reason as :func:`_mps_supports`, but the
+    probe has to compare values: on the builds that need the workaround this does not raise,
+    it returns the right numbers for the first row of a stride-0 expanded tensor and ``inf``
+    for the replicated ones.
     """
     try:
-        torch.lgamma(torch.ones(1, 4, device="mps").expand(4, 4))
+        expanded = (torch.arange(1, 5, device="mps", dtype=torch.float32) / 2).expand(4, 4)
+        return bool(torch.allclose(torch.lgamma(expanded), torch.lgamma(expanded.contiguous())))
     except (NotImplementedError, RuntimeError):
         return False
-    return True
 
 
 def subset_distribution(

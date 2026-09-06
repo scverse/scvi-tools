@@ -156,6 +156,43 @@ def test_cpu_detour_path_still_samples_correctly(monkeypatch):
     assert _gamma(theta, mu, on_mps=True).concentration.device.type == "cpu"
 
 
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_lgamma_noncontiguous_probe_compares_values_not_just_exceptions():
+    # The failure mode the detour exists for is a wrong value, not an exception: on the torch
+    # builds that need it, lgamma on a stride-0 expanded mps tensor returns the right numbers
+    # for the first row and inf for the replicated ones. A probe that only catches exceptions
+    # would report support that is not there.
+    if not _mps_supports_lgamma_on_noncontiguous():
+        pytest.skip("this build has no non-contiguous mps lgamma, nothing to check")
+    expanded = (torch.arange(1, 5, device="mps", dtype=torch.float32) / 2).expand(4, 4)
+    assert torch.allclose(torch.lgamma(expanded), torch.lgamma(expanded.contiguous()))
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_mixture_log_prob_is_finite_for_a_broadcast_theta_on_mps():
+    # NegativeBinomialMixture does not copy its parameters contiguously the way
+    # NegativeBinomial does, so `broadcast_all` leaves a per-gene theta as a stride-0
+    # expanded view that reaches lgamma directly. This is the shape totalVI uses.
+    mu1 = 15.0 * torch.ones(4, 6)
+    mu2 = 30.0 * torch.ones(4, 6)
+    theta1 = 100.0 + torch.rand(6)
+    logits = torch.zeros(4, 6)
+    x = torch.randint(0, 20, (4, 6)).float()
+
+    def log_prob_on(device):
+        dist = NegativeBinomialMixture(
+            mu1=mu1.to(device),
+            mu2=mu2.to(device),
+            theta1=theta1.to(device),
+            mixture_logits=logits.to(device),
+        )
+        return dist.log_prob(x.to(device))
+
+    on_mps = log_prob_on("mps")
+    assert torch.isfinite(on_mps).all()
+    assert torch.allclose(on_mps.cpu(), log_prob_on("cpu"), atol=1e-4)
+
+
 def test_lgamma_noncontiguous_support_probe_answers_without_a_device():
     supported = _mps_supports_lgamma_on_noncontiguous()
     assert isinstance(supported, bool)
