@@ -28,6 +28,7 @@ from scvi.data import AnnDataManager, fields
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
     _ADATA_MINIFY_TYPE_UNS_KEY,
+    _DR_MOD_KEY,
     _FIELD_REGISTRIES_KEY,
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
@@ -54,8 +55,6 @@ from scvi.model.base._save_load import (
 from scvi.model.utils import get_minified_adata_scrna, get_minified_mudata
 from scvi.utils import attrdict, dependencies, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
-
-from . import _constants
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -152,7 +151,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             self._adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
             self._register_manager_for_instance(self.adata_manager)
             # Suffix a registry instance variable with _ to include it when saving the model.
-            self.registry_ = self._adata_manager._registry
+            self.registry_ = self._adata_manager.registry
             self.summary_stats = AnnDataManager._get_summary_stats_from_registry(self.registry_)
         elif registry is not None:
             self._adata = None
@@ -1616,19 +1615,19 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         version = self.registry_[_SCVI_VERSION_KEY]
         rich.print(f"Anndata setup with scvi-tools version {version}.")
         rich.print()
-        self.view_setup_method_args(self._registry)
+        self.view_setup_method_args()
 
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
 
-        ss = AnnDataManager._get_summary_stats_from_registry(self._registry)
-        dr = self._get_data_registry_from_registry(self._registry)
+        ss = AnnDataManager._get_summary_stats_from_registry(self.registry_)
+        dr = AnnDataManager._get_data_registry_from_registry(self.registry_)
         console.print(self._view_summary_stats(ss))
         console.print(self._view_data_registry(dr))
 
-        if not hide_state_registries:
-            for field in self.fields:
+        if not hide_state_registries and self.adata_manager is not None:
+            for field in self.adata_manager.fields:
                 state_registry = self.get_state_registry(field.registry_key)
                 t = field.view_state_registry(state_registry)
                 if t is not None:
@@ -1702,7 +1701,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         )
 
         for registry_key, data_loc in data_registry.items():
-            mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
+            mod_key = getattr(data_loc, _DR_MOD_KEY, None)
             attr_name = data_loc.attr_name
             attr_key = data_loc.attr_key
             scvi_data_str = "adata"
@@ -1731,7 +1730,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             of the setup method that will be used to update the existing values
             in the registry of this instance.
         """
-        self._registry[_SETUP_ARGS_KEY].update(setup_method_args)
+        self.registry_[_SETUP_ARGS_KEY].update(setup_method_args)
 
     def get_normalized_expression(self, *args, **kwargs):
         """Not implemented for this model class.
@@ -1940,7 +1939,7 @@ class BaseMudataMinifiedModeModelClass(BaseModelClass):
         The modification is not done inplace -- instead the model is assigned a new (minified)
         version of the :class:`~mudata.MuData`.
         """
-        if self.adata_manager._registry["setup_method_name"] != "setup_mudata":
+        if self.adata_manager.registry[_SETUP_METHOD_NAME] != "setup_mudata":
             raise ValueError(
                 f"MuData must be registered with {self.__name__}.setup_mudata to use this method."
             )
