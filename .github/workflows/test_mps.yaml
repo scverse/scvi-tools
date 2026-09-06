@@ -31,7 +31,7 @@ jobs:
       )
 
     name: mps
-    runs-on: [self-hosted, macOS, X64, MPS]
+    runs-on: macos-latest
 
     defaults:
       run:
