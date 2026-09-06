@@ -420,7 +420,7 @@ class AutotuneExperiment:
             self.is_mudata = True
             # need to forcefully register it
             data_manager = self.model_cls._get_most_recent_anndata_manager(data, required=True)
-            self._setup_method_name = data_manager._registry.get(
+            self._setup_method_name = data_manager.registry.get(
                 _SETUP_METHOD_NAME, "setup_anndata"
             )
             self._setup_method_args = data_manager._get_setup_method_args().get(
@@ -464,7 +464,7 @@ class AutotuneExperiment:
         self._data = value
         if isinstance(value, AnnData | MuData):
             data_manager = self.model_cls._get_most_recent_anndata_manager(value, required=True)
-            self._setup_method_name = data_manager._registry.get(
+            self._setup_method_name = data_manager.registry.get(
                 _SETUP_METHOD_NAME, "setup_anndata"
             )
             self._setup_method_args = data_manager._get_setup_method_args().get(
