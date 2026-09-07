@@ -14,7 +14,11 @@ from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data._utils import _validate_adata_dataloader_input
-from scvi.distributions._utils import DistributionConcatenator, subset_distribution
+from scvi.distributions._utils import (
+    DistributionConcatenator,
+    _needs_cpu_detour,
+    subset_distribution,
+)
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._de_core import _de_core
 from scvi.model.utils import _de_core_for_annbatch
@@ -690,10 +694,10 @@ class RNASeqMixin:
             # This gamma is using scVI manuscript notation
             p = rate / (rate + px_dispersion)
             r = px_dispersion
-            # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
+            on_mps = device.type == "mps"
             l_train = (
                 torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample()
-                if device.type == "mps"
+                if _needs_cpu_detour(on_mps, torch._standard_gamma)
                 else torch.distributions.Gamma(r, (1 - p) / p).sample().cpu()
             )
             data = l_train.numpy()

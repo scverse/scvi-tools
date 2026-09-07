@@ -9,6 +9,7 @@ from torch import nn as nn
 from torch.distributions import Categorical, Dirichlet, MixtureSameFamily, Normal
 from torch.distributions import kl_divergence as kl
 
+from scvi.distributions._utils import _needs_cpu_detour
 from scvi.external.velovi._constants import VELOVI_REGISTRY_KEYS
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
@@ -418,9 +419,10 @@ class VELOVAE(BaseModuleClass):
         """Runs the generative model."""
         decoder_input = z
         px_pi_alpha, px_rho, px_tau = self.decoder(decoder_input, latent_dim=latent_dim)
-        # TODO: NEED TORCH MPS FIX for 'aten::_dirichlet'
-        if px_pi_alpha.device.type == "mps":
-            px_pi = Dirichlet(px_pi_alpha.to("cpu")).rsample().to("mps")
+        device = px_pi_alpha.device
+        on_mps = device.type == "mps"
+        if _needs_cpu_detour(on_mps, torch._sample_dirichlet):
+            px_pi = Dirichlet(px_pi_alpha.to("cpu")).rsample().to(device)
         else:
             px_pi = Dirichlet(px_pi_alpha).rsample()
 
