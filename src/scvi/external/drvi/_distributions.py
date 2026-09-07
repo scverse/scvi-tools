@@ -5,7 +5,8 @@ import torch.nn.functional as F
 from torch.distributions import Distribution, constraints
 from torch.distributions.utils import broadcast_all
 
-from scvi.distributions._negative_binomial import _gamma, torch_lgamma_mps
+from scvi.distributions._negative_binomial import _gamma, _lgamma_fn
+from scvi.distributions._utils import _needs_cpu_detour
 
 
 class LogNegativeBinomial(Distribution):
@@ -48,7 +49,8 @@ class LogNegativeBinomial(Distribution):
         validate_args: bool = False,
     ) -> None:
         self._eps = 1e-8
-        self.on_mps = log_m.device.type == "mps"  # TODO: until torch solves the MPS issues
+        self._device = log_m.device
+        self.on_mps = self._device.type == "mps"
         if log_scale is None:
             self.log_m, self.log_r = broadcast_all(log_m, log_r)
             self.log_scale = None
@@ -97,7 +99,7 @@ class LogNegativeBinomial(Distribution):
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         """Negative-binomial log-probability evaluated from the log-parameters."""
         log_m, log_r, eps = self.log_m, self.log_r, self._eps
-        lgamma = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma = _lgamma_fn(self.on_mps)
         r = torch.exp(log_r)
         # log C(value + r - 1, value)
         choice = lgamma(value + r + eps) - lgamma(value + 1 + eps) - lgamma(r + eps)
@@ -111,16 +113,14 @@ class LogNegativeBinomial(Distribution):
     def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
         """Sample via the Gamma-Poisson mixture (same as a negative binomial)."""
         sample_shape = sample_shape or torch.Size()
-        gamma_d = _gamma(self.theta, self.mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU
+        gamma_d = _gamma(self.theta, self.mu, self.on_mps)
         p_means = gamma_d.sample(sample_shape)
         # Clamp as the distribution objects can behave badly when their parameters are too high.
         l_train = torch.clamp(p_means, max=1e8)
-        counts = (
-            torch.distributions.Poisson(l_train).sample().to("mps")
-            if self.on_mps  # TODO: NEED TORCH MPS FIX for 'aten::poisson'
-            else torch.distributions.Poisson(l_train).sample()
-        )
-        return counts
+        if _needs_cpu_detour(self.on_mps, torch.poisson):
+            l_train = l_train.to("cpu")
+        counts = torch.distributions.Poisson(l_train).sample()
+        return counts.to(self._device)
 
     def __repr__(self) -> str:
         param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]

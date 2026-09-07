@@ -5,8 +5,10 @@ import numpy as np
 import pytest
 import torch
 
+import scvi.module._autozivae as autozivae_module
 from scvi.data import synthetic_iid
 from scvi.model import AUTOZI
+from scvi.module import AutoZIVAE
 from scvi.utils import attrdict
 
 
@@ -138,3 +140,28 @@ def test_autozi():
         autozivae.get_normalized_expression(transform_batch="batch_1")
         autozivae.get_normalized_expression(n_samples=2)
         autozivae.differential_expression(groupby="labels", group1="label_1")
+
+
+def test_sample_from_beta_distribution_gamma_cpu_detour_forced(monkeypatch):
+    """Forces the CPU detour the way a torch without an MPS '_standard_gamma' kernel would."""
+    monkeypatch.setattr(autozivae_module, "_needs_cpu_detour", lambda on_mps, op: True)
+
+    vae = AutoZIVAE(n_input=50)
+    alpha = torch.rand(8, 50) + 0.5
+    beta = torch.rand(8, 50) + 0.5
+
+    sample = vae.sample_from_beta_distribution(alpha, beta)
+    assert sample.shape == (8, 50)
+    assert (sample > 0).all()
+    assert (sample < 1).all()
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_sample_from_beta_distribution_stays_on_mps():
+    vae = AutoZIVAE(n_input=50).to("mps")
+    alpha = (torch.rand(8, 50, device="mps") + 0.5).contiguous()
+    beta = (torch.rand(8, 50, device="mps") + 0.5).contiguous()
+
+    sample = vae.sample_from_beta_distribution(alpha, beta)
+    assert sample.device.type == "mps"
+    assert sample.shape == (8, 50)
