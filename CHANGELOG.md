@@ -52,6 +52,15 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Changed
 
+- Use the fused implementation of `Adam` and `AdamW` in {class}`scvi.train.TrainingPlan` when the
+    backend supports it, falling back to the standard one when it does not. The fused path issues
+    roughly half the kernels per step and removes most of the host-device synchronisations, which
+    matters most on `mps`: on the introduction tutorial's dataset, training goes from 0.989 to
+    0.697 s/epoch on `mps` and from 1.138 to 1.050 s/epoch on `cpu`, for an unchanged ELBO. Pass
+    `plan_kwargs={"fused_optimizer": False}` to restore the previous behaviour, {pr}`3998`.
+- Restore `torch._dynamo.config.suppress_errors` once training ends instead of leaving it enabled
+    for the rest of the process, and warn when `compile=True` silently fell back to eager, so a
+    failed compilation is no longer indistinguishable from a successful one, {pr}`3998`.
 - Updated dockerfile to py3.13, {pr}`3920`.
 - Updated several github workflows with recent github actions modules, {pr}`3916`.
 - Align the repository with the [scverse cookiecutter template](https://github.com/scverse/cookiecutter-scverse) v0.8.0 and track it via `.cruft.json`, so template updates arrive as automated pull requests, {pr}`3607`.
