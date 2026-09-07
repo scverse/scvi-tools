@@ -1,5 +1,6 @@
 import collections
 from collections.abc import Callable, Iterable
+from functools import cache
 from typing import Literal
 
 import torch
@@ -12,6 +13,23 @@ from scvi.nn._utils import ExpActivation
 
 def _identity(x):
     return x
+
+
+@cache
+def _mps_supports_batchnorm_slice() -> bool:
+    """Whether BatchNorm1d can run on a non-contiguous MPS slice without a defensive ``.clone()``.
+
+    Probed rather than version-compared for the same reason as
+    :func:`scvi.distributions._utils._mps_supports`: source and nightly builds report versions
+    that a comparison reads wrongly. See https://github.com/pytorch/pytorch/issues/132605.
+    """
+    try:
+        bn = nn.BatchNorm1d(1).to("mps")
+        x = torch.zeros(2, 3, 1, device="mps")
+        bn(x[0])
+    except (NotImplementedError, RuntimeError):
+        return False
+    return True
 
 
 class FCLayers(nn.Module):
@@ -190,7 +208,7 @@ class FCLayers(nn.Module):
     def _apply_batch_norm(self, layer: nn.Module, x: torch.Tensor) -> torch.Tensor:
         """Apply a batch-norm layer, handling the 3D (and MPS) case."""
         if x.dim() == 3:
-            if x.device.type == "mps":  # TODO: remove this when MPS supports for loop.
+            if x.device.type == "mps" and not _mps_supports_batchnorm_slice():
                 return torch.cat([(layer(slice_x.clone())).unsqueeze(0) for slice_x in x], dim=0)
             return torch.cat([layer(slice_x).unsqueeze(0) for slice_x in x], dim=0)
         return layer(x)

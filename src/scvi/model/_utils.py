@@ -1,4 +1,5 @@
 import logging
+import os
 import warnings
 from collections.abc import Iterable as IterableClass
 from collections.abc import Sequence
@@ -110,8 +111,14 @@ def parse_device_args(
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
-    elif _accelerator == "mps" and accelerator == "auto":
-        # auto accelerator should not default to mps
+    elif (
+        _accelerator == "mps"
+        and accelerator == "auto"
+        and not os.environ.get("SCVI_ALLOW_MPS_AUTO")
+    ):
+        # auto accelerator should not default to mps, unless a dedicated device-testing CI run
+        # (e.g. test_mps.yaml) opts in via SCVI_ALLOW_MPS_AUTO so `auto` behaves the way it
+        # already does on CUDA machines, without changing the library's real default.
         connector = _AcceleratorConnector(accelerator="cpu", devices=devices)
         _accelerator = connector._accelerator_flag
         _devices = connector._devices_flag
@@ -122,12 +129,13 @@ def parse_device_args(
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
-    elif _accelerator == "mps" and accelerator != "auto":
+    elif _accelerator == "mps":
         warnings.warn(
-            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
-            "operations are supported with this backend. as a result, some models might be slower "
-            "and less accurate than usual. Please verify your analysis!"
-            "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
+            "`accelerator` has been set to `mps`. Not all PyTorch operations are implemented "
+            "for this backend, so some models may be slower or may fail on unsupported ops; "
+            "refer to https://github.com/pytorch/pytorch/issues/77764 for more details. "
+            "Results will not be bit-identical to CPU or CUDA runs because RNG streams differ "
+            "per backend.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
