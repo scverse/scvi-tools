@@ -60,6 +60,9 @@ jobs:
       - name: List all installed package versions
         run: uvx hatch run $HATCH_ENV:uv pip list
 
+      - name: Enable MSVC (cl.exe) for torch.compile
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+
       - name: Run tests using hatch
         env:
           MPLBACKEND: agg
