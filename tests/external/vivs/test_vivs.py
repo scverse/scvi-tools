@@ -279,6 +279,84 @@ def test_vivs_get_importance_auto_vmap_threshold(vivs_adata):
     assert res["pvalues"].shape[0] == vivs_adata.n_vars
 
 
+def test_vivs_get_importance_defaults_to_validation_indices(vivs_adata):
+    """By default, significance scores must be computed on held-out data.
+
+    Regression test for a review comment: computing p-values on all data (including
+    cells the importance-score net was trained on) breaks CRT calibration.
+    """
+    from scvi.external.vivs._model import VIVS
+
+    VIVS.setup_anndata(vivs_adata, y_obsm_key="protein_expression", batch_key="batch")
+    model = VIVS(vivs_adata, n_hidden=8, n_latent=4)
+    model.train(max_epochs=1, train_size=0.7)
+
+    assert model.validation_indices is not None
+    assert 0 < len(model.validation_indices) < vivs_adata.n_obs
+
+    torch.manual_seed(0)
+    res_default = model.get_importance(n_mc_samples=3, use_vmap=False)
+    torch.manual_seed(0)
+    res_on_validation = model.get_importance(
+        indices=model.validation_indices, n_mc_samples=3, use_vmap=False
+    )
+    np.testing.assert_allclose(res_default["obs_ts"], res_on_validation["obs_ts"])
+    np.testing.assert_allclose(res_default["null_ts"], res_on_validation["null_ts"])
+
+    torch.manual_seed(0)
+    res_all_cells = model.get_importance(
+        indices=np.arange(vivs_adata.n_obs), n_mc_samples=3, use_vmap=False
+    )
+    assert not np.allclose(res_default["obs_ts"], res_all_cells["obs_ts"])
+
+
+def test_vivs_get_importance_explicit_adata_uses_all_its_cells(vivs_adata):
+    """Passing `adata` explicitly (e.g. a query dataset) must not silently subset to
+    `self.validation_indices`, which was computed for the original training data."""
+    from scvi.external.vivs._model import VIVS
+
+    VIVS.setup_anndata(vivs_adata, y_obsm_key="protein_expression", batch_key="batch")
+    model = VIVS(vivs_adata, n_hidden=8, n_latent=4)
+    model.train(max_epochs=1, train_size=0.7)
+
+    torch.manual_seed(0)
+    res_explicit_adata = model.get_importance(adata=vivs_adata, n_mc_samples=3, use_vmap=False)
+    torch.manual_seed(0)
+    res_all_cells = model.get_importance(
+        indices=np.arange(vivs_adata.n_obs), n_mc_samples=3, use_vmap=False
+    )
+    np.testing.assert_allclose(res_explicit_adata["obs_ts"], res_all_cells["obs_ts"])
+
+
+def test_vivs_get_hier_importance_defaults_to_validation_indices(vivs_adata):
+    """Same held-out-by-default guarantee as `get_importance`, for the hierarchical CRT."""
+    from scvi.external.vivs._model import VIVS
+
+    VIVS.setup_anndata(vivs_adata, y_obsm_key="protein_expression", batch_key="batch")
+    model = VIVS(vivs_adata, n_hidden=8, n_latent=4)
+    model.train(max_epochs=1, train_size=0.7)
+
+    torch.manual_seed(0)
+    res_default = model.get_hier_importance(n_clusters_list=[5], batch_size=64, n_mc_samples=3)
+    torch.manual_seed(0)
+    res_on_validation = model.get_hier_importance(
+        n_clusters_list=[5],
+        batch_size=64,
+        n_mc_samples=3,
+        indices=model.validation_indices,
+    )
+    np.testing.assert_allclose(res_default["pval"].values, res_on_validation["pval"].values)
+
+    torch.manual_seed(0)
+    res_all_cells = model.get_hier_importance(
+        n_clusters_list=[5],
+        batch_size=64,
+        n_mc_samples=3,
+        indices=np.arange(vivs_adata.n_obs),
+    )
+    assert not np.allclose(res_default["pval"].values, res_all_cells["pval"].values)
+
+
 def test_vivs_get_cell_scores(vivs_adata):
     from scvi.external.vivs._model import VIVS
 

@@ -123,7 +123,6 @@ optional-dependencies.tutorials = [
   "cell2location",
   "jupyter",
   "matplotlib",
-  "plotnine",
   "scrublet",
   "scvi-tools[dataloaders,optional]",
   "seaborn",
