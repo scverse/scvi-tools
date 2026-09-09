@@ -48,6 +48,12 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     dataset, {pr}`3993`.
 - Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`
     raising `AttributeError: '...' object has no attribute '_registry'`, {pr}`3995`.
+- Fix {class}`scvi.external.CYTOVI` training producing a `nan` ELBO with `protein_likelihood="beta"`
+    when overlapping antibody panels are merged with {func}`~scvi.external.cytovi.merge_batches`.
+    The masked placeholder value (`0`) used for markers missing from a panel falls outside the
+    support of the `Beta` likelihood, so `log_prob` evaluated to `-inf` at those entries and,
+    once multiplied by the (zero) mask, produced `nan` losses. Masked entries are now substituted
+    with a likelihood-safe value before scoring, see {pr}`4007`.
 
 
 #### Changed
