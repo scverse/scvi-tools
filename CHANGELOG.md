@@ -9,6 +9,23 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Extend native `mps` support across the rest of scvi-tools' gamma/Poisson/Dirichlet/Binomial
+    sampling and `lgamma` call sites, on top of
+    {class}`scvi.distributions.NegativeBinomial`, {class}`scvi.distributions.ZeroInflatedNegativeBinomial`
+    and {class}`scvi.distributions.NegativeBinomialMixture`. The CPU detours these relied on for
+    `aten::_standard_gamma`, `aten::poisson`, `aten::_sample_dirichlet` and `aten::binomial` are
+    now taken only when the installed torch build actually lacks the kernel (probed at runtime,
+    not hardcoded), so training and sampling stay on `mps` end-to-end as torch's MPS backend gains
+    coverage. This reaches {class}`scvi.distributions.ZeroInflatedGamma` and
+    {class}`scvi.distributions.BetaBinomial` (previously had no `mps` handling at all),
+    {class}`scvi.module.VAE`'s Poisson likelihood, {class}`scvi.module.AutoZIVAE`,
+    {class}`scvi.model.TOTALVI` and {class}`scvi.model.base.RNASeqMixin`'s posterior predictive
+    sampling, {class}`scvi.external.VELOVI`'s Dirichlet mixture weights,
+    {class}`scvi.external.DRVI`'s log-space negative binomial, and
+    {func}`~scvi.data.poisson_gene_selection`'s Binomial zero-enrichment test. Also drops the
+    `.clone()` workaround for 3D `BatchNorm1d` on `mps` in {class}`scvi.nn.FCLayers` and the
+    `.contiguous()` workaround for `torch.lgamma` on non-contiguous `mps` tensors once the
+    corresponding kernel is available, {pr}`3981`.
 - Add {class}`scvi.external.VIVS`, a conditional-randomization-test model for gene-level
     variable selection against niche composition or other `obsm` responses, ported from the
     original [VIVS](https://github.com/YosefLab/VIVS) JAX implementation, {pr}`3954`.
