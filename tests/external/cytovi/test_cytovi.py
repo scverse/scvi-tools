@@ -82,6 +82,35 @@ def test_cytovi_preprocess(adata, overlapping_adatas):
     assert NAN_LAYER_KEY in adata_merged.layers
 
 
+@pytest.mark.parametrize("protein_likelihood", ["normal", "beta"])
+def test_cytovi_overlapping_protein_likelihood(overlapping_adatas, protein_likelihood):
+    # regression test for https://github.com/scverse/scvi-tools/issues/4006
+    # merging overlapping panels replaces missing markers with 0 in the scaled layer,
+    # which is outside the support of the Beta likelihood and previously produced NaN
+    # training losses.
+    adata1, adata2 = overlapping_adatas
+    cytovi.transform_arcsinh(adata1)
+    cytovi.scale(adata1)
+    cytovi.transform_arcsinh(adata2)
+    cytovi.scale(adata2)
+    adata_merged = cytovi.merge_batches([adata1, adata2])
+    assert NAN_LAYER_KEY in adata_merged.layers
+
+    cytovi.CYTOVI.setup_anndata(
+        adata_merged,
+        layer=SCALED_LAYER_KEY,
+        batch_key=BATCH_KEY,
+    )
+
+    model = cytovi.CYTOVI(adata_merged, protein_likelihood=protein_likelihood)
+    model.train(max_epochs=N_EPOCHS)
+    assert model.is_trained
+    assert np.isfinite(model.history_["elbo_train"].to_numpy(dtype=float)).all()
+
+    imp_exp = model.get_normalized_expression()
+    assert imp_exp.shape == adata_merged.shape
+
+
 @pytest.mark.optional
 def test_cytovi_plotting(adata):
     cytovi.plot_biaxial(
@@ -135,6 +164,35 @@ def test_cytovi(adata):
 
     model = cytovi.CYTOVI(adata)
     model.train(max_epochs=N_EPOCHS)
+
+
+@pytest.mark.parametrize("protein_likelihood", ["normal", "beta"])
+@pytest.mark.parametrize("latent_distribution", ["normal", "ln"])
+def test_cytovi_likelihood_and_latent_distribution(adata, protein_likelihood, latent_distribution):
+    cytovi.transform_arcsinh(adata)
+    cytovi.scale(adata)
+
+    cytovi.CYTOVI.setup_anndata(
+        adata,
+        layer=SCALED_LAYER_KEY,
+        batch_key=BATCH_KEY,
+        sample_key=SAMPLE_KEY,
+    )
+
+    model = cytovi.CYTOVI(
+        adata,
+        protein_likelihood=protein_likelihood,
+        latent_distribution=latent_distribution,
+    )
+    model.train(max_epochs=N_EPOCHS)
+    assert model.is_trained
+    assert np.isfinite(model.history_["elbo_train"].to_numpy(dtype=float)).all()
+
+    latent = model.get_latent_representation()
+    assert latent.shape[0] == adata.n_obs
+
+    imp_exp = model.get_normalized_expression()
+    assert imp_exp.shape == adata.shape
 
 
 @pytest.mark.optional
