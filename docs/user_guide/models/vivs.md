@@ -13,7 +13,7 @@ The advantages of VIVS are:
 
 The limitations of VIVS include:
 
--   The knockoff sampler's quality (how well the generative VAE models `p(X_g | X_{-g})`) bounds the test's power.
+-   The knockoff sampler's quality (how well the generative VAE models gene expression `p(X)`) is necessary for the p-values returned by VIVS to be calibrated. A poorly fit VAE can inflate false-discovery rates.
 -   Runtime scales with the number of genes tested; filtering to a smaller gene set (`select_genes`) is recommended above a few thousand genes.
 -   Ported from VIVS's original JAX implementation; large-scale runtime is not guaranteed to match the original's `vmap`/`jit`-optimized performance (see `use_vmap` on `get_importance`/`get_hier_importance`).
 -   `fastcluster` (for `get_gene_groupings`/`get_hier_importance`) and `plotnine` (for `plot_hier_importance`) are optional dependencies. `fastcluster` ships with `pip install scvi-tools[optional]`; `plotnine` has no dedicated lightweight extra — install it directly (`pip install plotnine`) or via `pip install scvi-tools[tutorials]`.

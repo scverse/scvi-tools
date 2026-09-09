@@ -231,13 +231,8 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Run the frozen generative VAE's encoder once per batch.
 
-        The original JAX implementation samples ``z`` a single time per batch and only
-        resamples the decoder's noise across MC knockoff draws (`vivs/_vivs.py:227-228,302`
-        on VIVS `main`: ``z_rng`` is split once, ``randomize(...)`` is called once per batch,
-        outside the MC loop). Re-drawing ``z`` fresh on every MC sample (as an earlier draft
-        of this helper did) folds extra encoder-uncertainty variance into every null draw and
-        is NOT what the reference algorithm does — call this once per batch, then call
-        `_sample_knockoffs` many times with the same `z`/`library`.
+        This implementation samples ``z`` a single time per batch and only
+        resamples the decoder's noise across MC knockoff draws.
         """
         inference_out = self.module.inference(x=x, batch_index=batch_index)
         return inference_out["z"], inference_out["library"]
@@ -249,8 +244,7 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """Sample one conditional replacement of X from the frozen generative VAE's decoder.
 
         `z`/`library` must come from `_encode_for_knockoffs`, called ONCE per batch outside
-        the MC loop — only the decoder's `px.sample()` varies across MC knockoff draws,
-        matching the reference algorithm exactly (see `_encode_for_knockoffs`'s docstring).
+        the MC loop — only the decoder's `px.sample()` varies across MC knockoff draws.
         """
         generative_out = self.module.generative(z=z, library=library, batch_index=batch_index)
         return generative_out["px"].sample()
@@ -288,12 +282,20 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        indices
+            Cells to compute importance scores for. If ``None`` and ``adata`` is also
+            ``None``, defaults to ``self.validation_indices`` (the held-out split from
+            training) so that, by default, statistical significance is assessed on data
+            the importance-score net was not fit on, as required for calibrated p-values.
+            Pass ``indices=np.arange(adata.n_obs)`` explicitly to use all cells instead.
         use_vmap
             Whether to vectorize the per-gene resampling loop with :func:`torch.vmap`.
             ``"auto"`` enables it when the number of genes is below 2000 (mirrors the
             original's own recommended gene-filtering ceiling). Disable if you hit an
             out-of-memory error.
         """
+        if indices is None and adata is None:
+            indices = self.validation_indices
         adata = self._validate_anndata(adata)
         dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         n_genes = self.summary_stats.n_vars
@@ -566,9 +568,17 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        indices
+            Cells to compute importance scores for. If ``None`` and ``adata`` is also
+            ``None``, defaults to ``self.validation_indices`` (the held-out split from
+            training) so that, by default, statistical significance is assessed on data
+            the importance-score net was not fit on, as required for calibrated p-values.
+            Pass ``indices=np.arange(adata.n_obs)`` explicitly to use all cells instead.
         silent
             If ``True``, disables the progress bar tracking MC-sample/batch iterations.
         """
+        if indices is None and adata is None:
+            indices = self.validation_indices
         adata = self._validate_anndata(adata)
         n_genes = self.summary_stats.n_vars
         n_responses = self.summary_stats.n_Y
