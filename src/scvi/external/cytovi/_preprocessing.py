@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import anndata as ad
 import numpy as np
+import pandas as pd
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -339,14 +340,15 @@ def subsample(
                     )
                     warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
 
-        index = adata.obs.groupby(groupby, as_index=False).apply(
-            lambda x: (
-                x.sample(n_obs_group, random_state=random_state, replace=replace)
-                if len(x) > n_obs_group
-                else x
-            )
-        )
-        index = index.reset_index()["level_1"].to_list()
+        sampled_obs = []
+        for group in group_cats:
+            group_obs = adata.obs[adata.obs[groupby] == group]
+            if len(group_obs) > n_obs_group:
+                group_obs = group_obs.sample(
+                    n_obs_group, random_state=random_state, replace=replace
+                )
+            sampled_obs.append(group_obs)
+        index = pd.concat(sampled_obs).index.to_list()
         adata_subsampled = adata[index, :].copy()
     else:
         adata_subsampled = adata[

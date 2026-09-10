@@ -1,5 +1,6 @@
 import os
 
+import anndata as ad
 import numpy as np
 import pytest
 
@@ -80,6 +81,34 @@ def test_cytovi_preprocess(adata, overlapping_adatas):
     cytovi.scale(adata2)
     adata_merged = cytovi.merge_batches([adata1, adata2])
     assert NAN_LAYER_KEY in adata_merged.layers
+
+
+def test_cytovi_subsample_multi_modality(adata):
+    # smoke test mimicking the DiagVI spatial proteomics tutorial, which combines multiple
+    # modalities into one AnnData (via `ad.concat(..., label="modality")`) and then uses
+    # `cytovi.subsample(..., groupby="modality")` to balance the subsample across them before
+    # scib-metrics benchmarking.
+    adata_rna = adata.copy()
+    adata_protein = adata.copy()
+
+    adata_combined = ad.concat(
+        [adata_rna, adata_protein],
+        axis=0,
+        join="inner",
+        label="modality",
+        keys=["rna", "protein"],
+    )
+    adata_combined.obs_names_make_unique()
+
+    n_obs_group = 50
+    adata_combined_sub = cytovi.subsample(
+        adata_combined, n_obs=2 * n_obs_group, groupby="modality"
+    )
+
+    assert adata_combined_sub.n_obs == 2 * n_obs_group
+    counts = adata_combined_sub.obs["modality"].value_counts()
+    assert set(counts.index) == {"rna", "protein"}
+    assert (counts == n_obs_group).all()
 
 
 @pytest.mark.parametrize("protein_likelihood", ["normal", "beta"])
