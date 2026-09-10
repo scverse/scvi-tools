@@ -51,10 +51,29 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     dataset, {pr}`3993`.
 - Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`
     raising `AttributeError: '...' object has no attribute '_registry'`, {pr}`3995`.
+- Fix {class}`scvi.external.CYTOVI` training producing a `nan` ELBO with `protein_likelihood="beta"`
+    when overlapping antibody panels are merged with `merge_batches()`. The masked placeholder
+    value (`0`) used for markers missing from a panel falls outside the support of the `Beta`
+    likelihood, so `log_prob` evaluated to `-inf` at those entries and, once multiplied by the
+    (zero) mask, produced `nan` losses. Masked entries are now substituted with a likelihood-safe
+    value before scoring, see {pr}`4007`.
+- Fix `cytovi.subsample()`'s `groupby` argument crashing with `KeyError: 'level_1'` on
+    `pandas>=3.0`, where `DataFrameGroupBy.apply` no longer returns a `MultiIndex` with the
+    original row labels under a `level_1` column. Per-group sampling no longer depends on that
+    internal index shape, {pr}`4012`.
 
 
 #### Changed
 
+- Use the fused implementation of `Adam` and `AdamW` in {class}`scvi.train.TrainingPlan` when the
+    backend supports it, falling back to the standard one when it does not. The fused path issues
+    roughly half the kernels per step and removes most of the host-device synchronisations, which
+    matters most on `mps`: on the introduction tutorial's dataset, training goes from 0.989 to
+    0.697 s/epoch on `mps` and from 1.138 to 1.050 s/epoch on `cpu`, for an unchanged ELBO. Pass
+    `plan_kwargs={"fused_optimizer": False}` to restore the previous behaviour, {pr}`3998`.
+- Restore `torch._dynamo.config.suppress_errors` once training ends instead of leaving it enabled
+    for the rest of the process, and warn when `compile=True` silently fell back to eager, so a
+    failed compilation is no longer indistinguishable from a successful one, {pr}`3998`.
 - Updated dockerfile to py3.13, {pr}`3920`.
 - Updated several github workflows with recent github actions modules, {pr}`3916`.
 - Align the repository with the [scverse cookiecutter template](https://github.com/scverse/cookiecutter-scverse) v0.8.0 and track it via `.cruft.json`, so template updates arrive as automated pull requests, {pr}`3607`.
