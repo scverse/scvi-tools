@@ -5,27 +5,16 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
-### 1.5.1 (2026-XX-XX)
+### 1.5.1 (2026-09-10)
 
 #### Added
 
 - Extend native `mps` support across the rest of scvi-tools' gamma/Poisson/Dirichlet/Binomial
-    sampling and `lgamma` call sites, on top of
-    {class}`scvi.distributions.NegativeBinomial`, {class}`scvi.distributions.ZeroInflatedNegativeBinomial`
-    and {class}`scvi.distributions.NegativeBinomialMixture`. The CPU detours these relied on for
-    `aten::_standard_gamma`, `aten::poisson`, `aten::_sample_dirichlet` and `aten::binomial` are
-    now taken only when the installed torch build actually lacks the kernel (probed at runtime,
-    not hardcoded), so training and sampling stay on `mps` end-to-end as torch's MPS backend gains
-    coverage. This reaches {class}`scvi.distributions.ZeroInflatedGamma` and
-    {class}`scvi.distributions.BetaBinomial` (previously had no `mps` handling at all),
-    {class}`scvi.module.VAE`'s Poisson likelihood, {class}`scvi.module.AutoZIVAE`,
-    {class}`scvi.model.TOTALVI` and {class}`scvi.model.base.RNASeqMixin`'s posterior predictive
-    sampling, {class}`scvi.external.VELOVI`'s Dirichlet mixture weights,
-    {class}`scvi.external.DRVI`'s log-space negative binomial, and
-    {func}`~scvi.data.poisson_gene_selection`'s Binomial zero-enrichment test. Also drops the
-    `.clone()` workaround for 3D `BatchNorm1d` on `mps` in {class}`scvi.nn.FCLayers` and the
-    `.contiguous()` workaround for `torch.lgamma` on non-contiguous `mps` tensors once the
-    corresponding kernel is available, {pr}`3981`.
+    sampling and `lgamma` call sites, on top of {class}`scvi.distributions.NegativeBinomial`,
+    {class}`scvi.distributions.ZeroInflatedNegativeBinomial`and
+    {class}`scvi.distributions.NegativeBinomialMixture`. Also drops the .clone()` workaround for
+    3D `BatchNorm1d` on `mps` in {class}`scvi.nn.FCLayers` and the .contiguous()` workaround for
+    `torch.lgamma` on non-contiguous `mps` tensors once the kernel is available, {pr}`3981`.
 - Add {class}`scvi.external.VIVS`, a conditional-randomization-test model for gene-level
     variable selection against niche composition or other `obsm` responses, ported from the
     original [VIVS](https://github.com/YosefLab/VIVS) JAX implementation, {pr}`3954`.
@@ -33,44 +22,26 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Fixed
 
 - Fix {class}`scvi.module.MULTIVAE`'s accessibility reconstruction loss crashing on `mps` for
-    RNA+protein-only `MULTIVI` configurations (`n_input_regions=0`): `BCELoss` asserts on a
-    zero-element `mps` tensor, so the loss over zero features is now returned directly as zero
-    (correct on every backend) rather than routed through the op, {pr}`3989`.
+    RNA+protein-only `MULTIVI` configurations (`n_input_regions=0`), {pr}`3989`.
 - Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
     several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
 - Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.
 - Fix `scvi.hub` eagerly requiring `huggingface_hub` at package-import time {pr}`3950`.
-- Fix `load_query_data` crashing with `TypeError: '<' not supported between instances of
-    'str' and 'float'` when extending batch categories for query data whose batch column
+- Fix `load_query_data` crashing when extending batch categories for query data whose batch column
     contains missing values, {pr}`3962`.
 - Fix {func}`~scvi.data.purified_pbmc_dataset` returning a duplicated `cd4_t_helper` batch {pr}`3985`.
 - Fix builtin datasets downloads failing outright on a single transient, {pr}`3987`.
-- Fix `setup_annbatch` crashing with `AttributeError: 'Group' object has no attribute 'asstr'`
-    when reading `var` names from h5ad files written by `anndata>=0.13` with `pandas>=3.0`,
-    which encodes the index as a `nullable-string-array` group instead of a plain string
-    dataset, {pr}`3993`.
-- Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`
-    raising `AttributeError: '...' object has no attribute '_registry'`, {pr}`3995`.
-- Fix {class}`scvi.external.CYTOVI` training producing a `nan` ELBO with `protein_likelihood="beta"`
-    when overlapping antibody panels are merged with `merge_batches()`. The masked placeholder
-    value (`0`) used for markers missing from a panel falls outside the support of the `Beta`
-    likelihood, so `log_prob` evaluated to `-inf` at those entries and, once multiplied by the
-    (zero) mask, produced `nan` losses. Masked entries are now substituted with a likelihood-safe
-    value before scoring, see {pr}`4007`.
-- Fix `cytovi.subsample()`'s `groupby` argument crashing with `KeyError: 'level_1'` on
-    `pandas>=3.0`, where `DataFrameGroupBy.apply` no longer returns a `MultiIndex` with the
-    original row labels under a `level_1` column. Per-group sampling no longer depends on that
-    internal index shape, {pr}`4012`.
+- Fix `setup_annbatch` crashing when reading `var` names from h5ad files written by `anndata>=0.13` with `pandas>=3.0`, {pr}`3993`.
+- Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`, {pr}`3995`.
+- Fix {class}`scvi.external.CYTOVI` producing a `nan` ELBO with `protein_likelihood="beta"`when overlapping antibody panels are merged with `merge_batches()`. Masked entries are now substituted with a likelihood-safe value before scoring, see {pr}`4007`.
+- Fix `cytovi.subsample()`'s `groupby` argument crashing on `pandas>=3.0`, Per-group sampling no
+longer depends on that internal index shape, {pr}`4012`.
 
 
 #### Changed
 
 - Use the fused implementation of `Adam` and `AdamW` in {class}`scvi.train.TrainingPlan` when the
-    backend supports it, falling back to the standard one when it does not. The fused path issues
-    roughly half the kernels per step and removes most of the host-device synchronisations, which
-    matters most on `mps`: on the introduction tutorial's dataset, training goes from 0.989 to
-    0.697 s/epoch on `mps` and from 1.138 to 1.050 s/epoch on `cpu`, for an unchanged ELBO. Pass
-    `plan_kwargs={"fused_optimizer": False}` to restore the previous behaviour, {pr}`3998`.
+    backend supports it. Pass `plan_kwargs={"fused_optimizer": False}` to restore the previous behaviour, {pr}`3998`.
 - Restore `torch._dynamo.config.suppress_errors` once training ends instead of leaving it enabled
     for the rest of the process, and warn when `compile=True` silently fell back to eager, so a
     failed compilation is no longer indistinguishable from a successful one, {pr}`3998`.
@@ -78,7 +49,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Updated several github workflows with recent github actions modules, {pr}`3916`.
 - Align the repository with the [scverse cookiecutter template](https://github.com/scverse/cookiecutter-scverse) v0.8.0 and track it via `.cruft.json`, so template updates arrive as automated pull requests, {pr}`3607`.
     Development, test and documentation dependencies moved from extras to [dependency groups](https://packaging.python.org/en/latest/specifications/dependency-groups/) (`dev`, `test`, `doc`), and every test suite is now defined as a `hatch` environment in `pyproject.toml` and invoked from CI through `hatch`.
-    The `tests`, `test`, `editing`, `dev`, `docs` and `docsbuild` extras were removed as a result; see the [contributing guide](https://docs.scvi-tools.org/en/stable/developer/code.html) for the replacements.
 
 #### Removed
 
