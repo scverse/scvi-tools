@@ -109,10 +109,13 @@ def test_compilation_fell_back_only_when_every_attempted_frame_failed(before, af
     assert _compilation_fell_back(before, after) is expected
 
 
+@pytest.mark.optional
 def test_compile_restores_the_global_dynamo_error_suppression():
     # `compile=True` turns dynamo's error suppression on so that a failed compilation
     # degrades to eager instead of raising. That is process-wide state, so it has to be
     # put back once training is over rather than leaking into unrelated later code.
+    # Actually runs torch.compile on CPU, which is slow and not the intended use case
+    # (compile is meant for mps) — kept out of the base suite, covered in --optional.
     import torch
 
     previous = torch._dynamo.config.suppress_errors
