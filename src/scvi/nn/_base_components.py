@@ -65,6 +65,10 @@ class FCLayers(nn.Module):
         Whether to inject covariates in each layer, or just the first (default).
     activation_fn
         Which activation function to use
+    residual
+        Whether to add a residual skip connection around each hidden block whose input and output
+        share a width. The first block (which changes width) is skipped, so this requires
+        ``n_layers >= 2`` to have any effect.
     """
 
     def __init__(
@@ -82,6 +86,7 @@ class FCLayers(nn.Module):
         bias: bool = True,
         inject_covariates: bool = True,
         activation_fn: nn.Module = nn.ReLU,
+        residual: bool = False,
     ):
         super().__init__()
         self.bias = bias
@@ -91,6 +96,7 @@ class FCLayers(nn.Module):
         self.activation_fn = activation_fn
         self.dropout_rate = dropout_rate
         self.inject_covariates = inject_covariates
+        self.residual = residual
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 
         if n_cat_list is not None:
@@ -163,7 +169,7 @@ class FCLayers(nn.Module):
                     b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
-    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None, **kwargs):
         """Forward computation on ``x``.
 
         Parameters
@@ -174,12 +180,32 @@ class FCLayers(nn.Module):
             list of category membership(s) for this sample
         cont
             tensor of continuous covariates with shape ``(n_cont,)``
+        kwargs
+            Extra per-call context threaded to the ``_apply_layer`` / ``_apply_batch_norm`` hooks
+            for subclasses to consume; ignored by the base layers.
 
         Returns
         -------
         :class:`torch.Tensor`
             tensor of shape ``(n_out,)``
         """
+        cov_list = self._build_cov_list(cat_list, cont)
+        for i, layers in enumerate(self.fc_layers):
+            x_in = x
+            for layer in layers:
+                if layer is not None:
+                    if isinstance(layer, nn.BatchNorm1d):
+                        x = self._apply_batch_norm(layer, x, **kwargs)
+                    else:
+                        x = self._apply_layer(layer, x, cov_list, i, **kwargs)
+            if self.residual and i > 0 and x.shape == x_in.shape:
+                x = x + x_in
+        return x
+
+    def _build_cov_list(
+        self, cat_list: tuple[int, ...], cont: torch.Tensor | None
+    ) -> list[torch.Tensor]:
+        """Build the list of covariate tensors (continuous + one-hot categoricals) to inject."""
         one_hot_cat_list = []  # for generality in this list many idxs useless.
         cont_list = [cont] if cont is not None else []
         cat_list = cat_list or []
@@ -195,17 +221,9 @@ class FCLayers(nn.Module):
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
-        cov_list = cont_list + one_hot_cat_list
-        for i, layers in enumerate(self.fc_layers):
-            for layer in layers:
-                if layer is not None:
-                    if isinstance(layer, nn.BatchNorm1d):
-                        x = self._apply_batch_norm(layer, x)
-                    else:
-                        x = self._apply_layer(layer, x, cov_list, i)
-        return x
+        return cont_list + one_hot_cat_list
 
-    def _apply_batch_norm(self, layer: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    def _apply_batch_norm(self, layer: nn.Module, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """Apply a batch-norm layer, handling the 3D (and MPS) case."""
         if x.dim() == 3:
             if x.device.type == "mps" and not _mps_supports_batchnorm_slice():
@@ -219,6 +237,7 @@ class FCLayers(nn.Module):
         x: torch.Tensor,
         cov_list: list[torch.Tensor],
         layer_index: int,
+        **kwargs,
     ) -> torch.Tensor:
         """Apply a (non batch-norm) layer, injecting covariates into linear layers."""
         if self._is_linear_layer(layer) and self.inject_into_layer(layer_index):
