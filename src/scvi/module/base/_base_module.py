@@ -158,10 +158,14 @@ class BaseModuleClass(nn.Module):
 
     @property
     def device(self):
-        device = list({p.device for p in self.parameters()})
-        if len(device) > 1:
-            raise RuntimeError("Module tensors on multiple devices.")
-        return device[0]
+        # Same primitive ``auto_move_data`` used to walk on every decorated call: reading it
+        # from the first parameter avoids building a set of every parameter's device each time
+        # this property is read, which happens once per minibatch from methods such as
+        # ``VAE.sample()``.
+        try:
+            return next(self.parameters()).device
+        except StopIteration as err:
+            raise RuntimeError("Module has no parameters to infer a device from.") from err
 
     def on_load(self, model, **kwargs):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`."""
