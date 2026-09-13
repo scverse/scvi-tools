@@ -30,11 +30,13 @@ def auto_move_data(fn: Callable) -> Callable:
         if self.training:
             return fn(self, *args, **kwargs)
 
-        device = list({p.device for p in self.parameters()})
-        if len(device) > 1:
-            raise RuntimeError("Module tensors on multiple devices.")
-        else:
-            device = device[0]
+        # ``forward``, ``inference`` and ``generative`` are all decorated, so this runs several
+        # times per minibatch: read the device from the first parameter rather than walking
+        # every parameter of the module each time.
+        try:
+            device = next(self.parameters()).device
+        except StopIteration as err:
+            raise RuntimeError("Module has no parameters to infer a device from.") from err
         args = _move_data_to_device(args, device)
         kwargs = _move_data_to_device(kwargs, device)
         return fn(self, *args, **kwargs)

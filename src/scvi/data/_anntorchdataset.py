@@ -104,9 +104,16 @@ class AnnTorchDataset(Dataset):
         cached dictionary.
         """
         if not hasattr(self, "_data"):
-            self._data = {
-                key: self.adata_manager.get_from_registry(key) for key in self.keys_and_dtypes
-            }
+            self._data = {}
+            for key in self.keys_and_dtypes:
+                data = self.adata_manager.get_from_registry(key)
+                if isinstance(data, pd.DataFrame):
+                    # Covariates registered from ``obs`` live in ``obsm`` as DataFrames. A
+                    # positional slice of a DataFrame costs far more than the same slice of
+                    # a NumPy array, and ``__getitem__`` pays it once per minibatch, so the
+                    # conversion is done once here instead.
+                    data = data.to_numpy()
+                self._data[key] = data
         return self._data
 
     def __len__(self):
@@ -142,8 +149,6 @@ class AnnTorchDataset(Dataset):
 
             if isinstance(data, np.ndarray | h5py.Dataset):
                 sliced_data = data[indexes].astype(dtype, copy=False)
-            elif isinstance(data, pd.DataFrame):
-                sliced_data = data.iloc[indexes, :].to_numpy().astype(dtype, copy=False)
             elif issparse(data) or isinstance(data, SparseDataset):
                 sliced_data = data[indexes].astype(dtype, copy=False)
                 if self.load_sparse_tensor:
