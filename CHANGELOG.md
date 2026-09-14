@@ -12,9 +12,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add a `residual` option to {class}`scvi.nn.FCLayers` that wraps every hidden block whose input
     and output share a width in a skip connection. The first block changes width and is always
     excluded, so the flag needs `n_layers >= 2` to have any effect, {pr}`4017`.
-- Add a `residual` option to {class}`scvi.external.drvi.DRVIModule`, and therefore to
-    {class}`scvi.external.DRVI`, which turns on the {class}`scvi.nn.FCLayers` skip connections for
-    the encoder body and the decoder split body, {pr}`4018`.
+- Add a `residual` option to {class}`scvi.external.DRVI` that turns on skip connections in the
+    encoder and decoder, {pr}`4018`.
 
 #### Changed
 
@@ -24,17 +23,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Move the covariate assembly (continuous covariates followed by one-hot encoded categoricals) out
     of {class}`scvi.nn.FCLayers`'s `forward` into an overridable `_build_cov_list` method,
     {pr}`4017`.
-- Break {class}`scvi.external.drvi.DRVIModule`, {class}`scvi.external.drvi.DecoderDRVI`,
-    {class}`scvi.external.drvi.SplitFCLayers` and the DRVI interpretability mixin into overridable
-    seams so downstream models can subclass them without copying `generative` or `forward`. The
-    likelihood construction moved to `build_gene_likelihood` behind
-    `DRVIModule._build_gene_likelihood`; the decoder covariate preparation and the dispersion logit
-    to `_prepare_decoder_covariate_inputs` and `_compute_px_r_logit`; the decoder and split-layer
-    classes to the `_decoder_cls` and `_fc_layers_class` attributes; the decoder body and head
-    application to `_run_body` and `_apply_head`; the split-level covariate concatenation to
-    `SplitFCLayers._inject_covariates`; and the per-split effect computation to
-    `_get_direct_effect_of_latent_splits`. `DRVIModule.generative` and `DecoderDRVI.forward` also
-    accept and thread `**kwargs`. Behaviour is unchanged, {pr}`4018`.
+- Break the DRVI module, decoder, split layers and interpretability mixin into overridable seams
+    so downstream models can subclass them without copying `generative` or `forward`. Behaviour is
+    unchanged, {pr}`4018`.
 
 ### 1.5.1 (2026-09-10)
 
