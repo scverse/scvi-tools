@@ -99,6 +99,8 @@ longer depends on that internal index shape, {pr}`4012`.
 
 #### Added
 
+- Add shared memory support for DDP to deduplicate `adata.X` across ranks on the same node,
+    reducing per-rank memory, {pr}`3754`.
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
 - Add {class}`scvi.external.DIAGVI` for integrating unpaired single-cell datasets, {pr}`3575`.
