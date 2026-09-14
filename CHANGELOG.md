@@ -5,6 +5,24 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
+### 1.5.2 (2026-XX-XX)
+
+#### Fixed
+
+- Fix {meth}`~scvi.model.base.RNASeqMixin.get_normalized_expression`, {meth}`~scvi.external.CYTOVI.get_normalized_expression`,
+    and {meth}`~scvi.external.MRVI.get_normalized_expression` raising `ValueError: Shape of
+    passed values ...` when called with both `n_samples_overall` and `return_numpy=False`.
+
+#### Changed
+
+- {meth}`~scvi.model.base.RNASeqMixin.get_normalized_expression`,
+    {meth}`~scvi.external.CYTOVI.get_normalized_expression`, and
+    {meth}`~scvi.external.MRVI.get_normalized_expression`, with `n_samples_overall` (used by
+    `differential_expression`), now draw the cells to visit before running the forward pass
+    instead of running it on every cell in the selection and discarding all but the sampled
+    rows. The default (`weights=None`/`"uniform"`) draw is statistically equivalent but not
+    from the same random stream as before.
+
 ### 1.5.1 (2026-09-10)
 
 #### Added

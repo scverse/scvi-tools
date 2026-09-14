@@ -1,6 +1,7 @@
 import contextlib
 import inspect
 import io
+import math
 import os
 import pickle
 import tarfile
@@ -790,6 +791,123 @@ def test_de_features():
         delta=0.5,
         weights="importance",
     )
+
+
+@pytest.mark.parametrize("weights", [None, "uniform", "importance"])
+@pytest.mark.parametrize("return_numpy", [True, False])
+def test_get_normalized_expression_n_samples_overall_shape(weights: str, return_numpy: bool):
+    adata = synthetic_iid(batch_size=100, n_genes=20)
+    SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = SCVI(adata, n_latent=5)
+    model.train(1)
+
+    n_samples_overall = 30
+    result = model.get_normalized_expression(
+        n_samples_overall=n_samples_overall,
+        weights=weights,
+        return_numpy=return_numpy,
+    )
+    # Regression test: on main, `return_numpy=False` raises `ValueError: Shape of passed
+    # values is (n_samples_overall, n_vars), indices imply (n_obs, n_vars)` because the
+    # DataFrame index was built from the full cell population instead of the sampled rows.
+    assert result.shape == (n_samples_overall, adata.n_vars)
+
+
+def test_get_normalized_expression_n_samples_overall_larger_than_population():
+    # `n_samples_overall` bigger than the population forces sampling with replacement;
+    # this must not crash and must still return exactly the requested row count.
+    adata = synthetic_iid(batch_size=20, n_genes=10)
+    SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = SCVI(adata, n_latent=5)
+    model.train(1)
+
+    n_samples_overall = adata.n_obs * 3
+    result = model.get_normalized_expression(
+        n_samples_overall=n_samples_overall, return_numpy=True
+    )
+    assert result.shape == (n_samples_overall, adata.n_vars)
+
+
+def test_get_normalized_expression_n_samples_overall_only_visits_requested_cells():
+    # With the default (uniform) weighting, `get_normalized_expression(n_samples_overall=k)`
+    # must run the forward pass on exactly `k` cells, not on the whole population and then
+    # discard all but `k` rows -- that wasteful shape is exactly what this guards against.
+    adata = synthetic_iid(batch_size=200, n_genes=10)  # 400 cells
+    SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = SCVI(adata, n_latent=5)
+    model.train(1)
+
+    cells_seen = {"n": 0}
+    orig_forward = model.module.forward
+
+    def counting_forward(tensors, *args, **kwargs):
+        cells_seen["n"] += tensors["X"].shape[0]
+        return orig_forward(tensors, *args, **kwargs)
+
+    model.module.forward = counting_forward
+    n_samples_overall = 25
+    model.get_normalized_expression(n_samples_overall=n_samples_overall, return_numpy=True)
+    assert cells_seen["n"] == n_samples_overall
+    assert cells_seen["n"] < adata.n_obs
+
+
+def test_get_normalized_expression_n_samples_overall_small_population_keeps_call_count():
+    # When the population is NOT bigger than `n_samples_overall`, presampling cells up front
+    # makes MORE, not fewer, minibatch forward calls (ceil(n_samples_overall / batch_size) vs
+    # ceil(len(indices) / batch_size), measured 40 vs 16 calls for a 2000-cell population and
+    # n_samples_overall=5000). This guards the fast path staying off in that regime: forward()
+    # is called exactly `ceil(n_obs / batch_size)` times, the same as the original dense path.
+    adata = synthetic_iid(batch_size=100, n_genes=10)  # 200 cells
+    SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = SCVI(adata, n_latent=5)
+    model.train(1)
+
+    call_count = {"n": 0}
+    orig_forward = model.module.forward
+
+    def counting_forward(tensors, *args, **kwargs):
+        call_count["n"] += 1
+        return orig_forward(tensors, *args, **kwargs)
+
+    model.module.forward = counting_forward
+    batch_size = 64
+    model.get_normalized_expression(
+        n_samples_overall=500, batch_size=batch_size, return_numpy=True
+    )
+    assert call_count["n"] == math.ceil(adata.n_obs / batch_size)
+
+
+def test_get_normalized_expression_n_samples_overall_boolean_mask_indices():
+    # `indices` accepts a boolean mask (as `AnnDataLoader` normalizes it internally). The
+    # presampling fast path must resolve the mask to cell positions before drawing from it,
+    # not treat the mask's True/False values themselves as the population to sample from.
+    adata = synthetic_iid(batch_size=200, n_genes=10)  # 400 cells
+    SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = SCVI(adata, n_latent=5)
+    model.train(1)
+
+    mask = np.zeros(adata.n_obs, dtype=bool)
+    selected = np.arange(50, 350)  # 300 cells selected out of 400
+    mask[selected] = True
+
+    n_samples_overall = 30
+    result = model.get_normalized_expression(
+        indices=mask, n_samples_overall=n_samples_overall, return_numpy=False
+    )
+    assert result.shape == (n_samples_overall, adata.n_vars)
+    assert set(result.index).issubset(set(adata.obs_names[selected]))
+
+
+def test_get_normalized_expression_n_samples_overall_zero():
+    # `n_samples_overall=0` must keep returning an empty result (the original dense path's
+    # behaviour), not crash concatenating zero minibatches from an empty presampled dataloader.
+    adata = synthetic_iid(batch_size=200, n_genes=10)  # 400 cells
+    SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = SCVI(adata, n_latent=5)
+    model.train(1)
+
+    result = model.get_normalized_expression(n_samples_overall=0, return_numpy=True)
+    assert result.shape == (0, adata.n_vars)
 
 
 def test_scarches_data_prep(save_path):
