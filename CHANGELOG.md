@@ -18,9 +18,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - {class}`scvi.nn.FCLayers`'s `forward` now accepts arbitrary `**kwargs` and threads them to the
     `_apply_layer` and `_apply_batch_norm` hooks, so subclasses can branch on per-call context.
     The base layers ignore them, {pr}`4017`.
-- Move the covariate assembly (continuous covariates followed by one-hot encoded categoricals) out
-    of {class}`scvi.nn.FCLayers`'s `forward` into an overridable `_build_cov_list` method,
-    {pr}`4017`.
 
 ### 1.5.1 (2026-09-10)
 

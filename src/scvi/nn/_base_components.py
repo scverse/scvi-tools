@@ -189,23 +189,6 @@ class FCLayers(nn.Module):
         :class:`torch.Tensor`
             tensor of shape ``(n_out,)``
         """
-        cov_list = self._build_cov_list(cat_list, cont)
-        for i, layers in enumerate(self.fc_layers):
-            x_in = x
-            for layer in layers:
-                if layer is not None:
-                    if isinstance(layer, nn.BatchNorm1d):
-                        x = self._apply_batch_norm(layer, x, **kwargs)
-                    else:
-                        x = self._apply_layer(layer, x, cov_list, i, **kwargs)
-            if self.residual and i > 0 and x.shape == x_in.shape:
-                x = x + x_in
-        return x
-
-    def _build_cov_list(
-        self, cat_list: tuple[int, ...], cont: torch.Tensor | None
-    ) -> list[torch.Tensor]:
-        """Build the list of covariate tensors (continuous + one-hot categoricals) to inject."""
         one_hot_cat_list = []  # for generality in this list many idxs useless.
         cont_list = [cont] if cont is not None else []
         cat_list = cat_list or []
@@ -221,7 +204,18 @@ class FCLayers(nn.Module):
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
-        return cont_list + one_hot_cat_list
+        cov_list = cont_list + one_hot_cat_list
+        for i, layers in enumerate(self.fc_layers):
+            x_in = x
+            for layer in layers:
+                if layer is not None:
+                    if isinstance(layer, nn.BatchNorm1d):
+                        x = self._apply_batch_norm(layer, x, **kwargs)
+                    else:
+                        x = self._apply_layer(layer, x, cov_list, i, **kwargs)
+            if self.residual and i > 0 and x.shape == x_in.shape:
+                x = x + x_in
+        return x
 
     def _apply_batch_norm(self, layer: nn.Module, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """Apply a batch-norm layer, handling the 3D (and MPS) case."""

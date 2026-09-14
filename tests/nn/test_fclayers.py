@@ -246,27 +246,6 @@ def test_gradient_hook_preserves_categorical_grad_only():
 
 
 # ---------------------------------------------------------------------------
-# Subclassing seam: _build_cov_list
-# ---------------------------------------------------------------------------
-
-
-def test_build_cov_list_orders_continuous_before_one_hot_categoricals():
-    n_cats = 4
-    n_cont = 3
-    fc = FCLayers(n_in=10, n_out=5, n_cat_list=[n_cats], n_cont=n_cont)
-
-    cont = torch.randn(8, n_cont)
-    cat = torch.randint(0, n_cats, (8, 1))
-    cov_list = fc._build_cov_list((cat,), cont)
-
-    assert len(cov_list) == 2
-    # continuous covariates come first, categoricals are appended one-hot encoded
-    assert torch.allclose(cov_list[0], cont)
-    assert cov_list[1].shape == (8, n_cats)
-    assert torch.equal(cov_list[1], nn.functional.one_hot(cat.squeeze(-1), n_cats))
-
-
-# ---------------------------------------------------------------------------
 # Residual skip connections
 # ---------------------------------------------------------------------------
 
