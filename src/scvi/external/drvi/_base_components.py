@@ -86,7 +86,7 @@ class SplitFCLayers(FCLayers):
     def _is_linear_layer(self, layer: nn.Module) -> bool:
         return isinstance(layer, (nn.Linear, StackedLinearLayer))
 
-    def _apply_layer(self, layer, x, cov_list, layer_index):
+    def _inject_covariates(self, layer, x, cov_list, layer_index):
         if self._is_linear_layer(layer) and self.inject_into_layer(layer_index):
             if x.dim() not in (3, 4):
                 raise ValueError(
@@ -97,9 +97,12 @@ class SplitFCLayers(FCLayers):
             cov_list_layer = [o.unsqueeze(-2).expand(*x.shape[:-1], o.size(-1)) for o in cov_list]
             if cov_list_layer:
                 x = torch.cat((x, *cov_list_layer), dim=-1)
-        return layer(x)
+        return x
 
-    def _apply_batch_norm(self, layer, x):
+    def _apply_layer(self, layer, x, cov_list, layer_index, **kwargs):
+        return layer(self._inject_covariates(layer, x, cov_list, layer_index))
+
+    def _apply_batch_norm(self, layer, x, **kwargs):
         # batch norm over n_split * n_hidden features: fold all leading dims into the batch axis
         return layer(x.reshape(-1, x.shape[-2] * x.shape[-1])).reshape(x.shape)
 
@@ -170,6 +173,8 @@ class DecoderDRVI(nn.Module):
         Keyword arguments for :class:`SplitFCLayers`.
     """
 
+    _fc_layers_class = SplitFCLayers
+
     def __init__(
         self,
         n_input: int,
@@ -228,7 +233,7 @@ class DecoderDRVI(nn.Module):
         last_reuse = reuse_weights in ("everywhere", "last", "hidden_except_first")
 
         # per-split decoder body operating on (*, n_split, n_split_output)
-        self.px_decoder = SplitFCLayers(
+        self.px_decoder = self._fc_layers_class(
             n_in=n_split_output,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
@@ -254,7 +259,7 @@ class DecoderDRVI(nn.Module):
         self.px_r_decoder = _make_head(n_output) if model_cell_dispersion else None
         self.px_dropout_decoder = _make_head(n_output) if model_zero_inflation else None
 
-    def _apply_split(self, z: torch.Tensor) -> torch.Tensor:
+    def _apply_split(self, z: torch.Tensor, **kwargs) -> torch.Tensor:
         """Map latent ``(*, n_latent)`` to splits ``(*, n_split, n_split_output)``."""
         *lead_shape, n_latent = z.shape
         if self.split_method == "split_mask":
@@ -266,6 +271,14 @@ class DecoderDRVI(nn.Module):
             return self.split_transform(z)
         else:
             raise ValueError(f"Invalid split_method: {self.split_method}")
+
+    def _run_body(
+        self, z_split: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None, **kwargs
+    ):
+        return self.px_decoder(z_split, *cat_list, cont=cont, **kwargs)
+
+    def _apply_head(self, head: nn.Module, h: torch.Tensor, **kwargs) -> torch.Tensor:
+        return head(h)
 
     def _aggregate(self, x: torch.Tensor) -> torch.Tensor:
         """Aggregate per-split params ``(*, n_split, n_genes)`` over the split dimension."""
@@ -282,6 +295,7 @@ class DecoderDRVI(nn.Module):
         z: torch.Tensor,
         *cat_list: int,
         cont: torch.Tensor | None = None,
+        **kwargs,
     ):
         """Decode ``z`` into **log-space** per-gene parameters.
 
@@ -294,18 +308,28 @@ class DecoderDRVI(nn.Module):
         module (not here). Any number of leading dimensions (e.g. an ``n_samples`` axis) is
         supported and preserved: the split transform, the per-split FC layers and the aggregation
         all act on the last one or two dimensions.
+
+        The split-mapping (:meth:`_apply_split`), the decoder body (:meth:`_run_body`) and the head
+        application (:meth:`_apply_head`) are overridable seams, and any extra ``**kwargs`` are
+        threaded to all three.
         """
-        z_split = self._apply_split(z)  # (*, n_split, n_split_output)
-        h = self.px_decoder(z_split, *cat_list, cont=cont)  # (*, n_split, n_hidden)
+        z_split = self._apply_split(z, **kwargs)  # (*, n_split, n_split_output)
+        h = self._run_body(z_split, *cat_list, cont=cont, **kwargs)  # (*, n_split, n_hidden)
 
         # per-split scale logits aggregated over splits, kept in log space
-        px_scale_logit_per_split = self.px_scale_decoder(h)  # (*, n_split, n_genes)
+        px_scale_logit_per_split = self._apply_head(
+            self.px_scale_decoder, h, **kwargs
+        )  # (*, n_split, n_genes)
         px_scale_logit = self._aggregate(px_scale_logit_per_split)  # (*, n_genes)
         px_dropout_logit, px_r_logit = None, None
         if self.px_r_decoder is not None:
-            px_r_logit = self._aggregate(self.px_r_decoder(h))  # heuristic
+            px_r_logit = self._aggregate(
+                self._apply_head(self.px_r_decoder, h, **kwargs)
+            )  # heuristic
         if self.px_dropout_decoder is not None:
-            px_dropout_logit = -self._aggregate(-self.px_dropout_decoder(h))  # heuristic
+            px_dropout_logit = -self._aggregate(
+                -self._apply_head(self.px_dropout_decoder, h, **kwargs)
+            )  # heuristic
 
         if not self.inspect_mode:
             px_scale_logit_per_split = None

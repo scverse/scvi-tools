@@ -66,6 +66,33 @@ class InterpretabilityMixin:
         n_latent = latent.shape[-1]
         return latent.reshape(*latent.shape[:-1], n_split, n_latent // n_split).norm(dim=-1)
 
+    def _get_direct_effect_of_latent_splits(
+        self, generative_outputs: dict, add_to_counts: float
+    ) -> Tensor:
+        """Per-split, per-gene effect ``(n_cells, n_splits, n_genes)`` from the decoder params."""
+        if self.module.split_aggregation == "logsumexp":
+            # softmax(x) == softmax(x + c); the library / -log(K) constants cancel, but the
+            # add_to_counts offset depends on the total decoder effect (a 1e6-count cell).
+            log_mean_params = generative_outputs[
+                DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY
+            ]  # n_samples x n_splits x n_genes
+            total_effect_per_cell = torch.logsumexp(log_mean_params, dim=[-2, -1])
+            log_add_to_counts = total_effect_per_cell + np.log(add_to_counts / 1e6)
+            log_mean_params = torch.cat(
+                [
+                    log_mean_params,
+                    log_add_to_counts.reshape(-1, 1, 1).expand(-1, -1, log_mean_params.shape[-1]),
+                ],
+                dim=-2,
+            )  # n_samples x (n_splits + 1) x n_genes
+            return -torch.log(1 - F.softmax(log_mean_params, dim=-2)[:, :-1, :])
+        elif self.module.split_aggregation == "mean":
+            return torch.abs(generative_outputs[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY])
+        else:
+            raise NotImplementedError(
+                "Only 'logsumexp' and 'mean' aggregations are supported for interpretability."
+            )
+
     @torch.inference_mode()
     def iterate_on_effect_of_splits_within_distribution(
         self,
@@ -121,33 +148,9 @@ class InterpretabilityMixin:
         ):
             # posterior mean, n_cells x n_latent
             latent = inference_outputs[MODULE_KEYS.QZ_KEY].loc
-
-            if self.module.split_aggregation == "logsumexp":
-                # softmax(x) == softmax(x + c); the library / -log(K) constants cancel, but the
-                # add_to_counts offset depends on the total decoder effect (a 1e6-count cell).
-                log_mean_params = generative_outputs[
-                    DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY
-                ]  # n_samples x n_splits x n_genes
-                total_effect_per_cell = torch.logsumexp(log_mean_params, dim=[-2, -1])
-                log_add_to_counts = total_effect_per_cell + np.log(add_to_counts / 1e6)
-                log_mean_params = torch.cat(
-                    [
-                        log_mean_params,
-                        log_add_to_counts.reshape(-1, 1, 1).expand(
-                            -1, -1, log_mean_params.shape[-1]
-                        ),
-                    ],
-                    dim=-2,
-                )  # n_samples x (n_splits + 1) x n_genes
-                effect_tensor = -torch.log(1 - F.softmax(log_mean_params, dim=-2)[:, :-1, :])
-            elif self.module.split_aggregation == "mean":
-                effect_tensor = torch.abs(
-                    generative_outputs[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY]
-                )
-            else:
-                raise NotImplementedError(
-                    "Only 'logsumexp' and 'mean' aggregations are supported for interpretability."
-                )
+            effect_tensor = self._get_direct_effect_of_latent_splits(
+                generative_outputs, add_to_counts
+            )
 
             if directional:
                 pos_mask = (latent > 0).float().unsqueeze(-1)

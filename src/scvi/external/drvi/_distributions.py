@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.distributions import Distribution, constraints
 from torch.distributions.utils import broadcast_all
 
+from scvi.distributions import NegativeBinomial, Normal, Poisson, ZeroInflatedNegativeBinomial
 from scvi.distributions._negative_binomial import _gamma, _lgamma_fn
 from scvi.distributions._utils import _needs_cpu_detour
 
@@ -130,3 +131,51 @@ class LogNegativeBinomial(Distribution):
             if (v := self.__dict__[p]) is not None
         )
         return self.__class__.__name__ + "(" + args_string + ")"
+
+
+def build_gene_likelihood(
+    gene_likelihood: str,
+    px_scale_logit: torch.Tensor,
+    px_r_logit: torch.Tensor,
+    px_dropout_logit: torch.Tensor | None = None,
+    size_factor: torch.Tensor | None = None,
+) -> Distribution:
+    """Build the per-gene count/normal distribution from a DRVI decoder's log-space parameters.
+
+    Parameters
+    ----------
+    gene_likelihood
+        One of ``"nb"``, ``"pnb"``, ``"zinb"``, ``"poisson"``, ``"normal"``, ``"normal_unit_var"``.
+    px_scale_logit
+        Aggregated per-gene log-space scale logits, shape ``(*, n_genes)``.
+    px_r_logit
+        Per-gene dispersion logit: ``log theta`` for the NB family, ``log variance`` for the
+        normal likelihoods.
+    px_dropout_logit
+        ZINB dropout logits (used only when ``gene_likelihood == "zinb"``).
+    size_factor
+        Log library size, shape ``(*, 1)``; added to the log-softmax scale to form ``log(mu)``.
+        Required for the count likelihoods (``"nb"``, ``"pnb"``, ``"zinb"``, ``"poisson"``); unused
+        by ``"normal"`` / ``"normal_unit_var"``.
+    """
+    if gene_likelihood in ("nb", "pnb", "zinb", "poisson"):
+        # log_softmax over genes, then add the (log) library size to get log(mu)
+        px_scale_log = px_scale_logit - torch.logsumexp(px_scale_logit, dim=-1, keepdim=True)
+        px_rate_log = size_factor + px_scale_log  # size_factor == log(library size)
+        if gene_likelihood == "pnb":
+            return LogNegativeBinomial(log_m=px_rate_log, log_r=px_r_logit, log_scale=px_scale_log)
+        px_scale = torch.exp(px_scale_log)
+        px_rate = torch.exp(px_rate_log)
+        if gene_likelihood == "nb":
+            return NegativeBinomial(mu=px_rate, theta=torch.exp(px_r_logit), scale=px_scale)
+        if gene_likelihood == "poisson":
+            return Poisson(rate=px_rate, scale=px_scale)
+        return ZeroInflatedNegativeBinomial(
+            mu=px_rate, theta=torch.exp(px_r_logit), zi_logits=px_dropout_logit, scale=px_scale
+        )
+    if gene_likelihood == "normal":
+        var = torch.nan_to_num(torch.exp(px_r_logit), posinf=100.0, neginf=0.0) + 1e-8
+        return Normal(px_scale_logit, var.sqrt(), normal_mu=px_scale_logit)
+    if gene_likelihood == "normal_unit_var":
+        return Normal(px_scale_logit, torch.ones_like(px_scale_logit), normal_mu=px_scale_logit)
+    raise ValueError(f"Unknown gene_likelihood: {gene_likelihood}")
