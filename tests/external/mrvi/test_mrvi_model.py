@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from typing import TYPE_CHECKING
 
@@ -91,6 +92,52 @@ def test_MRVI_with_labels(model2: MRVI, adata: AnnData, save_path: str):
     model2.save(model_path, save_anndata=False, overwrite=True)
     model2 = MRVI.load(model_path, adata=adata)
     model2.train(1)
+
+
+def _small_trained_mrvi():
+    adata = synthetic_iid(batch_size=100)
+    adata.obs.index.name = "cell_id"
+    adata.obs["sample"] = np.random.choice(15, size=adata.shape[0])
+    adata.obs["sample_str"] = [chr(i + ord("a")) for i in adata.obs["sample"]]
+    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
+    model = MRVI(adata)
+    model.train(max_epochs=1, train_size=0.5)
+    return model, adata
+
+
+def test_MRVI_get_normalized_expression_n_samples_overall_shape():
+    model, adata = _small_trained_mrvi()
+
+    n_samples_overall = 30
+    result = model.get_normalized_expression(
+        n_samples_overall=n_samples_overall, return_numpy=False
+    )
+    # Regression test: on main, `return_numpy=False` raises `ValueError: Shape of passed
+    # values is (n_samples_overall, n_vars), indices imply (n_obs, n_vars)` here too, the
+    # same bug fixed in RNASeqMixin.get_normalized_expression.
+    assert result.shape == (n_samples_overall, adata.n_vars)
+
+
+def test_MRVI_get_normalized_expression_n_samples_overall_call_count():
+    model, adata = _small_trained_mrvi()
+    assert adata.n_obs == 200
+
+    call_count = {"n": 0}
+    orig_forward = model.module.forward
+
+    def counting_forward(tensors, *args, **kwargs):
+        call_count["n"] += 1
+        return orig_forward(tensors, *args, **kwargs)
+
+    model.module.forward = counting_forward
+    batch_size = 32
+    n_samples_overall = 25
+    model.get_normalized_expression(
+        n_samples_overall=n_samples_overall, batch_size=batch_size, return_numpy=True
+    )
+    # The population (200 cells) is bigger than the request: forward must run only on the
+    # `n_samples_overall` presampled cells, not on the whole population.
+    assert call_count["n"] == math.ceil(n_samples_overall / batch_size)
 
 
 def test_MRVI_outlier_cell_sample_pairs(model: MRVI):

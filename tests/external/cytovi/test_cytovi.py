@@ -1,3 +1,4 @@
+import math
 import os
 
 import anndata as ad
@@ -193,6 +194,69 @@ def test_cytovi(adata):
 
     model = cytovi.CYTOVI(adata)
     model.train(max_epochs=N_EPOCHS)
+
+
+def _small_trained_cytovi():
+    adata = synthetic_iid(
+        batch_size=50,
+        n_genes=15,
+        n_proteins=0,
+        n_regions=0,
+        n_batches=2,
+        n_labels=3,
+        rna_dist="normal",
+    )
+    adata.layers[RAW_LAYER_KEY] = adata.X.copy()
+    adata.obs[SAMPLE_KEY] = np.random.choice(["group_a", "group_b"], size=adata.shape[0])
+    cytovi.transform_arcsinh(adata)
+    cytovi.scale(adata)
+    cytovi.CYTOVI.setup_anndata(
+        adata,
+        layer=SCALED_LAYER_KEY,
+        batch_key=BATCH_KEY,
+        sample_key=SAMPLE_KEY,
+    )
+    model = cytovi.CYTOVI(adata)
+    model.train(max_epochs=N_EPOCHS)
+    return model, adata
+
+
+def test_cytovi_get_normalized_expression_n_samples_overall_shape():
+    model, adata = _small_trained_cytovi()
+
+    n_samples_overall = 30
+    result = model.get_normalized_expression(
+        n_samples_overall=n_samples_overall, return_numpy=False
+    )
+    # Regression test: on main, `return_numpy=False` raises `ValueError: Shape of passed
+    # values is (n_samples_overall, n_vars), indices imply (n_obs, n_vars)` here too, the
+    # same bug fixed in RNASeqMixin.get_normalized_expression.
+    assert result.shape == (n_samples_overall, adata.n_vars)
+
+
+def test_cytovi_get_normalized_expression_n_samples_overall_call_count():
+    model, adata = _small_trained_cytovi()
+    assert adata.n_obs == 100
+
+    call_count = {"n": 0}
+    orig_forward = model.module.forward
+
+    def counting_forward(tensors, *args, **kwargs):
+        call_count["n"] += 1
+        return orig_forward(tensors, *args, **kwargs)
+
+    model.module.forward = counting_forward
+    batch_size = 32
+    n_samples_overall = 25
+    model.get_normalized_expression(
+        n_samples_overall=n_samples_overall,
+        batch_size=batch_size,
+        return_numpy=True,
+        transform_batch=None,  # real observed batch: one forward call per minibatch
+    )
+    # The population (100 cells) is bigger than the request: forward must run only on the
+    # `n_samples_overall` presampled cells, not on the whole population.
+    assert call_count["n"] == math.ceil(n_samples_overall / batch_size)
 
 
 @pytest.mark.parametrize("protein_likelihood", ["normal", "beta"])
