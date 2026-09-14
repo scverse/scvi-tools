@@ -273,16 +273,6 @@ class DecoderDRVI(nn.Module):
         else:
             raise ValueError(f"Invalid split_method: {self.split_method}")
 
-    def _run_body(
-        self, z_split: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None, **kwargs
-    ):
-        """Run the per-split decoder body on ``(*, n_split, n_split_output)``."""
-        return self.px_decoder(z_split, *cat_list, cont=cont, **kwargs)
-
-    def _apply_head(self, head: nn.Module, h: torch.Tensor, **kwargs) -> torch.Tensor:
-        """Apply one output head to the body's hidden state ``(*, n_split, n_hidden)``."""
-        return head(h)
-
     def _aggregate(self, x: torch.Tensor) -> torch.Tensor:
         """Aggregate per-split params ``(*, n_split, n_genes)`` over the split dimension."""
         n_split = x.shape[-2]
@@ -312,27 +302,20 @@ class DecoderDRVI(nn.Module):
         supported and preserved: the split transform, the per-split FC layers and the aggregation
         all act on the last one or two dimensions.
 
-        The split-mapping (:meth:`_apply_split`), the decoder body (:meth:`_run_body`) and the head
-        application (:meth:`_apply_head`) are overridable seams, and any extra ``**kwargs`` are
-        threaded to all three.
+        The split-mapping is an overridable seam (:meth:`_apply_split`); any extra ``**kwargs``
+        are threaded to it and to the per-split FC body.
         """
         z_split = self._apply_split(z, **kwargs)  # (*, n_split, n_split_output)
-        h = self._run_body(z_split, *cat_list, cont=cont, **kwargs)  # (*, n_split, n_hidden)
+        h = self.px_decoder(z_split, *cat_list, cont=cont, **kwargs)  # (*, n_split, n_hidden)
 
         # per-split scale logits aggregated over splits, kept in log space
-        px_scale_logit_per_split = self._apply_head(
-            self.px_scale_decoder, h, **kwargs
-        )  # (*, n_split, n_genes)
+        px_scale_logit_per_split = self.px_scale_decoder(h)  # (*, n_split, n_genes)
         px_scale_logit = self._aggregate(px_scale_logit_per_split)  # (*, n_genes)
         px_dropout_logit, px_r_logit = None, None
         if self.px_r_decoder is not None:
-            px_r_logit = self._aggregate(
-                self._apply_head(self.px_r_decoder, h, **kwargs)
-            )  # heuristic
+            px_r_logit = self._aggregate(self.px_r_decoder(h))  # heuristic
         if self.px_dropout_decoder is not None:
-            px_dropout_logit = -self._aggregate(
-                -self._apply_head(self.px_dropout_decoder, h, **kwargs)
-            )  # heuristic
+            px_dropout_logit = -self._aggregate(-self.px_dropout_decoder(h))  # heuristic
 
         if not self.inspect_mode:
             px_scale_logit_per_split = None
