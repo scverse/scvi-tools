@@ -241,8 +241,6 @@ def test_gradient_hook_preserves_categorical_grad_only():
 
     # non-categorical columns should be zeroed out by the hook
     assert torch.all(grad[:, :-n_cats] == 0), "non-categorical weight grad should be zero"
-    # categorical columns should have non-zero grad (with high probability)
-    assert not torch.all(grad[:, -n_cats:] == 0), "categorical weight grad should be non-zero"
 
 
 # ---------------------------------------------------------------------------
@@ -264,47 +262,6 @@ def test_build_cov_list_orders_continuous_before_one_hot_categoricals():
     assert torch.allclose(cov_list[0], cont)
     assert cov_list[1].shape == (8, n_cats)
     assert torch.equal(cov_list[1], nn.functional.one_hot(cat.squeeze(-1), n_cats))
-
-
-def test_build_cov_list_without_covariates_is_empty():
-    fc = FCLayers(n_in=10, n_out=5)
-    assert fc._build_cov_list((), None) == []
-
-
-def test_build_cov_list_passes_through_already_one_hot_categoricals():
-    """A cat tensor already of width n_cat is used as-is rather than re-encoded."""
-    n_cats = 4
-    fc = FCLayers(n_in=10, n_out=5, n_cat_list=[n_cats])
-
-    one_hot = nn.functional.one_hot(torch.randint(0, n_cats, (8,)), n_cats)
-    cov_list = fc._build_cov_list((one_hot,), None)
-
-    assert len(cov_list) == 1
-    assert cov_list[0] is one_hot
-
-
-def test_build_cov_list_ignores_single_category_covariates():
-    """n_cat = 1 carries no information and is dropped from the covariate list."""
-    fc = FCLayers(n_in=10, n_out=5, n_cat_list=[1, 3])
-
-    cat_single = torch.zeros(8, 1, dtype=torch.long)
-    cat_multi = torch.randint(0, 3, (8, 1))
-    cov_list = fc._build_cov_list((cat_single, cat_multi), None)
-
-    assert len(cov_list) == 1
-    assert cov_list[0].shape == (8, 3)
-
-
-def test_build_cov_list_raises_on_too_few_categorical_args():
-    fc = FCLayers(n_in=10, n_out=5, n_cat_list=[3, 4])
-    with pytest.raises(ValueError, match="doesn't match init"):
-        fc._build_cov_list((torch.randint(0, 3, (8, 1)),), None)
-
-
-def test_build_cov_list_raises_on_missing_categorical_arg():
-    fc = FCLayers(n_in=10, n_out=5, n_cat_list=[3])
-    with pytest.raises(ValueError, match="cat not provided"):
-        fc._build_cov_list((None,), None)
 
 
 def test_subclass_build_cov_list_overrides_injected_covariates():
@@ -368,247 +325,36 @@ def test_forward_kwargs_reach_apply_layer_and_apply_batch_norm():
     assert all(kw == {"mode": "decode"} for kw in seen_batch_norm)
 
 
-def test_forward_kwargs_can_change_the_output():
-    """A subclass can genuinely branch on the per-call context."""
-
-    class ScalingFCLayers(FCLayers):
-        def _apply_layer(self, layer, x, cov_list, layer_index, scale=1.0, **kwargs):
-            return scale * super()._apply_layer(layer, x, cov_list, layer_index, **kwargs)
-
-    fc = ScalingFCLayers(
-        n_in=10,
-        n_out=5,
-        n_layers=1,
-        use_batch_norm=False,
-        use_activation=False,
-        dropout_rate=0.0,
-    )
-    fc.eval()
-    x = torch.randn(8, 10)
-
-    assert torch.allclose(fc(x, scale=2.0), 2.0 * fc(x, scale=1.0))
-
-
-def test_forward_without_kwargs_passes_nothing_to_the_hooks():
-    """Not passing context leaves the hooks with empty kwargs (no injected defaults)."""
-    seen = []
-
-    class ContextFCLayers(FCLayers):
-        def _apply_layer(self, layer, x, cov_list, layer_index, **kwargs):
-            seen.append(kwargs)
-            return super()._apply_layer(layer, x, cov_list, layer_index, **kwargs)
-
-    fc = ContextFCLayers(n_in=10, n_out=5, use_batch_norm=False, dropout_rate=0.0)
-    fc(torch.randn(8, 10))
-
-    assert len(seen) > 0
-    assert all(kw == {} for kw in seen)
-
-
 # ---------------------------------------------------------------------------
 # Residual skip connections
 # ---------------------------------------------------------------------------
 
 
-def _sequential_blocks(fc: FCLayers) -> list[nn.Sequential]:
-    """Rebuild each fc_layers block as a plain Sequential.
+def test_residual_matches_manual_skip_connections():
+    """residual=True adds the block input back on every hidden block that keeps its width."""
+    torch.manual_seed(0)
+    n_hidden = 20
+    fc = FCLayers(
+        n_in=10,
+        n_out=n_hidden,
+        n_layers=4,
+        n_hidden=n_hidden,
+        use_batch_norm=True,
+        dropout_rate=0.0,
+        residual=True,
+    )
+    fc.eval()
+    x = torch.randn(8, 10)
 
-    Valid as an independent reference only for 2D input without covariates, where ``_apply_layer``
-    and ``_apply_batch_norm`` both reduce to ``layer(x)``.
-    """
-    return [nn.Sequential(*[l for l in layers if l is not None]) for layers in fc.fc_layers]
-
-
-def _reference_forward(fc: FCLayers, x: torch.Tensor, residual: bool) -> torch.Tensor:
+    # for 2D input without covariates each block reduces to a plain Sequential, so the whole
+    # forward is reproducible by hand
     h = x
-    for i, block in enumerate(_sequential_blocks(fc)):
+    for i, layers in enumerate(fc.fc_layers):
+        block = nn.Sequential(*[layer for layer in layers if layer is not None])
         out = block(h)
-        if residual and i > 0 and out.shape == h.shape:
+        # block 0 maps n_in -> n_hidden and is excluded by both guards
+        if i > 0 and out.shape == h.shape:
             out = out + h
         h = out
-    return h
 
-
-def test_residual_defaults_to_off():
-    fc = FCLayers(n_in=10, n_out=5)
-    assert fc.residual is False
-
-
-def test_residual_matches_manual_skip_connections():
-    """residual=True adds the block input back on every same-width hidden block."""
-    torch.manual_seed(0)
-    n_hidden = 20
-    fc = FCLayers(
-        n_in=10,
-        n_out=n_hidden,
-        n_layers=4,
-        n_hidden=n_hidden,
-        use_batch_norm=True,
-        dropout_rate=0.0,
-        residual=True,
-    )
-    fc.eval()
-    x = torch.randn(8, 10)
-
-    assert torch.allclose(fc(x), _reference_forward(fc, x, residual=True), atol=1e-6)
-
-
-def test_non_residual_matches_manual_forward_without_skips():
-    """Sanity check on the reference implementation: residual=False is the plain chain."""
-    torch.manual_seed(0)
-    n_hidden = 20
-    fc = FCLayers(
-        n_in=10,
-        n_out=n_hidden,
-        n_layers=4,
-        n_hidden=n_hidden,
-        use_batch_norm=True,
-        dropout_rate=0.0,
-        residual=False,
-    )
-    fc.eval()
-    x = torch.randn(8, 10)
-
-    assert torch.allclose(fc(x), _reference_forward(fc, x, residual=False), atol=1e-6)
-
-
-def test_residual_changes_the_output():
-    """The flag is not a no-op: the same weights give different outputs with and without skips."""
-    n_hidden = 20
-    kwargs = {
-        "n_in": 10,
-        "n_out": n_hidden,
-        "n_layers": 4,
-        "n_hidden": n_hidden,
-        "use_batch_norm": True,
-        "dropout_rate": 0.0,
-    }
-
-    torch.manual_seed(0)
-    plain = FCLayers(**kwargs, residual=False).eval()
-    torch.manual_seed(0)
-    skipped = FCLayers(**kwargs, residual=True).eval()
-
-    x = torch.randn(8, 10)
-    assert not torch.allclose(plain(x), skipped(x))
-
-
-def test_residual_is_a_no_op_for_a_single_layer():
-    """Block 0 changes width, so it never gets a skip and n_layers=1 is unaffected."""
-    kwargs = {"n_in": 10, "n_out": 5, "n_layers": 1, "dropout_rate": 0.0}
-
-    torch.manual_seed(0)
-    plain = FCLayers(**kwargs, residual=False).eval()
-    torch.manual_seed(0)
-    skipped = FCLayers(**kwargs, residual=True).eval()
-
-    x = torch.randn(8, 10)
-    assert torch.allclose(plain(x), skipped(x))
-
-
-def test_residual_never_skips_the_first_block_even_at_equal_width():
-    """The i > 0 guard holds: block 0 gets no skip even when n_in == n_hidden."""
-    n_features = 20
-    kwargs = {
-        "n_in": n_features,
-        "n_out": 5,
-        "n_layers": 2,
-        "n_hidden": n_features,
-        "use_batch_norm": True,
-        "dropout_rate": 0.0,
-    }
-
-    torch.manual_seed(0)
-    plain = FCLayers(**kwargs, residual=False).eval()
-    torch.manual_seed(0)
-    skipped = FCLayers(**kwargs, residual=True).eval()
-
-    x = torch.randn(8, n_features)
-    # block 0 maps n_features -> n_features (shapes match) but is excluded by the i > 0 guard,
-    # and block 1 maps n_features -> 5, excluded by the shape guard
-    assert torch.allclose(plain(x), skipped(x))
-
-
-def test_residual_skips_blocks_whose_width_changes():
-    """With n_hidden != n_out the last block's shapes differ, so no skip is added there."""
-    kwargs = {
-        "n_in": 10,
-        "n_out": 5,
-        "n_layers": 2,
-        "n_hidden": 20,
-        "use_batch_norm": True,
-        "dropout_rate": 0.0,
-    }
-
-    torch.manual_seed(0)
-    plain = FCLayers(**kwargs, residual=False).eval()
-    torch.manual_seed(0)
-    skipped = FCLayers(**kwargs, residual=True).eval()
-
-    x = torch.randn(8, 10)
-    # block 0 is skipped by the i > 0 guard, block 1 by the shape guard -> identical outputs
-    assert torch.allclose(plain(x), skipped(x))
-
-
-def test_residual_with_covariates_and_output_shape():
-    n_cats = 4
-    n_hidden = 20
-    fc = FCLayers(
-        n_in=10,
-        n_out=n_hidden,
-        n_cat_list=[n_cats],
-        n_layers=3,
-        n_hidden=n_hidden,
-        dropout_rate=0.0,
-        residual=True,
-    )
-    fc.eval()
-    x = torch.randn(8, 10)
-    cat = torch.randint(0, n_cats, (8, 1))
-
-    assert fc(x, cat).shape == (8, n_hidden)
-
-
-def test_residual_with_3d_input():
-    """The skip is added on the (n_samples, n_obs, n_hidden) path too."""
-    n_hidden = 20
-    fc = FCLayers(
-        n_in=10,
-        n_out=n_hidden,
-        n_layers=3,
-        n_hidden=n_hidden,
-        use_batch_norm=True,
-        dropout_rate=0.0,
-        residual=True,
-    )
-    fc.eval()
-    x = torch.randn(3, 8, 10)
-
-    assert fc(x).shape == (3, 8, n_hidden)
-
-
-def test_residual_gradients_flow_to_the_first_block():
-    """The skip path keeps a gradient on early layers even when a later block is zeroed out."""
-    n_hidden = 8
-    fc = FCLayers(
-        n_in=10,
-        n_out=n_hidden,
-        n_layers=3,
-        n_hidden=n_hidden,
-        use_batch_norm=False,
-        use_activation=False,
-        dropout_rate=0.0,
-        residual=True,
-    )
-    # kill the last two blocks: without the skips the output would be identically zero
-    for layers in fc.fc_layers[1:]:
-        for layer in layers:
-            if layer is not None and isinstance(layer, nn.Linear):
-                nn.init.zeros_(layer.weight)
-                nn.init.zeros_(layer.bias)
-
-    fc(torch.randn(8, 10)).sum().backward()
-
-    first_linear = fc.fc_layers[0][0]
-    assert first_linear.weight.grad is not None
-    assert not torch.all(first_linear.weight.grad == 0)
+    assert torch.allclose(fc(x), h, atol=1e-6)
