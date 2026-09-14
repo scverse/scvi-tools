@@ -9,9 +9,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
-- Add a `residual` option to {class}`scvi.nn.FCLayers` that wraps every hidden block whose input
-    and output share a width in a skip connection. The first block changes width and is always
-    excluded, so the flag needs `n_layers >= 2` to have any effect, {pr}`4017`.
+- Add a `residual` option to {class}`scvi.nn.FCLayers` that wraps every block except the first in
+    a skip connection, whenever that block's input and output widths match. The first block is
+    always excluded, so the flag needs `n_layers >= 2` to have any effect, {pr}`4017`.
 
 #### Changed
 

@@ -66,9 +66,9 @@ class FCLayers(nn.Module):
     activation_fn
         Which activation function to use
     residual
-        Whether to add a residual skip connection around each hidden block whose input and output
-        share a width. The first block (which changes width) is skipped, so this requires
-        ``n_layers >= 2`` to have any effect.
+        Whether to add a residual skip connection around every block except the first, whenever
+        that block's input and output widths match. The first block is always excluded, so this
+        requires ``n_layers >= 2`` to have any effect.
     """
 
     def __init__(
