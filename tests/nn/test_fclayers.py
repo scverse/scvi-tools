@@ -241,6 +241,8 @@ def test_gradient_hook_preserves_categorical_grad_only():
 
     # non-categorical columns should be zeroed out by the hook
     assert torch.all(grad[:, :-n_cats] == 0), "non-categorical weight grad should be zero"
+    # categorical columns should have non-zero grad (with high probability)
+    assert not torch.all(grad[:, -n_cats:] == 0), "categorical weight grad should be non-zero"
 
 
 # ---------------------------------------------------------------------------
