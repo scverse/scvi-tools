@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 
 import torch
 from torch import nn
+from torch.distributions import Normal
 from torch.nn.functional import linear, one_hot
 
 from scvi import REGISTRY_KEYS
-from scvi.distributions import Normal
 from scvi.external.drvi._base_components import DecoderDRVI
 from scvi.external.drvi._constants import DRVI_MODULE_KEYS
 from scvi.external.drvi._distributions import build_gene_likelihood
