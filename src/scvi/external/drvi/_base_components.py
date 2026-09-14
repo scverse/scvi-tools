@@ -302,7 +302,7 @@ class DecoderDRVI(nn.Module):
         supported and preserved: the split transform, the per-split FC layers and the aggregation
         all act on the last one or two dimensions.
 
-        The split-mapping is an overridable seam (:meth:`_apply_split`); any extra ``**kwargs``
+        The split-mapping is an overridable seam (``_apply_split``); any extra ``**kwargs``
         are threaded to it and to the per-split FC body.
         """
         z_split = self._apply_split(z, **kwargs)  # (*, n_split, n_split_output)
