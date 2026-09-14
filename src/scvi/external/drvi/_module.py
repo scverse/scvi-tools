@@ -249,14 +249,14 @@ class DRVIModule(VAE):
 
     def _build_gene_likelihood(
         self,
-        gene_likelihood: str,
         px_scale_logit: torch.Tensor,
         px_r_logit: torch.Tensor,
         px_dropout_logit: torch.Tensor | None = None,
         size_factor: torch.Tensor | None = None,
     ) -> Distribution:
+        """Turn the decoder's log-space parameters into ``self.gene_likelihood``'s distribution."""
         return build_gene_likelihood(
-            gene_likelihood, px_scale_logit, px_r_logit, px_dropout_logit, size_factor
+            self.gene_likelihood, px_scale_logit, px_r_logit, px_dropout_logit, size_factor
         )
 
     def _prepare_decoder_covariate_inputs(
@@ -266,6 +266,12 @@ class DRVIModule(VAE):
         cat_covs: torch.Tensor | None,
         transform_batch: torch.Tensor | None,
     ) -> tuple[torch.Tensor, torch.Tensor | None, tuple[torch.Tensor, ...]]:
+        """Split the covariates into the decoder's categorical and continuous inputs.
+
+        The one-hot batch is injected via the decoder's ``n_cat_list``, while the embedding batch
+        representation is concatenated to each split as a continuous covariate. Returns the
+        (possibly ``transform_batch``-overridden) batch index alongside them.
+        """
         categorical_input = torch.split(cat_covs, 1, dim=1) if cat_covs is not None else ()
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
@@ -287,6 +293,10 @@ class DRVIModule(VAE):
         batch_index: torch.Tensor,
         **kwargs,
     ) -> torch.Tensor:
+        """Resolve the dispersion logit, before exponentiation.
+
+        That is ``log theta`` for the (log-)NB likelihoods and ``log variance`` for Normal.
+        """
         if self.dispersion == "gene-label":
             px_r_logit = linear(one_hot(y.squeeze(-1), self.n_labels).float(), self.px_r)
         elif self.dispersion == "gene-batch":
@@ -340,9 +350,7 @@ class DRVIModule(VAE):
         )
         px_r_logit = self._compute_px_r_logit(px_r_logit, y, batch_index, **kwargs)
 
-        px = self._build_gene_likelihood(
-            self.gene_likelihood, px_scale_logit, px_r_logit, px_dropout_logit, size_factor
-        )
+        px = self._build_gene_likelihood(px_scale_logit, px_r_logit, px_dropout_logit, size_factor)
 
         if self.use_observed_lib_size:
             pl = None

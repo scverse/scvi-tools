@@ -87,6 +87,7 @@ class SplitFCLayers(FCLayers):
         return isinstance(layer, (nn.Linear, StackedLinearLayer))
 
     def _inject_covariates(self, layer, x, cov_list, layer_index):
+        """Concatenate the covariates onto ``x``, broadcast over the split dimension."""
         if self._is_linear_layer(layer) and self.inject_into_layer(layer_index):
             if x.dim() not in (3, 4):
                 raise ValueError(
@@ -173,7 +174,7 @@ class DecoderDRVI(nn.Module):
         Keyword arguments for :class:`SplitFCLayers`.
     """
 
-    _fc_layers_class = SplitFCLayers
+    _fc_layers_cls = SplitFCLayers
 
     def __init__(
         self,
@@ -233,7 +234,7 @@ class DecoderDRVI(nn.Module):
         last_reuse = reuse_weights in ("everywhere", "last", "hidden_except_first")
 
         # per-split decoder body operating on (*, n_split, n_split_output)
-        self.px_decoder = self._fc_layers_class(
+        self.px_decoder = self._fc_layers_cls(
             n_in=n_split_output,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
@@ -275,9 +276,11 @@ class DecoderDRVI(nn.Module):
     def _run_body(
         self, z_split: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None, **kwargs
     ):
+        """Run the per-split decoder body on ``(*, n_split, n_split_output)``."""
         return self.px_decoder(z_split, *cat_list, cont=cont, **kwargs)
 
     def _apply_head(self, head: nn.Module, h: torch.Tensor, **kwargs) -> torch.Tensor:
+        """Apply one output head to the body's hidden state ``(*, n_split, n_hidden)``."""
         return head(h)
 
     def _aggregate(self, x: torch.Tensor) -> torch.Tensor:

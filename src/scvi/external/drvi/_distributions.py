@@ -174,6 +174,8 @@ def build_gene_likelihood(
             mu=px_rate, theta=torch.exp(px_r_logit), zi_logits=px_dropout_logit, scale=px_scale
         )
     if gene_likelihood == "normal":
+        # Gaussian with the mean modeled directly (the raw log-space decoder output, no
+        # library/softmax) and per-gene variance modeled in log space.
         var = torch.nan_to_num(torch.exp(px_r_logit), posinf=100.0, neginf=0.0) + 1e-8
         return Normal(px_scale_logit, var.sqrt(), normal_mu=px_scale_logit)
     if gene_likelihood == "normal_unit_var":
