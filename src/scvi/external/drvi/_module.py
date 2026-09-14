@@ -247,45 +247,6 @@ class DRVIModule(VAE):
             outputs[MODULE_KEYS.Z_KEY] = self.z_encoder.z_transformation(qz.loc)
         return outputs
 
-    def _build_gene_likelihood(
-        self,
-        px_scale_logit: torch.Tensor,
-        px_r_logit: torch.Tensor,
-        px_dropout_logit: torch.Tensor | None = None,
-        size_factor: torch.Tensor | None = None,
-    ) -> Distribution:
-        """Turn the decoder's log-space parameters into ``self.gene_likelihood``'s distribution."""
-        return build_gene_likelihood(
-            self.gene_likelihood, px_scale_logit, px_r_logit, px_dropout_logit, size_factor
-        )
-
-    def _prepare_decoder_covariate_inputs(
-        self,
-        batch_index: torch.Tensor,
-        cont_covs: torch.Tensor | None,
-        cat_covs: torch.Tensor | None,
-        transform_batch: torch.Tensor | None,
-    ) -> tuple[torch.Tensor, torch.Tensor | None, tuple[torch.Tensor, ...]]:
-        """Split the covariates into the decoder's categorical and continuous inputs.
-
-        The one-hot batch is injected via the decoder's ``n_cat_list``, while the embedding batch
-        representation is concatenated to each split as a continuous covariate. Returns the
-        (possibly ``transform_batch``-overridden) batch index alongside them.
-        """
-        categorical_input = torch.split(cat_covs, 1, dim=1) if cat_covs is not None else ()
-        if transform_batch is not None:
-            batch_index = torch.ones_like(batch_index) * transform_batch
-        if self.batch_representation == "embedding":
-            batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
-            decoder_cont = (
-                batch_rep if cont_covs is None else torch.cat([cont_covs, batch_rep], dim=-1)
-            )
-            decoder_cats = categorical_input
-        else:
-            decoder_cont = cont_covs
-            decoder_cats = (batch_index, *categorical_input)
-        return batch_index, decoder_cont, decoder_cats
-
     def _compute_px_r_logit(
         self,
         px_r_logit: torch.Tensor,
@@ -325,6 +286,9 @@ class DRVIModule(VAE):
         embedding batch representation, the learned batch embedding is injected into each split as
         an extra continuous covariate. Any extra ``**kwargs`` are handed to the decoder.
         """
+        categorical_input = torch.split(cat_covs, 1, dim=1) if cat_covs is not None else ()
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
         if not self.use_size_factor_key:
             size_factor = library
         elif size_factor is None:
@@ -334,9 +298,17 @@ class DRVIModule(VAE):
                 "size_factor_key and that the tensor dictionary includes it."
             )
 
-        batch_index, decoder_cont, decoder_cats = self._prepare_decoder_covariate_inputs(
-            batch_index, cont_covs, cat_covs, transform_batch
-        )
+        # batch handling: one-hot batch is injected via the decoder's n_cat_list; the embedding
+        # batch representation is concatenated to each split as a continuous covariate.
+        if self.batch_representation == "embedding":
+            batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+            decoder_cont = (
+                batch_rep if cont_covs is None else torch.cat([cont_covs, batch_rep], dim=-1)
+            )
+            decoder_cats = categorical_input
+        else:
+            decoder_cont = cont_covs
+            decoder_cats = (batch_index, *categorical_input)
 
         self.decoder.inspect_mode = self.inspect_mode
         # the decoder returns log-space per-gene parameters. Labels are not part of the decoder's
@@ -350,7 +322,9 @@ class DRVIModule(VAE):
         )
         px_r_logit = self._compute_px_r_logit(px_r_logit, y, batch_index, **kwargs)
 
-        px = self._build_gene_likelihood(px_scale_logit, px_r_logit, px_dropout_logit, size_factor)
+        px = build_gene_likelihood(
+            self.gene_likelihood, px_scale_logit, px_r_logit, px_dropout_logit, size_factor
+        )
 
         if self.use_observed_lib_size:
             pl = None
