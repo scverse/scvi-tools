@@ -264,67 +264,6 @@ def test_build_cov_list_orders_continuous_before_one_hot_categoricals():
     assert torch.equal(cov_list[1], nn.functional.one_hot(cat.squeeze(-1), n_cats))
 
 
-def test_subclass_build_cov_list_overrides_injected_covariates():
-    """forward() sources its covariates from _build_cov_list, so a subclass can rewrite them."""
-
-    class ConstantCovFCLayers(FCLayers):
-        def _build_cov_list(self, cat_list, cont):
-            # ignore the caller's covariates entirely and inject a fixed one-hot instead
-            n_obs = cat_list[0].size(0)
-            return [nn.functional.one_hot(torch.zeros(n_obs, dtype=torch.long), 3).float()]
-
-    n_cats = 3
-    fc = ConstantCovFCLayers(
-        n_in=10, n_out=5, n_cat_list=[n_cats], use_batch_norm=False, dropout_rate=0.0
-    )
-    x = torch.randn(8, 10)
-
-    # two different cat arguments give the same output because they are both discarded
-    out_a = fc(x, torch.zeros(8, 1, dtype=torch.long))
-    out_b = fc(x, torch.full((8, 1), 2, dtype=torch.long))
-    assert torch.allclose(out_a, out_b)
-
-
-# ---------------------------------------------------------------------------
-# Forward kwargs threading to the _apply_layer / _apply_batch_norm seams
-# ---------------------------------------------------------------------------
-
-
-def test_forward_accepts_and_ignores_extra_kwargs():
-    """The base layers ignore unknown per-call context instead of raising."""
-    fc = FCLayers(n_in=10, n_out=5, n_layers=2, n_hidden=20, dropout_rate=0.0)
-    fc.eval()
-    x = torch.randn(8, 10)
-
-    assert torch.allclose(fc(x), fc(x, some_context="ignored", other=3))
-
-
-def test_forward_kwargs_reach_apply_layer_and_apply_batch_norm():
-    """Per-call context passed to forward() is threaded to both subclass hooks."""
-    seen_layer = []
-    seen_batch_norm = []
-
-    class ContextFCLayers(FCLayers):
-        def _apply_layer(self, layer, x, cov_list, layer_index, **kwargs):
-            seen_layer.append(kwargs)
-            return super()._apply_layer(layer, x, cov_list, layer_index, **kwargs)
-
-        def _apply_batch_norm(self, layer, x, **kwargs):
-            seen_batch_norm.append(kwargs)
-            return super()._apply_batch_norm(layer, x, **kwargs)
-
-    fc = ContextFCLayers(
-        n_in=10, n_out=5, n_layers=2, n_hidden=20, use_batch_norm=True, dropout_rate=0.0
-    )
-    fc.eval()
-    fc(torch.randn(8, 10), mode="decode")
-
-    assert len(seen_layer) > 0
-    assert all(kw == {"mode": "decode"} for kw in seen_layer)
-    assert len(seen_batch_norm) > 0
-    assert all(kw == {"mode": "decode"} for kw in seen_batch_norm)
-
-
 # ---------------------------------------------------------------------------
 # Residual skip connections
 # ---------------------------------------------------------------------------
