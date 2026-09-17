@@ -3,6 +3,12 @@
 Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
 to [Semantic Versioning]. The full commit history is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
+## Unreleased
+
+### Fixed
+
+- Include learned per-batch protein capture efficiency in `TOTALVI.get_normalized_expression` and posterior predictive protein rates (#4022)
+
 ## Version 1.5
 
 ### 1.5.1 (2026-09-10)

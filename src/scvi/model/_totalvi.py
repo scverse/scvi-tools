@@ -541,13 +541,14 @@ class TOTALVI(
                     px_scale *= library_size
 
                 py_ = generative_outputs["py_"]
+                py_rate = generative_outputs["py_norm_"]
                 # probability of background
                 protein_mixing = 1 / (1 + torch.exp(-py_["mixing"].cpu()))
                 if sample_protein_mixing is True:
                     protein_mixing = torch.distributions.Bernoulli(protein_mixing).sample()
-                protein_val = py_["rate_fore"].cpu() * (1 - protein_mixing)
+                protein_val = py_rate["rate_fore"].cpu() * (1 - protein_mixing)
                 if include_protein_background is True:
-                    protein_val += py_["rate_back"].cpu() * protein_mixing
+                    protein_val += py_rate["rate_back"].cpu() * protein_mixing
 
                 if scale_protein is True:
                     protein_val = torch.nn.functional.normalize(protein_val, p=1, dim=-1)
@@ -1008,7 +1009,7 @@ class TOTALVI(
 
             pi = 1 / (1 + torch.exp(-py_["mixing"]))
             mixing_sample = torch.distributions.Bernoulli(pi).sample()
-            protein_rate = py_["rate_fore"]
+            protein_rate = generative_outputs["py_norm_"]["rate_fore"]
             rate = torch.cat((rna_size_factor * px_["scale"], protein_rate), dim=-1)
             if len(px_["r"].size()) == 2:
                 px_dispersion = px_["r"]
