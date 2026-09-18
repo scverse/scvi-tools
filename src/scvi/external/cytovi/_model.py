@@ -882,12 +882,13 @@ class CYTOVI(
             )
 
         dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        qu_loc, qu_scale = self.get_latent_representation(
+        qu_loc, qu_var = self.get_latent_representation(
             batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True
         )
 
         qu_loc = torch.tensor(qu_loc, device=self.device).T
-        qu_scale = torch.tensor(qu_scale, device=self.device).T
+        # The latent representation returns variance; distributions require standard deviation.
+        qu_scale = torch.tensor(qu_var, device=self.device).T.sqrt()
 
         if dof is None:
             components = dist.Normal(qu_loc, qu_scale)
