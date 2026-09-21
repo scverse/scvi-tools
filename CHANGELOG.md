@@ -13,7 +13,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     `DecoderADT` accepted the flag without forwarding it to its {class}`scvi.nn.FCLayers`, which
     then fell back to their own `inject_covariates=True` default. The protein decoder therefore
     always injected covariates into every hidden layer, including under the default
-    `deeply_inject_covariates=False`, while the RNA and accessibility decoders did not, {pr}`PRNUM`.
+    `deeply_inject_covariates=False`, while the RNA and accessibility decoders did not, {pr}`4025`.
 
 ### 1.5.1 (2026-09-10)
 
