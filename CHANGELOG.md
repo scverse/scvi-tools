@@ -14,7 +14,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     every draw in a single `sample(sample_shape)` call came from the same component and the sample
     mean did not match `mean`. The indicator is now drawn per sample, matching
     {class}`scvi.distributions.ZeroInflatedNegativeBinomial`. Calls without a `sample_shape`, which
-    is how the models sample internally, are unaffected, {pr}`PRNUM`.
+    is how the models sample internally, are unaffected, {pr}`4027`.
 
 ### 1.5.1 (2026-09-10)
 
