@@ -16,7 +16,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     {meth}`~scvi.model.base.RNASeqMixin.posterior_predictive_sample` and
     {meth}`~scvi.model.base.RNASeqMixin.get_likelihood_parameters` emitted a spurious
     `Using 1 after custom Dataloader was initialize is redundant` for a plain
-    `model.get_normalized_expression(dataloader=dl)`, {pr}`PRNUM`.
+    `model.get_normalized_expression(dataloader=dl)`, {pr}`4024`.
 
 ### 1.5.1 (2026-09-10)
 
