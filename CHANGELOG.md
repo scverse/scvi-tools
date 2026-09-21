@@ -12,7 +12,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix {meth}`scvi.model.SCANVI.from_scvi_model` discarding an explicitly passed `registry` and
     always reusing `scvi_model.registry`. In the datamodule workflow the scANVI registry is the
     one with the labels field registered, so reading the label setup from the scVI registry raised
-    `KeyError: 'unlabeled_category'`, {pr}`PRNUM`.
+    `KeyError: 'unlabeled_category'`, {pr}`4026`.
 
 ### 1.5.1 (2026-09-10)
 
