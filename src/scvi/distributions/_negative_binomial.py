@@ -609,7 +609,7 @@ class NegativeBinomialMixture(Distribution):
     mixture_logits
         Logits scale probability of belonging to component 1.
     theta2
-        Inverse dispersion for component 1. If `None`, assumed to be equal to `theta1`.
+        Inverse dispersion for component 2. If `None`, assumed to be equal to `theta1`.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
@@ -643,7 +643,9 @@ class NegativeBinomialMixture(Distribution):
         super().__init__(validate_args=validate_args)
 
         if theta2 is not None:
-            self.theta2 = broadcast_all(mu1, theta2)
+            # ``broadcast_all`` returns a tuple; keep only the broadcast ``theta2`` and
+            # align it with the already-broadcast parameters.
+            self.theta2 = broadcast_all(self.mu1, theta2)[1]
         else:
             self.theta2 = None
 

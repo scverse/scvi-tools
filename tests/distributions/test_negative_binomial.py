@@ -228,3 +228,66 @@ def test_log_prob_matches_with_and_without_the_lgamma_contiguous_detour(monkeypa
     lp_without_detour = dist.log_prob(x)
 
     assert torch.equal(lp_with_detour, lp_without_detour)
+
+
+def test_mixture_theta2_is_stored_as_a_tensor():
+    """A per-component `theta2` must be usable.
+
+    `theta2` was stored as the tuple returned by ``broadcast_all``, so both ``sample``
+    and ``log_prob`` raised ``TypeError`` as soon as it was supplied.
+    """
+    dist = NegativeBinomialMixture(
+        mu1=torch.tensor([4.0]),
+        mu2=torch.tensor([200.0]),
+        theta1=torch.tensor([50.0]),
+        mixture_logits=torch.zeros(1),
+        theta2=torch.tensor([3.0]),
+    )
+
+    assert isinstance(dist.theta2, torch.Tensor)
+    assert dist.theta2.shape == dist.mu1.shape
+
+    torch.manual_seed(0)
+    assert dist.sample((4,)).shape == (4, 1)
+    assert torch.isfinite(dist.log_prob(torch.tensor([[3.0]]))).all()
+
+
+def test_mixture_theta2_matches_the_analytic_mixture():
+    """With `theta2` given, `log_prob` is the two-component mixture of the two thetas."""
+    mu1 = torch.tensor([4.0])
+    mu2 = torch.tensor([200.0])
+    theta1 = torch.tensor([50.0])
+    theta2 = torch.tensor([3.0])
+    dist = NegativeBinomialMixture(
+        mu1=mu1, mu2=mu2, theta1=theta1, mixture_logits=torch.zeros(1), theta2=theta2
+    )
+
+    x = torch.arange(0, 6).float().reshape(-1, 1)
+    pi = torch.sigmoid(torch.zeros(1))
+    expected = torch.log(
+        pi * log_nb_positive(x, mu1, theta1).exp()
+        + (1 - pi) * log_nb_positive(x, mu2, theta2).exp()
+    )
+
+    assert torch.allclose(dist.log_prob(x), expected, atol=1e-5)
+
+    # and it must not silently collapse onto the shared-theta branch
+    shared = NegativeBinomialMixture(
+        mu1=mu1, mu2=mu2, theta1=theta1, mixture_logits=torch.zeros(1)
+    )
+    assert not torch.allclose(dist.log_prob(x), shared.log_prob(x), atol=1e-4)
+
+
+def test_mixture_theta2_broadcasts_against_the_other_parameters():
+    """A scalar `theta2` is broadcast to the batch shape like the other parameters."""
+    batch_shape = (3, 4)
+    dist = NegativeBinomialMixture(
+        mu1=torch.full(batch_shape, 4.0),
+        mu2=torch.full(batch_shape, 20.0),
+        theta1=torch.full(batch_shape, 5.0),
+        mixture_logits=torch.zeros(batch_shape),
+        theta2=torch.tensor(2.0),
+    )
+
+    assert dist.theta2.shape == batch_shape
+    assert dist.log_prob(torch.full(batch_shape, 3.0)).shape == batch_shape
