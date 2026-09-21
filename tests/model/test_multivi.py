@@ -607,3 +607,41 @@ def test_multivi_rna_protein_only_trains_on_mps():
     )
     model = MULTIVI(mdata, n_latent=5)
     model.train(max_epochs=1, accelerator="mps")
+
+
+@pytest.mark.parametrize("deeply_inject_covariates", [False, True])
+def test_multivi_protein_decoder_honors_deep_covariate_injection(
+    deeply_inject_covariates: bool,
+):
+    """`deeply_inject_covariates` must reach the protein decoder.
+
+    `DecoderADT` accepted `deep_inject_covariates` without forwarding it, so its
+    `FCLayers` fell back to their own `inject_covariates=True` default. The protein
+    decoder therefore always injected covariates into its hidden layers, including for
+    the default `deeply_inject_covariates=False`, while the RNA and accessibility
+    decoders did not.
+    """
+    mdata = synthetic_iid(return_mudata=True)
+    MULTIVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        modalities={
+            "rna_layer": "rna",
+            "protein_layer": "protein_expression",
+            "atac_layer": "accessibility",
+        },
+    )
+    model = MULTIVI(
+        mdata, n_latent=5, n_layers_decoder=2, deeply_inject_covariates=deeply_inject_covariates
+    )
+
+    # Only layers past the first are affected by `inject_covariates`, so check the
+    # decoders built with more than one layer.
+    protein_decoder = model.module.z_decoder_pro
+    for name in ("py_fore_decoder", "sigmoid_decoder", "py_back_decoder"):
+        assert getattr(protein_decoder, name).inject_covariates is deeply_inject_covariates, name
+
+    # ... and stay consistent with the other modalities' decoders.
+    assert (
+        model.module.z_decoder_expression.px_decoder.inject_covariates is deeply_inject_covariates
+    )
