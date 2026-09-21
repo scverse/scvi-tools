@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import TYPE_CHECKING
 
 import torch
 
-from scvi import settings
-from scvi.data._utils import _validate_adata_dataloader_input
+from scvi.data._utils import (
+    _validate_adata_dataloader_input,
+    _warn_dataloader_args_ignored,
+)
 from scvi.utils import unsupported_if_adata_minified
 
 if TYPE_CHECKING:
@@ -89,14 +90,10 @@ class VAEMixin:
                 adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
         else:
-            for param in [indices, batch_size]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+            )
 
         return -compute_elbo(self.module, dataloader, return_mean=return_mean, **kwargs)
 
@@ -170,14 +167,10 @@ class VAEMixin:
                 adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
         else:
-            for param in [indices, batch_size]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+            )
 
         log_likelihoods: list[float | Tensor] = [
             self.module.marginal_ll(
@@ -253,14 +246,10 @@ class VAEMixin:
                 adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
         else:
-            for param in [indices, batch_size]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+            )
 
         return compute_reconstruction_error(
             self.module, dataloader, return_mean=return_mean, **kwargs
@@ -331,14 +320,10 @@ class VAEMixin:
                 adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
         else:
-            for param in [indices, batch_size]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+            )
 
         zs: list[Tensor] = []
         qz_means: list[Tensor] = []

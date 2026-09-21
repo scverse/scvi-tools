@@ -22,6 +22,7 @@ from . import _constants
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from typing import Any
 
     import numpy.typing as npt
     from pandas.api.types import CategoricalDtype
@@ -381,3 +382,26 @@ def _validate_adata_dataloader_input(
     ):
         raise ValueError("`dataloader` must be provided.")
     return
+
+
+def _warn_dataloader_args_ignored(**args: tuple[Any, Any]) -> None:
+    """Warn about arguments that are ignored because a custom dataloader was passed.
+
+    Parameters
+    ----------
+    args
+        Mapping from argument name to a ``(value, default)`` tuple. An argument is only
+        reported if ``value`` differs from ``default``, i.e. if the caller set it
+        explicitly.
+    """
+    for name, (value, default) in args.items():
+        # ``value`` may be an array (e.g. ``indices``), so only compare with ``==`` when
+        # the default is not ``None``, in which case the value is always a scalar.
+        set_by_caller = value is not None if default is None else value != default
+        if set_by_caller:
+            warnings.warn(
+                f"`{name}` is ignored when a custom `dataloader` is passed. Re-initialize "
+                f"the dataloader with the desired `{name}` instead.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel + 1,
+            )

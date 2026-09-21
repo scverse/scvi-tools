@@ -5,6 +5,19 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
+### 1.5.2 (2026-XX-XX)
+
+#### Fixed
+
+- Fix the warning about arguments that are ignored alongside a custom `dataloader` naming the
+    argument's *value* instead of its name, and firing for arguments the caller never set. Methods
+    with a non-`None` default such as `n_samples` warned on every call, so
+    {meth}`~scvi.model.base.RNASeqMixin.get_normalized_expression`,
+    {meth}`~scvi.model.base.RNASeqMixin.posterior_predictive_sample` and
+    {meth}`~scvi.model.base.RNASeqMixin.get_likelihood_parameters` emitted a spurious
+    `Using 1 after custom Dataloader was initialize is redundant` for a plain
+    `model.get_normalized_expression(dataloader=dl)`, {pr}`PRNUM`.
+
 ### 1.5.1 (2026-09-10)
 
 #### Added
