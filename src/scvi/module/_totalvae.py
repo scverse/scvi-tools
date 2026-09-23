@@ -774,7 +774,8 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
             )
 
         px_ = generative_outputs["px_"]
-        py_ = generative_outputs["py_"]
+        # use the efficiency-scaled protein rates so samples match the likelihood
+        py_ = generative_outputs["py_norm_"]
 
         rna_dist = NegativeBinomial(mu=px_["rate"], theta=px_["r"])
         protein_dist = NegativeBinomialMixture(

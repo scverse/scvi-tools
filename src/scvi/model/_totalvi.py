@@ -413,6 +413,7 @@ class TOTALVI(
         sample_protein_mixing: bool = False,
         scale_protein: bool = False,
         include_protein_background: bool = False,
+        include_protein_efficiency: bool = False,
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
@@ -459,6 +460,11 @@ class TOTALVI(
             Make protein expression sum to 1
         include_protein_background
             Include background component for protein expression
+        include_protein_efficiency
+            Multiply protein expression by the learned per-protein, per-batch capture efficiency,
+            putting it on the same scale as the protein likelihood. By default the efficiency is
+            treated as a technical factor (analogous to library size for genes) and left out.
+            If `transform_batch` is given, the efficiency of that batch is used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
@@ -541,13 +547,16 @@ class TOTALVI(
                     px_scale *= library_size
 
                 py_ = generative_outputs["py_"]
+                py_rate = (
+                    generative_outputs["py_norm_"] if include_protein_efficiency is True else py_
+                )
                 # probability of background
                 protein_mixing = 1 / (1 + torch.exp(-py_["mixing"].cpu()))
                 if sample_protein_mixing is True:
                     protein_mixing = torch.distributions.Bernoulli(protein_mixing).sample()
-                protein_val = py_["rate_fore"].cpu() * (1 - protein_mixing)
+                protein_val = py_rate["rate_fore"].cpu() * (1 - protein_mixing)
                 if include_protein_background is True:
-                    protein_val += py_["rate_back"].cpu() * protein_mixing
+                    protein_val += py_rate["rate_back"].cpu() * protein_mixing
 
                 if scale_protein is True:
                     protein_val = torch.nn.functional.normalize(protein_val, p=1, dim=-1)
