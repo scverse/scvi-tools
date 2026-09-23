@@ -413,11 +413,11 @@ class TOTALVI(
         sample_protein_mixing: bool = False,
         scale_protein: bool = False,
         include_protein_background: bool = False,
-        include_protein_efficiency: bool = False,
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
         silent: bool = True,
+        include_protein_efficiency: bool = False,
     ) -> tuple[np.ndarray | pd.DataFrame, np.ndarray | pd.DataFrame]:
         r"""Returns the normalized gene expression and protein expression.
 
@@ -460,11 +460,6 @@ class TOTALVI(
             Make protein expression sum to 1
         include_protein_background
             Include background component for protein expression
-        include_protein_efficiency
-            Multiply protein expression by the learned per-protein, per-batch capture efficiency,
-            putting it on the same scale as the protein likelihood. By default the efficiency is
-            treated as a technical factor (analogous to library size for genes) and left out.
-            If `transform_batch` is given, the efficiency of that batch is used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
@@ -474,6 +469,11 @@ class TOTALVI(
             names as columns. If either n_samples=1 or return_mean=True, defaults to False.
             Otherwise, it defaults to True.
         %(de_silent)s
+        include_protein_efficiency
+            Multiply protein expression by the learned per-protein, per-batch capture efficiency,
+            putting it on the same scale as the protein likelihood. By default the efficiency is
+            treated as a technical factor (analogous to library size for genes) and left out.
+            If `transform_batch` is given, the efficiency of that batch is used.
 
         Returns
         -------
