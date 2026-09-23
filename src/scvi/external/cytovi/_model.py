@@ -977,7 +977,9 @@ class CYTOVI(
         adata
             AnnData object to use. If `None`, defaults to the model's internal AnnData.
         groupby
-            Key in `adata.obs` that contains condition or group labels.
+            Key in `adata.obs` that contains condition or group labels. Each sample
+            must have exactly one non-missing condition, and at least two conditions
+            must be present.
             If not provided, returns log-probabilities per sample without aggregation.
         batch_size
             Mini-batch size for computing log-probabilities. Default: 128.
@@ -1011,6 +1013,22 @@ class CYTOVI(
         """
         adata = self._validate_anndata(adata)
 
+        if groupby is not None and not return_log_probs:
+            validate_obs_keys(adata, groupby)
+            # Use distinct column names so grouping by the sample key also works.
+            md = adata.obs[list(dict.fromkeys([self.sample_key, groupby]))].drop_duplicates()
+            if md.isna().any().any():
+                raise ValueError(
+                    "Differential abundance requires sample and condition labels without missing values."
+                )
+            if md[self.sample_key].duplicated().any():
+                raise ValueError(
+                    "Differential abundance requires exactly one condition per sample."
+                )
+            conditions = pd.Series(md[groupby].to_numpy(), index=md[self.sample_key])
+            if conditions.nunique() < 2:
+                raise ValueError("Differential abundance requires at least two conditions.")
+
         log_probs = self.get_sample_logprobs(
             adata, batch_size=batch_size, downsample_cells=downsample_cells, dof=dof
         )
@@ -1026,20 +1044,18 @@ class CYTOVI(
                 stacklevel=settings.warnings_stacklevel,
             )
             return log_probs
-        else:
-            validate_obs_keys(adata, groupby)
 
-        md = adata.obs[[self.sample_key, groupby]].drop_duplicates()
+        conditions = conditions.reindex(log_probs.columns)
 
         da_dict = {}
-        for cond in set(md[groupby].values):
-            is_case = (md[groupby] == cond).values
+        for cond in conditions.unique():
+            is_case = (conditions == cond).to_numpy()
             log_probs_cond = aggregation_fn(log_probs.loc[:, is_case], 1)
             log_prop_controls = aggregation_fn(log_probs.loc[:, ~is_case], 1)
             log_ratios = log_probs_cond - log_prop_controls
             da_dict[f"DA_{cond}"] = log_ratios
 
-        da_df = pd.DataFrame(da_dict)
+        da_df = pd.DataFrame(da_dict, index=log_probs.index)
 
         return da_df
 

@@ -3,6 +3,14 @@
 Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
 to [Semantic Versioning]. The full commit history is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
+## Unreleased
+
+### Fixed
+
+- Fix {class}`scvi.external.CYTOVI` differential abundance losing cell names and
+    assigning conditions by column position. Align samples by identifier and reject
+    missing, conflicting, or single-condition sample designs.
+
 ## Version 1.5
 
 ### 1.5.1 (2026-09-10)
