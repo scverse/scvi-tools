@@ -875,7 +875,7 @@ class CYTOVI(
         adata = self._validate_anndata(adata)
 
         if indices is None:
-            indices = np.arange(self.adata.n_obs)
+            indices = np.arange(adata.n_obs)
         if sample is not None:
             indices = np.intersect1d(
                 np.array(indices), np.where(adata.obs[self.sample_key] == sample)[0]
@@ -930,7 +930,7 @@ class CYTOVI(
         adata = self._validate_anndata(adata)
 
         zs = self.get_latent_representation(
-            batch_size=batch_size, return_dist=False, give_mean=True
+            adata=adata, batch_size=batch_size, return_dist=False, give_mean=True
         )
 
         unique_samples = adata.obs[self.sample_key].unique()
