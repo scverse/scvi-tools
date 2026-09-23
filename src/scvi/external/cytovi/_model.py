@@ -807,13 +807,9 @@ class CYTOVI(
                 warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             change_fn_clp = clip_lfc_factory(clip_min, clip_max)
 
-            if kwargs is None:
-                kwargs = {}
-                kwargs["change_fn"] = change_fn_clp
-                kwargs["test_mode"] = test_mode
-            else:
-                kwargs["change_fn"] = change_fn_clp
-                kwargs["test_mode"] = test_mode
+            kwargs["change_fn"] = change_fn_clp
+
+        kwargs["test_mode"] = test_mode
 
         if self.registry_["setup_args"]["sample_key"] and balance_samples is not False:
             subset_idx = get_balanced_sample_indices(adata, self.sample_key)
