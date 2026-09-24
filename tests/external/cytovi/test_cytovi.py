@@ -3,6 +3,9 @@ import os
 import anndata as ad
 import numpy as np
 import pytest
+import torch
+from scipy.special import logsumexp
+from scipy.stats import norm, t
 
 from scvi.criticism import PosteriorPredictiveCheck
 from scvi.criticism._constants import METRIC_CV_GENE
@@ -299,3 +302,33 @@ def test_cytovi_write_read_fcs(adata, save_path):
     adata_read = cytovi.read_fcs(save_path + "test_cytovi.fcs")
     assert adata_read.shape == adata.shape
     assert np.allclose(adata_read.X, adata.layers[SCALED_LAYER_KEY])
+
+
+@pytest.mark.parametrize("dof", [None, 3.0])
+def test_cytovi_aggregated_posterior_uses_standard_deviation(monkeypatch, dof):
+    adata = ad.AnnData(np.ones((3, 2), dtype=np.float32))
+    cytovi.CYTOVI.setup_anndata(adata)
+    model = cytovi.CYTOVI(adata, n_latent=2)
+    model.is_trained_ = True
+    means = np.array([[0.0, 1.0], [2.0, -1.0], [-2.0, 0.5]], dtype=np.float32)
+    variances = np.array([[0.25, 4.0], [9.0, 16.0], [1.0, 0.0625]], dtype=np.float32)
+
+    # The encoder API returns means and variances, not standard deviations.
+    def latent_distribution(**kwargs):
+        assert kwargs["return_dist"]
+        return means, variances
+
+    monkeypatch.setattr(model, "get_latent_representation", latent_distribution)
+    posterior = model.get_aggregated_posterior(dof=dof)
+    torch.testing.assert_close(
+        posterior.component_distribution.scale,
+        torch.tensor(np.sqrt(variances).T, device=model.device),
+    )
+
+    # Check the resulting mixture density against an independent calculation.
+    values = np.array([[0.0, 1.0], [2.0, -1.0]], dtype=np.float32)
+    parameters = {"loc": means[None, :, :], "scale": np.sqrt(variances)[None, :, :]}
+    components = norm(**parameters) if dof is None else t(df=dof, **parameters)
+    expected = logsumexp(components.logpdf(values[:, None, :]), axis=1) - np.log(3)
+    actual = posterior.log_prob(torch.tensor(values, device=model.device)).cpu().numpy()
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-6)
