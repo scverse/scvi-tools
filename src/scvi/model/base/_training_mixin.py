@@ -11,7 +11,11 @@ import pandas as pd
 import torch
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data._utils import _validate_adata_dataloader_input, get_anndata_attribute
+from scvi.data._utils import (
+    _validate_adata_dataloader_input,
+    _warn_dataloader_args_ignored,
+    get_anndata_attribute,
+)
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import (
@@ -299,14 +303,10 @@ class SemisupervisedTrainingMixin:
             )
         else:
             scdl = dataloader
-            for param in [indices, batch_size]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+            )
 
         attributions = None
         if ig_interpretability:

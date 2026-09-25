@@ -13,7 +13,10 @@ import torch.distributions as db
 from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data._utils import _validate_adata_dataloader_input
+from scvi.data._utils import (
+    _validate_adata_dataloader_input,
+    _warn_dataloader_args_ignored,
+)
 from scvi.distributions._utils import (
     DistributionConcatenator,
     _needs_cpu_detour,
@@ -261,14 +264,11 @@ class RNASeqMixin:
 
         else:
             scdl = dataloader
-            for param in [indices, batch_size, n_samples]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+                n_samples=(n_samples, 1),
+            )
             gene_mask = slice(None)
             transform_batch = [None]
 
@@ -575,14 +575,11 @@ class RNASeqMixin:
                         "None of the provided genes in ``gene_list`` were detected in the data."
                     )
         else:
-            for param in [indices, batch_size, gene_list]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+                gene_list=(gene_list, None),
+            )
             gene_mask = slice(None)
             transform_batch = [None]
 
@@ -656,14 +653,11 @@ class RNASeqMixin:
             )
         else:
             scdl = dataloader
-            for param in [indices, batch_size, n_samples]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, 64),
+                n_samples=(n_samples, 25),
+            )
             transform_batch = None
 
         data_loader_list = []
@@ -833,14 +827,11 @@ class RNASeqMixin:
             )
         else:
             scdl = dataloader
-            for param in [indices, batch_size, n_samples]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+                n_samples=(n_samples, 1),
+            )
 
         dropout_list = []
         mean_list = []
@@ -933,14 +924,10 @@ class RNASeqMixin:
             )
         else:
             scdl = dataloader
-            for param in [indices, batch_size]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+            )
 
         libraries = []
         for tensors in scdl:

@@ -15,7 +15,10 @@ from tqdm import tqdm
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
 from scvi.data._constants import _MODEL_NAME_KEY
-from scvi.data._utils import _validate_adata_dataloader_input
+from scvi.data._utils import (
+    _validate_adata_dataloader_input,
+    _warn_dataloader_args_ignored,
+)
 from scvi.distributions._utils import DistributionConcatenator
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
@@ -397,14 +400,10 @@ class MRVI(
                 batch_size=batch_size,
             )
         else:
-            for param in [indices, batch_size]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+            )
         us = []
         zs = []
 
@@ -1966,14 +1965,11 @@ class MRVI(
 
         else:
             scdl = dataloader
-            for param in [indices, batch_size, n_samples]:
-                if param is not None:
-                    warnings.warn(
-                        f"Using {param} after custom Dataloader was initialize is redundant, "
-                        f"please re-initialize with selected {param}",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
+            _warn_dataloader_args_ignored(
+                indices=(indices, None),
+                batch_size=(batch_size, None),
+                n_samples=(n_samples, 1),
+            )
             gene_mask = slice(None)
             transform_batch = [None]
 
