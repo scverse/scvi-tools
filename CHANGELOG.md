@@ -5,6 +5,25 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
+### 1.5.2 (unreleased)
+
+#### Added
+
+- Add a `residual` option to {class}`scvi.nn.FCLayers` that wraps every block except the first in
+    a skip connection, whenever that block's input and output widths match. The first block is
+    always excluded, so the flag needs `n_layers >= 2` to have any effect, {pr}`4019`.
+- Add a `residual` option to {class}`scvi.external.DRVI` that turns on skip connections in the
+    encoder and decoder, {pr}`4020`.
+
+#### Changed
+
+- {class}`scvi.nn.FCLayers`'s `forward` now accepts arbitrary `**kwargs` and threads them to the
+    `_apply_layer` and `_apply_batch_norm` hooks, so subclasses can branch on per-call context.
+    The base layers ignore them, {pr}`4019`.
+- Break the DRVI module, decoder, split layers and interpretability mixin into overridable seams
+    so downstream models can subclass them without copying `generative`. Behaviour is unchanged,
+    {pr}`4020`.
+
 ### 1.5.1 (2026-09-10)
 
 #### Added
