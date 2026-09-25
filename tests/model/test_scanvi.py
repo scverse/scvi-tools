@@ -739,3 +739,66 @@ def test_scanvi_dispersion(dispersion: str):
     )
     model = SCANVI(adata, dispersion=dispersion)
     model.train(1)
+
+
+def test_from_scvi_model_uses_passed_registry():
+    """`from_scvi_model` must honour an explicitly passed `registry`.
+
+    In the datamodule workflow the scVI model carries no `adata`, so its configuration
+    comes from a registry. `from_scvi_model` documents and accepts a `registry`
+    argument for the scANVI side (which, unlike the scVI one, has the labels field
+    registered) but always passed `scvi_model.registry` through instead, so the label
+    setup was read from the wrong registry.
+    """
+    from copy import deepcopy
+
+    from scvi.data import AnnDataManager
+
+    adata_scvi = synthetic_iid()
+    SCVI.setup_anndata(adata_scvi, batch_key="batch")
+    registry_scvi = deepcopy(SCVI._get_most_recent_anndata_manager(adata_scvi).registry)
+
+    adata_scanvi = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata_scanvi, labels_key="labels", unlabeled_category="label_0", batch_key="batch"
+    )
+    registry_scanvi = deepcopy(SCANVI._get_most_recent_anndata_manager(adata_scanvi).registry)
+
+    n_labels_scanvi = AnnDataManager._get_summary_stats_from_registry(registry_scanvi)["n_labels"]
+    n_labels_scvi = AnnDataManager._get_summary_stats_from_registry(registry_scvi)["n_labels"]
+    assert n_labels_scanvi != n_labels_scvi
+
+    # a scVI model trained from a datamodule holds a registry and no adata
+    scvi_model = SCVI(adata=None, registry=registry_scvi)
+    scvi_model.is_trained_ = True
+
+    scanvi_model = SCANVI.from_scvi_model(
+        scvi_model,
+        unlabeled_category="label_0",
+        labels_key="labels",
+        adata=None,
+        registry=registry_scanvi,
+    )
+
+    assert scanvi_model.registry_ is registry_scanvi
+    assert scanvi_model.summary_stats["n_labels"] == n_labels_scanvi
+
+
+def test_from_scvi_model_defaults_to_scvi_registry():
+    """Omitting `registry` keeps the previous behaviour of reusing the scVI registry."""
+    from copy import deepcopy
+
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata, labels_key="labels", unlabeled_category="label_0", batch_key="batch"
+    )
+    registry = deepcopy(SCANVI._get_most_recent_anndata_manager(adata).registry)
+
+    scvi_model = SCVI(adata=None, registry=registry)
+    scvi_model.is_trained_ = True
+
+    scanvi_model = SCANVI.from_scvi_model(
+        scvi_model, unlabeled_category="label_0", labels_key="labels", adata=None
+    )
+
+    assert scanvi_model.registry_ is scvi_model.registry
