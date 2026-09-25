@@ -206,7 +206,11 @@ class RNASeqMixin:
         n_samples
             Number of posterior samples to use for estimation.
         n_samples_overall
-            Number of posterior samples to use for estimation. Overrides `n_samples`.
+            Number of posterior samples to use for estimation. Overrides `n_samples`. With the
+            default ``weights`` and a selection bigger than `n_samples_overall`, the cells to
+            sample from are drawn before running the forward pass rather than after, so the
+            returned rows are an equivalent but not identical (different random draw order)
+            sample compared to earlier scvi-tools versions.
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         batch_size
@@ -240,17 +244,52 @@ class RNASeqMixin:
         """
         _validate_adata_dataloader_input(self, adata, dataloader)
 
+        presample_uniform = False
         if dataloader is None:
             adata = self._validate_anndata(adata)
 
             if indices is None:
                 indices = np.arange(adata.n_obs)
-            if n_samples_overall is not None:
+            else:
+                indices = np.asarray(indices)
+                if indices.dtype == np.dtype("bool"):
+                    # `AnnDataLoader` accepts a boolean mask and normalizes it to positions
+                    # internally; the presampling below must see the same positions (and the
+                    # same population size in `len(indices)`), not the raw mask values.
+                    indices = np.where(indices)[0]
+            # The overall posterior scale is the same distribution regardless of which cell
+            # contributes a given draw (every cell is expanded to the same number of samples
+            # below), so for the non-importance-weighted case we can draw the `n_samples_overall`
+            # cells to visit up front instead of running the forward pass on every cell in
+            # `indices` and discarding all but `n_samples_overall` of the resulting rows. This
+            # only wins when the population is bigger than the request: `n_samples_overall <
+            # len(indices)` is exactly the condition under which the line below would otherwise
+            # set `n_samples = 1`, i.e. the minibatch loop is not already amortizing several
+            # posterior draws into each forward call. When `n_samples_overall >= len(indices)`,
+            # the dense path below already reuses `ceil(len(indices) / batch_size)` forward calls
+            # for `n_samples > 1` draws each, and presampling would instead cost `ceil(
+            # n_samples_overall / batch_size)` calls -- more, not fewer (measured: 40 vs 16 calls
+            # for a 2000-cell population and n_samples_overall=5000, repro/count_forward_calls.py).
+            # `n_samples_overall == 0` is excluded so it keeps falling through to the dense path,
+            # which already returns a valid empty result; presampling would build a dataloader
+            # over zero indices and crash concatenating zero batches.
+            if (
+                n_samples_overall is not None
+                and 0 < n_samples_overall < len(indices)
+                and (weights is None or weights == "uniform")
+            ):
+                assert n_samples == 1  # default value
+                presample_uniform = True
+                output_indices = np.random.choice(indices, n_samples_overall, replace=True)
+            elif n_samples_overall is not None:
                 assert n_samples == 1  # default value
                 n_samples = n_samples_overall // len(indices) + 1
+                output_indices = indices
+            else:
+                output_indices = indices
             data_loader_kwargs = data_loader_kwargs or {}
             scdl = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
+                adata=adata, indices=output_indices, batch_size=batch_size, **data_loader_kwargs
             )
 
             transform_batch = _get_batch_code_from_category(
@@ -261,6 +300,7 @@ class RNASeqMixin:
 
         else:
             scdl = dataloader
+            output_indices = indices
             for param in [indices, batch_size, n_samples]:
                 if param is not None:
                     warnings.warn(
@@ -333,23 +373,28 @@ class RNASeqMixin:
         if n_samples_overall is not None:
             # Converts the 3d tensor to a 2d tensor
             exprs = exprs.reshape(-1, exprs.shape[-1])
-            n_samples_ = exprs.shape[0]
-            if (weights is None) or weights == "uniform":
-                p = None
-            else:
-                qz = qz_store.get_concatenated_distributions(axis=0)
-                x_axis = 0 if n_samples == 1 else 1
-                px = px_store.get_concatenated_distributions(axis=x_axis)
-                p = self.get_importance_weights(
-                    adata,
-                    indices,
-                    qz=qz,
-                    px=px,
-                    zs=zs,
-                    **importance_weighting_kwargs,
-                )
-            ind_ = np.random.choice(n_samples_, n_samples_overall, p=p, replace=True)
-            exprs = exprs[ind_]
+            if not presample_uniform:
+                n_samples_ = exprs.shape[0]
+                if (weights is None) or weights == "uniform":
+                    p = None
+                else:
+                    qz = qz_store.get_concatenated_distributions(axis=0)
+                    x_axis = 0 if n_samples == 1 else 1
+                    px = px_store.get_concatenated_distributions(axis=x_axis)
+                    p = self.get_importance_weights(
+                        adata,
+                        indices,
+                        qz=qz,
+                        px=px,
+                        zs=zs,
+                        **importance_weighting_kwargs,
+                    )
+                ind_ = np.random.choice(n_samples_, n_samples_overall, p=p, replace=True)
+                exprs = exprs[ind_]
+                output_indices = indices[ind_ % len(indices)] if dataloader is None else indices
+            # else: `scdl` already iterated exactly the `n_samples_overall` presampled cells in
+            # `output_indices`, each contributing one fresh posterior draw, so `exprs` already has
+            # the right rows in the right order and nothing is subsampled here.
         elif n_samples > 1 and return_mean:
             exprs = exprs.mean(0)
 
@@ -357,7 +402,7 @@ class RNASeqMixin:
             return pd.DataFrame(
                 exprs,
                 columns=adata.var_names[gene_mask],
-                index=adata.obs_names[indices],
+                index=adata.obs_names[output_indices],
             )
         else:
             return exprs
