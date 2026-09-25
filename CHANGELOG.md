@@ -5,6 +5,15 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
+### 1.5.2 (2026-XX-XX)
+
+#### Fixed
+
+- Fix {class}`scvi.distributions.NegativeBinomialMixture` storing `theta2` as the tuple returned
+    by `broadcast_all`, which made both `sample` and `log_prob` raise `TypeError` whenever a
+    per-component inverse dispersion was supplied. Also corrects the `theta2` docstring, which
+    described it as belonging to component 1, {pr}`4028`.
+
 ### 1.5.1 (2026-09-10)
 
 #### Added
