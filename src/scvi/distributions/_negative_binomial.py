@@ -672,14 +672,17 @@ class NegativeBinomialMixture(Distribution):
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
         pi = self.mixture_probs
-        mixing_sample = torch.distributions.Bernoulli(pi).sample()
+        # Draw one component indicator per requested sample, not one per batch element
+        # reused across the whole sample shape, otherwise every draw in a single call
+        # comes from the same component.
+        mixing_sample = torch.distributions.Bernoulli(pi).sample(sample_shape)
         mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
         if self.theta2 is None:
             theta = self.theta1
         else:
             theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
         gamma_d = _gamma(theta, mu, self.on_mps)
-        p_means = gamma_d.sample(sample_shape)
+        p_means = gamma_d.sample()
 
         # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high

@@ -228,3 +228,62 @@ def test_log_prob_matches_with_and_without_the_lgamma_contiguous_detour(monkeypa
     lp_without_detour = dist.log_prob(x)
 
     assert torch.equal(lp_with_detour, lp_without_detour)
+
+
+def test_mixture_sample_shape_draws_an_independent_component_per_sample():
+    """Each draw must pick its own mixture component.
+
+    The component indicator used to be drawn once per batch element and reused across
+    the whole ``sample_shape``, so every draw in a single call came from the same
+    component and the sample mean did not match :attr:`NegativeBinomialMixture.mean`.
+    """
+    torch.manual_seed(0)
+    # Two well-separated components with pi = 0.5, so component membership is readable
+    # from the value itself.
+    mu1 = torch.tensor([4.0])
+    mu2 = torch.tensor([200.0])
+    dist = NegativeBinomialMixture(
+        mu1=mu1, mu2=mu2, theta1=torch.tensor([50.0]), mixture_logits=torch.zeros(1)
+    )
+
+    samples = dist.sample((20000,)).flatten()
+    from_component_1 = (samples < 50).float().mean()
+
+    assert torch.isclose(from_component_1, torch.tensor(0.5), atol=0.02)
+    assert torch.isclose(samples.mean(), dist.mean.squeeze(), rtol=0.05)
+
+
+def test_mixture_sample_shape_does_not_correlate_draws_within_a_batch():
+    """Component membership must vary along the sample axis for every batch element."""
+    torch.manual_seed(0)
+    n_batch = 8
+    dist = NegativeBinomialMixture(
+        mu1=torch.full((n_batch,), 4.0),
+        mu2=torch.full((n_batch,), 200.0),
+        theta1=torch.full((n_batch,), 50.0),
+        mixture_logits=torch.zeros(n_batch),
+    )
+
+    samples = dist.sample((500,))
+    assert samples.shape == (500, n_batch)
+
+    # Previously each batch element was locked to one component, giving exactly 0 or 1.
+    per_element = (samples < 50).float().mean(0)
+    assert ((per_element > 0.3) & (per_element < 0.7)).all()
+
+
+@pytest.mark.parametrize("sample_shape", [None, (), (3,), (2, 5)])
+def test_mixture_sample_shapes(sample_shape):
+    """``sample_shape`` is prepended to the batch shape, as for the other distributions."""
+    batch_shape = (2, 3, 4)
+    dist = NegativeBinomialMixture(
+        mu1=torch.full(batch_shape, 4.0),
+        mu2=torch.full(batch_shape, 20.0),
+        theta1=torch.full(batch_shape, 5.0),
+        mixture_logits=torch.zeros(batch_shape),
+    )
+
+    samples = dist.sample() if sample_shape is None else dist.sample(sample_shape)
+
+    expected = batch_shape if not sample_shape else tuple(sample_shape) + batch_shape
+    assert samples.shape == expected

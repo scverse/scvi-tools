@@ -5,6 +5,17 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
+### 1.5.2 (2026-XX-XX)
+
+#### Fixed
+
+- Fix {class}`scvi.distributions.NegativeBinomialMixture`'s `sample` drawing the mixture
+    component indicator once per batch element and reusing it across the whole `sample_shape`, so
+    every draw in a single `sample(sample_shape)` call came from the same component and the sample
+    mean did not match `mean`. The indicator is now drawn per sample, matching
+    {class}`scvi.distributions.ZeroInflatedNegativeBinomial`. Calls without a `sample_shape`, which
+    is how the models sample internally, are unaffected, {pr}`4027`.
+
 ### 1.5.1 (2026-09-10)
 
 #### Added
