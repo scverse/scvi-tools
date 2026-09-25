@@ -5,6 +5,31 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
+### 1.5.2 (2026-XX-XX)
+
+#### Added
+
+#### Fixed
+
+- Fix {meth}`~scvi.model.SCVI.get_likelihood_parameters` concatenating the accumulated
+    dropout probabilities inside its minibatch loop, which made the call scale quadratically
+    with the number of cells.
+
+#### Changed
+
+- {class}`scvi.data.AnnTorchDataset` now converts covariates stored as DataFrames in `obsm`
+    to NumPy once, when the data is first fetched, instead of slicing the DataFrame on every
+    minibatch.
+- {func}`scvi.module.base.auto_move_data` and {class}`~scvi.module.base.BaseModuleClass`'s
+    `device` property both read the target device from the first parameter of the module instead
+    of walking all of them on every call; the property is read once per minibatch by
+    {meth}`~scvi.model.base.RNASeqMixin.posterior_predictive_sample` for Poisson-likelihood
+    models and by several external modules.
+- `scrna_raw_counts_properties`, used by `differential_expression` in `change` mode, reduces the
+    library-size-scaled counts as CSR instead of COO.
+
+#### Removed
+
 ### 1.5.1 (2026-09-10)
 
 #### Added
