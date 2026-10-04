@@ -5,6 +5,13 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
+### 1.5.2 (unreleased)
+
+#### Fixed
+
+- Add `include_protein_efficiency` to {meth}`scvi.model.TOTALVI.get_normalized_expression` to
+optionally include it in the normalized protein expression (default unchanged), {issue}`4022`.
+
 ### 1.5.1 (2026-09-10)
 
 #### Added

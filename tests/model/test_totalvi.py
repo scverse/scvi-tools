@@ -829,3 +829,81 @@ def test_get_denoised_samples_on_mps():
     samples = model._get_denoised_samples(n_samples=2)
     n_proteins = adata.obsm["protein_expression"].shape[1]
     assert samples.shape == (adata.n_obs, adata.n_vars + n_proteins, 2)
+
+
+def _totalvi_with_protein_efficiency(efficiency_per_batch):
+    """TOTALVI model with a fixed, non-unit capture efficiency per batch."""
+    adata = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    model = TOTALVI(adata, n_latent=5)
+    model.train(1, train_size=0.5)
+    with torch.no_grad():
+        model.module.log_per_batch_efficiency.copy_(
+            torch.log(torch.tensor(efficiency_per_batch)).expand_as(
+                model.module.log_per_batch_efficiency
+            )
+        )
+    model.module.eval()
+    return model
+
+
+@pytest.mark.parametrize("include_protein_background", [True, False])
+def test_totalvi_normalized_expression_protein_efficiency(include_protein_background: bool):
+    model = _totalvi_with_protein_efficiency([2.0, 5.0])
+    kwargs = {
+        "include_protein_background": include_protein_background,
+        "return_numpy": True,
+        "n_samples": 1,
+    }
+
+    for batch, efficiency in enumerate([2.0, 5.0]):
+        torch.manual_seed(0)
+        _, unscaled = model.get_normalized_expression(transform_batch=[f"batch_{batch}"], **kwargs)
+        torch.manual_seed(0)
+        _, scaled = model.get_normalized_expression(
+            transform_batch=[f"batch_{batch}"], include_protein_efficiency=True, **kwargs
+        )
+        np.testing.assert_allclose(scaled, efficiency * unscaled, rtol=1e-5)
+
+    # default readout is unaffected by the efficiency
+    torch.manual_seed(0)
+    _, default = model.get_normalized_expression(transform_batch=["batch_0"], **kwargs)
+    model.module.log_per_batch_efficiency.data.zero_()
+    torch.manual_seed(0)
+    _, unit = model.get_normalized_expression(transform_batch=["batch_0"], **kwargs)
+    np.testing.assert_allclose(default, unit, rtol=1e-5)
+
+
+def test_totalvi_posterior_predictive_sample_protein_efficiency(monkeypatch):
+    import scvi.module._totalvae as totalvae_module
+
+    captured = []
+    original_mixture = totalvae_module.NegativeBinomialMixture
+
+    def recording_mixture(**kwargs):
+        captured.append({k: kwargs[k].detach().cpu() for k in ("mu1", "mu2")})
+        return original_mixture(**kwargs)
+
+    monkeypatch.setattr(totalvae_module, "NegativeBinomialMixture", recording_mixture)
+
+    model = _totalvi_with_protein_efficiency([3.0, 3.0])
+    tensors = next(iter(model._make_data_loader(adata=model.adata, batch_size=64)))
+    captured.clear()  # drop calls made by the reconstruction loss during training
+
+    torch.manual_seed(0)
+    model.module.sample(tensors)
+    model.module.log_per_batch_efficiency.data.zero_()
+    torch.manual_seed(0)
+    model.module.sample(tensors)
+
+    scaled, unit = captured
+    for key in ("mu1", "mu2"):
+        np.testing.assert_allclose(scaled[key], 3.0 * unit[key], rtol=1e-5)
+
+    protein_sample = model.posterior_predictive_sample(n_samples=1)["protein"]
+    assert protein_sample.shape == model.adata.obsm["protein_expression"].shape
