@@ -86,7 +86,7 @@ class SplitFCLayers(FCLayers):
     def _is_linear_layer(self, layer: nn.Module) -> bool:
         return isinstance(layer, (nn.Linear, StackedLinearLayer))
 
-    def _apply_layer(self, layer, x, cov_list, layer_index):
+    def _apply_layer(self, layer, x, cov_list, layer_index, **kwargs):
         if self._is_linear_layer(layer) and self.inject_into_layer(layer_index):
             if x.dim() not in (3, 4):
                 raise ValueError(
@@ -99,7 +99,7 @@ class SplitFCLayers(FCLayers):
                 x = torch.cat((x, *cov_list_layer), dim=-1)
         return layer(x)
 
-    def _apply_batch_norm(self, layer, x):
+    def _apply_batch_norm(self, layer, x, **kwargs):
         # batch norm over n_split * n_hidden features: fold all leading dims into the batch axis
         return layer(x.reshape(-1, x.shape[-2] * x.shape[-1])).reshape(x.shape)
 
