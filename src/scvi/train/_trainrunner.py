@@ -143,6 +143,9 @@ class TrainRunner:
             self.trainer.fit(self.training_plan, self.data_splitter, ckpt_path=self.ckpt_path)
         except BaseException as e:
             self._update_history()
+            # In DDP, exit non-rank-0 workers immediately to prevent zombies
+            if not self.trainer.is_global_zero:
+                self._exit_non_rank0(exit_code=1)
             print("Exception raised during training.", NameError, e)
             gc.collect()
 
@@ -158,6 +161,12 @@ class TrainRunner:
             raise
         self._update_history()
 
+        # In DDP, non-rank-0 worker subprocesses must exit after training.
+        # Without this, they become zombies holding GPU memory at 100% utilization
+        # because the subprocess continues executing the rest of the user's script.
+        if not self.trainer.is_global_zero:
+            self._exit_non_rank0()
+
         # data splitter only gets these attrs after fit
         self.model.train_indices = getattr(self.data_splitter, "train_idx", None)
         self.model.test_indices = getattr(self.data_splitter, "test_idx", None)
@@ -169,6 +178,33 @@ class TrainRunner:
         self.model.trainer = self.trainer
 
         return
+
+    def _exit_non_rank0(self, exit_code: int = 0):
+        """Clean up and terminate non-rank-0 DDP worker processes.
+
+        In subprocess-based DDP, Lightning re-launches the user's script for
+        each rank via ``subprocess.Popen()``. After ``trainer.fit()`` returns,
+        every rank continues executing the rest of the script. Non-rank-0
+        processes have no purpose post-training and, if left alive, become
+        zombie processes that hold GPU memory and spin at 100% GPU utilization.
+
+        This method releases CUDA resources, destroys the distributed process
+        group, and terminates the process. ``DataSplitter.teardown()`` has
+        already been called by Lightning before ``fit()`` returns, so shared
+        memory is already cleaned up.
+        """
+        logger.debug("Non-rank-0 DDP worker: cleaning up and exiting.")
+        gc.collect()
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+        import torch.distributed as dist
+
+        if dist.is_initialized():
+            dist.destroy_process_group()
+
+        os._exit(exit_code)
 
     def __call__(self):
         """Run training."""

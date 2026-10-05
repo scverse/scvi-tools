@@ -226,6 +226,27 @@ def test_linearcvi_multigpu():
 
 
 @pytest.mark.multigpu
+def test_scvi_shared_memory_multigpu():
+    """Test SCVI training with shared memory enabled in DDP."""
+    from scvi.model import SCVI
+
+    adata = scvi.data.synthetic_iid()
+    SCVI.setup_anndata(adata)
+
+    model = SCVI(adata)
+    model.train(
+        max_epochs=1,
+        check_val_every_n_epoch=1,
+        accelerator="gpu",
+        devices=-1,
+        strategy="ddp_find_unused_parameters_true",
+        datasplitter_kwargs={"share_memory": True},
+    )
+    assert len(model.history["elbo_train"]) == 1
+    assert model.is_trained
+
+
+@pytest.mark.multigpu
 def test_scvi_train_ddp(save_path: str):
     training_code = """
 import torch
