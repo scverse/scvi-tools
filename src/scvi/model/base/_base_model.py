@@ -1350,7 +1350,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 chunk_size=chunk_size,
                 preload_nchunks=preload_nchunks,
                 preload_to_gpu=preload_to_gpu,
-                to_torch=True,
+                to="torch",
             )
             for adata in adatas:
                 ds.add_adata(_wrap_sparse_as_dataset(adata))
@@ -1501,7 +1501,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 chunk_size=chunk_size,
                 preload_nchunks=preload_nchunks,
                 preload_to_gpu=preload_to_gpu,
-                to_torch=True,
+                to="torch",
             )
             ds.use_collection(collection, load_adata=_load_adata_from_zarr)
 
