@@ -243,3 +243,38 @@ def test_gradient_hook_preserves_categorical_grad_only():
     assert torch.all(grad[:, :-n_cats] == 0), "non-categorical weight grad should be zero"
     # categorical columns should have non-zero grad (with high probability)
     assert not torch.all(grad[:, -n_cats:] == 0), "categorical weight grad should be non-zero"
+
+
+# ---------------------------------------------------------------------------
+# Residual skip connections
+# ---------------------------------------------------------------------------
+
+
+def test_residual_matches_manual_skip_connections():
+    """residual=True adds the block input back on every hidden block that keeps its width."""
+    torch.manual_seed(0)
+    n_hidden = 20
+    fc = FCLayers(
+        n_in=10,
+        n_out=n_hidden,
+        n_layers=4,
+        n_hidden=n_hidden,
+        use_batch_norm=True,
+        dropout_rate=0.0,
+        residual=True,
+    )
+    fc.eval()
+    x = torch.randn(8, 10)
+
+    # for 2D input without covariates each block reduces to a plain Sequential, so the whole
+    # forward is reproducible by hand
+    h = x
+    for i, layers in enumerate(fc.fc_layers):
+        block = nn.Sequential(*[layer for layer in layers if layer is not None])
+        out = block(h)
+        # block 0 maps n_in -> n_hidden and is excluded by both guards
+        if i > 0 and out.shape == h.shape:
+            out = out + h
+        h = out
+
+    assert torch.allclose(fc(x), h, atol=1e-6)
