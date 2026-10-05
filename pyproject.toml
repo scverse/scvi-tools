@@ -26,6 +26,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
@@ -73,7 +74,7 @@ optional-dependencies.cuda13 = [
 ]
 # for custom dataloaders
 optional-dependencies.dataloaders = [
-  "annbatch[zarrs]>=0.2",
+  "annbatch[zarrs]>=0.3",
   "cellxgene-census",
   "lamindb>=1.12.1",
   "tiledbsoma",
