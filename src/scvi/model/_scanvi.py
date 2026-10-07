@@ -287,7 +287,9 @@ class SCANVI(
                 **scvi_setup_args,
             )
 
-        scanvi_model = cls(adata, scvi_model.registry, **non_kwargs, **kwargs, **scanvi_kwargs)
+        if registry is None:
+            registry = scvi_model.registry
+        scanvi_model = cls(adata, registry, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
         scanvi_model.was_pretrained = True
