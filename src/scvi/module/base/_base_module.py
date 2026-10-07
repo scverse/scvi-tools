@@ -158,10 +158,7 @@ class BaseModuleClass(nn.Module):
 
     @property
     def device(self):
-        device = list({p.device for p in self.parameters()})
-        if len(device) > 1:
-            raise RuntimeError("Module tensors on multiple devices.")
-        return device[0]
+        return next(self.parameters()).device
 
     def on_load(self, model, **kwargs):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`."""

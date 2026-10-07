@@ -23,6 +23,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Break the DRVI module, decoder, split layers and interpretability mixin into overridable seams
     so downstream models can subclass them without copying `generative`. Behaviour is unchanged,
     {pr}`4020`.
+- Speed up `differential_expression` and `differential_abundance`, with identical outputs:
+    `auto_move_data` and `BaseModuleClass.device` read the device from the first parameter
+    instead of collecting every parameter's device on each call, and
+    `scrna_raw_counts_properties` takes column means on CSR instead of COO, {pr}`4049`.
 
 ### 1.5.1 (2026-09-10)
 
