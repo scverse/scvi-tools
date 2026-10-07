@@ -1840,7 +1840,7 @@ class MRVI(
         --------
         >>> import scanpy as sc
         >>> from scvi.external import MRVI
-        >>> MRVI.setup_anndata(adata, sample_key="sample_id", backend="torch")
+        >>> MRVI.setup_anndata(adata, sample_key="sample_id")
         >>> model = MRVI(adata)
         >>> model.train()
         >>> # Update sample info with new covariates
