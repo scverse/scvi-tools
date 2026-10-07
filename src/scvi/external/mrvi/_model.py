@@ -2064,10 +2064,14 @@ class MRVI(
             exprs = exprs.mean(0)
 
         if (return_numpy is None or return_numpy is False) and dataloader is None:
+            obs_names = adata.obs_names[indices]
+            if n_samples_overall is not None:
+                # rows of exprs were resampled; row r comes from cell r % n_cells
+                obs_names = obs_names[ind_ % len(obs_names)]
             return pd.DataFrame(
                 exprs,
                 columns=adata.var_names[gene_mask],
-                index=adata.obs_names[indices],
+                index=obs_names,
             )
         else:
             return exprs

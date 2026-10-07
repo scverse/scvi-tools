@@ -20,6 +20,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix `get_likelihood_parameters` with `gene_likelihood="zinb"` re-concatenating the dropout
     probabilities on every minibatch, which made its runtime quadratic in the number of cells,
     {pr}`4049`.
+- Fix `get_normalized_expression(n_samples_overall=..., return_numpy=False)` crashing with a
+    shape mismatch in {class}`scvi.model.base.RNASeqMixin`, {class}`scvi.external.CYTOVI` and
+    {class}`scvi.external.MRVI`. The returned DataFrame is now indexed by the cell each sampled
+    row was drawn from, {pr}`4049`.
 
 #### Changed
 
