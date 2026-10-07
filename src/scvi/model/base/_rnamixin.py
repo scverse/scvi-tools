@@ -354,10 +354,14 @@ class RNASeqMixin:
             exprs = exprs.mean(0)
 
         if (return_numpy is None or return_numpy is False) and dataloader is None:
+            obs_names = adata.obs_names[indices]
+            if n_samples_overall is not None:
+                # rows of exprs were resampled; row r comes from cell r % n_cells
+                obs_names = obs_names[ind_ % len(obs_names)]
             return pd.DataFrame(
                 exprs,
                 columns=adata.var_names[gene_mask],
-                index=adata.obs_names[indices],
+                index=obs_names,
             )
         else:
             return exprs
@@ -858,7 +862,6 @@ class RNASeqMixin:
             if self.module.gene_likelihood == "zinb":
                 px_dropout = px.zi_probs
                 dropout_list += [px_dropout.cpu().numpy()]
-                dropout = np.concatenate(dropout_list, axis=-2)
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
             if self.module.gene_likelihood != "poisson":
@@ -871,6 +874,8 @@ class RNASeqMixin:
 
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
+        if self.module.gene_likelihood == "zinb":
+            dropout = np.concatenate(dropout_list, axis=-2)
 
         if give_mean and n_samples > 1:
             if self.module.gene_likelihood == "zinb":
