@@ -858,7 +858,6 @@ class RNASeqMixin:
             if self.module.gene_likelihood == "zinb":
                 px_dropout = px.zi_probs
                 dropout_list += [px_dropout.cpu().numpy()]
-                dropout = np.concatenate(dropout_list, axis=-2)
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
             if self.module.gene_likelihood != "poisson":
@@ -871,6 +870,8 @@ class RNASeqMixin:
 
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
+        if self.module.gene_likelihood == "zinb":
+            dropout = np.concatenate(dropout_list, axis=-2)
 
         if give_mean and n_samples > 1:
             if self.module.gene_likelihood == "zinb":

@@ -15,6 +15,12 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add a `residual` option to {class}`scvi.external.DRVI` that turns on skip connections in the
     encoder and decoder, {pr}`4020`.
 
+#### Fixed
+
+- Fix `get_likelihood_parameters` with `gene_likelihood="zinb"` re-concatenating the dropout
+    probabilities on every minibatch, which made its runtime quadratic in the number of cells,
+    {pr}`4049`.
+
 #### Changed
 
 - {class}`scvi.nn.FCLayers`'s `forward` now accepts arbitrary `**kwargs` and threads them to the
