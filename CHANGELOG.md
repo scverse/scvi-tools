@@ -15,6 +15,16 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add a `residual` option to {class}`scvi.external.DRVI` that turns on skip connections in the
     encoder and decoder, {pr}`4020`.
 
+#### Fixed
+
+- Fix `get_likelihood_parameters` with `gene_likelihood="zinb"` re-concatenating the dropout
+    probabilities on every minibatch, which made its runtime quadratic in the number of cells,
+    {pr}`4049`.
+- Fix `get_normalized_expression(n_samples_overall=..., return_numpy=False)` crashing with a
+    shape mismatch in {class}`scvi.model.base.RNASeqMixin`, {class}`scvi.external.CYTOVI` and
+    {class}`scvi.external.MRVI`. The returned DataFrame is now indexed by the cell each sampled
+    row was drawn from, {pr}`4049`.
+
 #### Changed
 
 - {class}`scvi.nn.FCLayers`'s `forward` now accepts arbitrary `**kwargs` and threads them to the
@@ -23,6 +33,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Break the DRVI module, decoder, split layers and interpretability mixin into overridable seams
     so downstream models can subclass them without copying `generative`. Behaviour is unchanged,
     {pr}`4020`.
+- Speed up `differential_expression` and `differential_abundance`, with identical outputs:
+    `auto_move_data` and `BaseModuleClass.device` read the device from the first parameter
+    instead of collecting every parameter's device on each call, and
+    `scrna_raw_counts_properties` takes column means on CSR instead of COO, {pr}`4049`.
 
 ### 1.5.1 (2026-09-10)
 

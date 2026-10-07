@@ -228,8 +228,9 @@ def scrna_raw_counts_properties(
         scaling_factor = adata.obs[key].to_numpy().ravel().reshape(-1, 1)
 
     if issubclass(type(data), sp_sparse.spmatrix):
-        norm_data1 = data1.multiply(scaling_factor[idx1])
-        norm_data2 = data2.multiply(scaling_factor[idx2])
+        # multiply returns COO, whose column mean is slow; convert back to CSR
+        norm_data1 = data1.multiply(scaling_factor[idx1]).tocsr()
+        norm_data2 = data2.multiply(scaling_factor[idx2]).tocsr()
     else:
         norm_data1 = data1 * scaling_factor[idx1]
         norm_data2 = data2 * scaling_factor[idx2]
