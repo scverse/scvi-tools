@@ -21,6 +21,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/scvi`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`Lopez18`
+   * - :doc:`/user_guide/models/scvix`
+     - Cross-technology integration and zero-shot query mapping for scRNA-seq datasets
+     - In preparation
    * - :doc:`/user_guide/models/scanvi`
      - scVI tasks with cell type transfer from reference, seed labeling
      - :cite:p:`Xu21`
