@@ -24,6 +24,18 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     shape mismatch in {class}`scvi.model.base.RNASeqMixin`, {class}`scvi.external.CYTOVI` and
     {class}`scvi.external.MRVI`. The returned DataFrame is now indexed by the cell each sampled
     row was drawn from, {pr}`4049`.
+- Fix {meth}`scvi.model.SCANVI.from_scvi_model` ignoring the `registry` argument and always
+    using the scVI model's registry, which broke the datamodule (`adata=None`) workflow,
+    {pr}`4026`.
+- Fix {class}`scvi.distributions.NegativeBinomialMixture` `sample` drawing the mixture component
+    once per batch element and reusing it across `sample_shape`, so all draws in a call came from
+    the same component, {pr}`4027`.
+- Fix {class}`scvi.distributions.NegativeBinomialMixture` storing `theta2` as a tuple, which made
+    `sample` and `log_prob` fail whenever `theta2` was passed, {pr}`4028`.
+- Fix {class}`scvi.model.MULTIVI`'s protein decoder ignoring `deeply_inject_covariates` and
+    always injecting covariates into its hidden layers. With the default
+    (`deeply_inject_covariates=False`) the protein decoder now has fewer parameters, so MULTIVI
+    models with protein data saved with earlier versions cannot be loaded, {pr}`4025`.
 
 #### Changed
 
