@@ -811,13 +811,9 @@ class CYTOVI(
                 warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             change_fn_clp = clip_lfc_factory(clip_min, clip_max)
 
-            if kwargs is None:
-                kwargs = {}
-                kwargs["change_fn"] = change_fn_clp
-                kwargs["test_mode"] = test_mode
-            else:
-                kwargs["change_fn"] = change_fn_clp
-                kwargs["test_mode"] = test_mode
+            kwargs["change_fn"] = change_fn_clp
+
+        kwargs["test_mode"] = test_mode
 
         if self.registry_["setup_args"]["sample_key"] and balance_samples is not False:
             subset_idx = get_balanced_sample_indices(adata, self.sample_key)
@@ -879,19 +875,20 @@ class CYTOVI(
         adata = self._validate_anndata(adata)
 
         if indices is None:
-            indices = np.arange(self.adata.n_obs)
+            indices = np.arange(adata.n_obs)
         if sample is not None:
             indices = np.intersect1d(
                 np.array(indices), np.where(adata.obs[self.sample_key] == sample)[0]
             )
 
         dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        qu_loc, qu_scale = self.get_latent_representation(
+        qu_loc, qu_var = self.get_latent_representation(
             batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True
         )
 
         qu_loc = torch.tensor(qu_loc, device=self.device).T
-        qu_scale = torch.tensor(qu_scale, device=self.device).T
+        # The latent representation returns variance; distributions require standard deviation.
+        qu_scale = torch.tensor(qu_var, device=self.device).T.sqrt()
 
         if dof is None:
             components = dist.Normal(qu_loc, qu_scale)
@@ -934,7 +931,7 @@ class CYTOVI(
         adata = self._validate_anndata(adata)
 
         zs = self.get_latent_representation(
-            batch_size=batch_size, return_dist=False, give_mean=True
+            adata=adata, batch_size=batch_size, return_dist=False, give_mean=True
         )
 
         unique_samples = adata.obs[self.sample_key].unique()
@@ -981,7 +978,9 @@ class CYTOVI(
         adata
             AnnData object to use. If `None`, defaults to the model's internal AnnData.
         groupby
-            Key in `adata.obs` that contains condition or group labels.
+            Key in `adata.obs` that contains condition or group labels. Each sample
+            must have exactly one non-missing condition, and at least two conditions
+            must be present.
             If not provided, returns log-probabilities per sample without aggregation.
         batch_size
             Mini-batch size for computing log-probabilities. Default: 128.
@@ -1015,6 +1014,22 @@ class CYTOVI(
         """
         adata = self._validate_anndata(adata)
 
+        if groupby is not None and not return_log_probs:
+            validate_obs_keys(adata, groupby)
+            # Use distinct column names so grouping by the sample key also works.
+            md = adata.obs[list(dict.fromkeys([self.sample_key, groupby]))].drop_duplicates()
+            if md.isna().any().any():
+                raise ValueError(
+                    "Differential abundance requires sample and condition labels without missing values."
+                )
+            if md[self.sample_key].duplicated().any():
+                raise ValueError(
+                    "Differential abundance requires exactly one condition per sample."
+                )
+            conditions = pd.Series(md[groupby].to_numpy(), index=md[self.sample_key])
+            if conditions.nunique() < 2:
+                raise ValueError("Differential abundance requires at least two conditions.")
+
         log_probs = self.get_sample_logprobs(
             adata, batch_size=batch_size, downsample_cells=downsample_cells, dof=dof
         )
@@ -1030,20 +1045,18 @@ class CYTOVI(
                 stacklevel=settings.warnings_stacklevel,
             )
             return log_probs
-        else:
-            validate_obs_keys(adata, groupby)
 
-        md = adata.obs[[self.sample_key, groupby]].drop_duplicates()
+        conditions = conditions.reindex(log_probs.columns)
 
         da_dict = {}
-        for cond in set(md[groupby].values):
-            is_case = (md[groupby] == cond).values
+        for cond in conditions.unique():
+            is_case = (conditions == cond).to_numpy()
             log_probs_cond = aggregation_fn(log_probs.loc[:, is_case], 1)
             log_prop_controls = aggregation_fn(log_probs.loc[:, ~is_case], 1)
             log_ratios = log_probs_cond - log_prop_controls
             da_dict[f"DA_{cond}"] = log_ratios
 
-        da_df = pd.DataFrame(da_dict)
+        da_df = pd.DataFrame(da_dict, index=log_probs.index)
 
         return da_df
 

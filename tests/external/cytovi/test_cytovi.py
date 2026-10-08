@@ -2,12 +2,15 @@ import os
 
 import anndata as ad
 import numpy as np
+import pandas as pd
 import pytest
 
 from scvi.criticism import PosteriorPredictiveCheck
 from scvi.criticism._constants import METRIC_CV_GENE
 from scvi.data import synthetic_iid
 from scvi.external import cytovi
+from scvi.external.cytovi import _model as cytovi_model
+from scvi.external.cytovi._utils import log_median
 
 RAW_LAYER_KEY = "raw"
 SCALED_LAYER_KEY = "scaled"
@@ -299,3 +302,80 @@ def test_cytovi_write_read_fcs(adata, save_path):
     adata_read = cytovi.read_fcs(save_path + "test_cytovi.fcs")
     assert adata_read.shape == adata.shape
     assert np.allclose(adata_read.X, adata.layers[SCALED_LAYER_KEY])
+
+
+@pytest.fixture
+def small_model():
+    # untrained model on a tiny AnnData, for unit tests that only exercise plumbing
+    adata = ad.AnnData(np.random.default_rng(0).uniform(0.1, 0.9, (12, 4)).astype(np.float32))
+    adata.obs["sample"] = ["a"] * 6 + ["b"] * 6
+    cytovi.CYTOVI.setup_anndata(adata, sample_key="sample")
+    model = cytovi.CYTOVI(adata, n_latent=2)
+    model.is_trained_ = True
+    return model
+
+
+@pytest.mark.parametrize("lfc_clipping", [False, True])
+def test_cytovi_de_forwards_test_mode(small_model, monkeypatch, lfc_clipping):
+    # https://github.com/scverse/scvi-tools/pull/4037
+    received = {}
+    monkeypatch.setattr(cytovi_model, "_de_core", lambda *args, **kwargs: received.update(kwargs))
+    small_model.differential_expression(
+        groupby="sample", test_mode="three", lfc_clipping=lfc_clipping, balance_samples=False
+    )
+    assert received["test_mode"] == "three"
+
+
+def test_cytovi_log_median():
+    # https://github.com/scverse/scvi-tools/pull/4040
+    # even counts average the central values in probability space: log((1 + 9) / 2)
+    np.testing.assert_allclose(log_median(np.log([[1.0, 9.0]])), np.log([5.0]))
+    # extreme log probabilities would under/overflow if exponentiated
+    np.testing.assert_allclose(log_median([[-900.0, -900.0], [880.0, 880.0]]), [-900.0, 880.0])
+
+
+def test_cytovi_aggregated_posterior_scale_is_std(small_model, monkeypatch):
+    # https://github.com/scverse/scvi-tools/pull/4034
+    means = np.zeros((3, 2), dtype=np.float32)
+    variances = np.array([[0.25, 4.0], [9.0, 16.0], [1.0, 0.0625]], dtype=np.float32)
+    # get_latent_representation(return_dist=True) returns means and variances
+    monkeypatch.setattr(
+        small_model, "get_latent_representation", lambda **kwargs: (means, variances)
+    )
+    posterior = small_model.get_aggregated_posterior(indices=np.arange(3))
+    np.testing.assert_allclose(
+        posterior.component_distribution.scale.cpu().numpy(), np.sqrt(variances).T
+    )
+
+
+def test_cytovi_uses_supplied_adata(small_model):
+    # https://github.com/scverse/scvi-tools/pull/4035
+    adata = small_model.adata[[9, 1, 7, 3]].copy()
+    posterior = small_model.get_aggregated_posterior(adata)
+    assert posterior.component_distribution.loc.shape == (2, adata.n_obs)
+    log_probs = small_model.get_sample_logprobs(adata)
+    assert log_probs.shape == (adata.n_obs, 2)
+
+
+def test_cytovi_da_alignment(small_model, monkeypatch):
+    # https://github.com/scverse/scvi-tools/pull/4036
+    adata = small_model.adata
+    adata.obs["condition"] = adata.obs["sample"].map({"a": "case", "b": "control"}).astype(str)
+
+    da = small_model.differential_abundance(groupby="condition")
+    assert da.index.tolist() == adata.obs_names.tolist()
+    assert set(da.columns) == {"DA_case", "DA_control"}
+
+    # grouping by the sample key itself
+    da = small_model.differential_abundance(groupby="sample")
+    assert set(da.columns) == {"DA_a", "DA_b"}
+
+    # conditions are matched to score columns by sample name, not by position
+    scores = pd.DataFrame({"b": -3.0, "a": -1.0}, index=adata.obs_names)
+    monkeypatch.setattr(small_model, "get_sample_logprobs", lambda *args, **kwargs: scores)
+    da = small_model.differential_abundance(groupby="condition")
+    np.testing.assert_allclose(da["DA_case"], 2.0)
+
+    adata.obs["condition"] = ["x", "y"] * 6
+    with pytest.raises(ValueError, match="exactly one condition per sample"):
+        small_model.differential_abundance(groupby="condition")

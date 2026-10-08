@@ -158,7 +158,32 @@ def impute_expr_with_neighbors(
 
 
 def log_median(x, axis=1):
-    return np.log(np.median(np.exp(x), axis=axis))
+    """Compute ``log(median(exp(x)))`` without exponentiating the input.
+
+    Parameters
+    ----------
+    x
+        Array-like log probabilities.
+    axis
+        Axis or tuple of axes to aggregate. If ``None``, aggregate all values.
+
+    Returns
+    -------
+    scalar or numpy.ndarray
+        Logarithm of the probability-space median. For even sample counts,
+        average the two central probabilities, rather than their logarithms.
+    """
+    values = np.asarray(x)
+    if values.size == 0:
+        # Preserve NumPy's empty-reduction shape, NaNs, and warnings.
+        return np.median(values, axis=axis)
+
+    # A monotone transform preserves order, so select central values in log space.
+    lower = np.quantile(values, 0.5, axis=axis, method="lower")
+    upper = np.quantile(values, 0.5, axis=axis, method="higher")
+    # Propagate input NaNs without adding an invalid-operation warning.
+    with np.errstate(invalid="ignore"):
+        return np.logaddexp(lower, upper) - np.log(2.0)
 
 
 def get_balanced_sample_indices(
