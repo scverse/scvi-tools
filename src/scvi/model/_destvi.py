@@ -170,7 +170,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         if vamp_prior_p is None:
             mean_vprior = None
             var_vprior = None
-        elif attr_dict["init_params_"]["kwargs"]["module_kwargs"]["prior"] == "mog":
+        elif attr_dict["init_params_"]["kwargs"]["module_kwargs"].get("prior", "normal") == "mog":
             mean_vprior = load_state_dict["prior_means"].clone().detach()
             var_vprior = torch.exp(load_state_dict["prior_log_std"]) ** 2
             mp_vprior = torch.nn.Softmax(dim=-1)(load_state_dict["prior_logits"])
