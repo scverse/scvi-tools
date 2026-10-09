@@ -21,7 +21,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     the default `prior="normal"`: it raised a `KeyError` when `prior` was not passed explicitly and
     a `TypeError` because the VampPrior from {meth}`scvi.model.CondSCVI.get_vamp_prior` was
     registered as numpy buffers. The VampPrior of {class}`scvi.module.MRDeconv` is now built from
-    its buffers, so it follows the module to GPU and MPS devices, {pr}`PRNUM`.
+    its buffers, so it follows the module to GPU and MPS devices, {pr}`4052`.
 - Fix `get_likelihood_parameters` with `gene_likelihood="zinb"` re-concatenating the dropout
     probabilities on every minibatch, which made its runtime quadratic in the number of cells,
     {pr}`4049`.
