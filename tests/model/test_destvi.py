@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pytest
 import scanpy as sc
+import torch
 
 from scvi.data import synthetic_iid
 from scvi.model import CondSCVI, DestVI
@@ -59,6 +60,37 @@ def test_destvi():
 
         with pytest.raises(NotImplementedError):
             spatial_model.get_normalized_expression()
+
+
+@pytest.mark.parametrize("prior", [None, "normal"])
+def test_destvi_vamp_prior_from_normal_condscvi(prior):
+    # CondSCVI with its default prior: the VampPrior comes from get_vamp_prior (numpy arrays)
+    n_labels = 3
+    dataset = synthetic_iid(n_labels=n_labels)
+    CondSCVI.setup_anndata(dataset, labels_key="labels")
+    kwargs = {} if prior is None else {"prior": prior}
+    sc_model = CondSCVI(dataset, n_latent=2, **kwargs)
+    sc_model.train(1, train_size=1)
+
+    DestVI.setup_anndata(dataset, layer=None)
+    spatial_model = DestVI.from_rna_model(dataset, sc_model)
+    spatial_model.train(max_epochs=1)
+    assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
+    assert spatial_model.get_proportions().shape == (dataset.n_obs, n_labels)
+
+
+def test_destvi_qz_prior_follows_module():
+    # the VampPrior is rebuilt from the buffers, so .to() moves it with the module
+    dataset = synthetic_iid(n_labels=3)
+    CondSCVI.setup_anndata(dataset, labels_key="labels")
+    sc_model = CondSCVI(dataset, n_latent=2, prior="normal")
+    sc_model.train(1, train_size=1)
+    DestVI.setup_anndata(dataset, layer=None)
+    module = DestVI.from_rna_model(dataset, sc_model).module
+    assert module.qz_prior.mean.dtype == module.mean_vprior.dtype == torch.float32
+    module.double()
+    assert module.qz_prior.mean.dtype == torch.float64
+    assert module.qz_prior.sample([2]).dtype == torch.float64
 
 
 def test_destvi_validation():
