@@ -38,6 +38,25 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     instead of collecting every parameter's device on each call, and
     `scrna_raw_counts_properties` takes column means on CSR instead of COO, {pr}`4049`.
 
+#### Fixed
+
+- Fix {class}`scvi.external.CYTOVI`'s `get_aggregated_posterior` passing the latent posterior
+    variance instead of the standard deviation as the scale of its Normal/Student-t components.
+    This changes the results of `get_aggregated_posterior`, `get_sample_logprobs` and
+    `differential_abundance` compared with earlier versions, {pr}`4048`.
+- Fix {class}`scvi.external.CYTOVI`'s `differential_expression` ignoring `test_mode` when
+    `lfc_clipping=False`, {pr}`4048`.
+- Fix numerical underflow/overflow in {class}`scvi.external.CYTOVI`'s differential-abundance
+    aggregation by computing the log-median of probabilities in log space, {pr}`4048`.
+- Fix {class}`scvi.external.CYTOVI`'s `get_aggregated_posterior` and `get_sample_logprobs`
+    using the training AnnData instead of the supplied `adata` for default indices and query
+    latent representations, {pr}`4048`.
+- Fix {class}`scvi.external.CYTOVI`'s `differential_abundance` dropping cell names from the
+    result index and matching conditions to sample columns by position instead of by sample
+    identifier. `groupby` may now equal the sample key, and invalid designs (missing labels,
+    a sample with multiple conditions, or fewer than two conditions) raise a `ValueError`,
+    {pr}`4048`.
+
 ### 1.5.1 (2026-09-10)
 
 #### Added
