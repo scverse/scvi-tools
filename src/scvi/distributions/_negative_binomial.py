@@ -609,7 +609,7 @@ class NegativeBinomialMixture(Distribution):
     mixture_logits
         Logits scale probability of belonging to component 1.
     theta2
-        Inverse dispersion for component 1. If `None`, assumed to be equal to `theta1`.
+        Inverse dispersion for component 2. If `None`, assumed to be equal to `theta1`.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
@@ -643,7 +643,7 @@ class NegativeBinomialMixture(Distribution):
         super().__init__(validate_args=validate_args)
 
         if theta2 is not None:
-            self.theta2 = broadcast_all(mu1, theta2)
+            self.theta2 = broadcast_all(self.mu1, theta2)[1]
         else:
             self.theta2 = None
 
@@ -672,14 +672,14 @@ class NegativeBinomialMixture(Distribution):
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
         pi = self.mixture_probs
-        mixing_sample = torch.distributions.Bernoulli(pi).sample()
+        mixing_sample = torch.distributions.Bernoulli(pi).sample(sample_shape)
         mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
         if self.theta2 is None:
             theta = self.theta1
         else:
             theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
         gamma_d = _gamma(theta, mu, self.on_mps)
-        p_means = gamma_d.sample(sample_shape)
+        p_means = gamma_d.sample()
 
         # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
