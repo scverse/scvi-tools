@@ -24,6 +24,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     shape mismatch in {class}`scvi.model.base.RNASeqMixin`, {class}`scvi.external.CYTOVI` and
     {class}`scvi.external.MRVI`. The returned DataFrame is now indexed by the cell each sampled
     row was drawn from, {pr}`4049`.
+- Fix {func}`~scvi.data.pbmc_dataset` pairing 48 pbmc8k cells' labels and metadata with the
+    counts of unrelated pbmc4k cells that share their barcode, and dropping 49 pbmc4k cells. The
+    dataset now has the documented 12,039 cells instead of 11,990, {pr}`XXXX`.
 
 #### Changed
 
