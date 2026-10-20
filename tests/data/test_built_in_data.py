@@ -14,6 +14,10 @@ def test_pbmc_dataset(save_path: str):
         save_path=save_path,
         remove_extracted_data=True,
     )
+    assert dataset.n_obs == 12039
+    assert dataset.obs_names.is_unique
+    # counts must come from the run the metadata row describes
+    assert (dataset.obs["batch"].to_numpy() == dataset.obsm["design"]["batchpbmc4k"]).all()
     unsupervised_training_one_epoch(dataset)
 
 
