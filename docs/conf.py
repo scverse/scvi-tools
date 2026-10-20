@@ -207,9 +207,16 @@ intersphinx_mapping = {
     "sklearn": ("https://scikit-learn.org/stable/", None),
     "torch": ("https://pytorch.org/docs/master/", None),
     "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
-    "lightning": ("https://lightning.ai/docs/pytorch/stable/", None),
+    # lightning.ai intermittently 404s on objects.inv from RTD builders; fall back to a local snapshot
+    "lightning": (
+        "https://lightning.ai/docs/pytorch/stable/",
+        (None, "_inventories/lightning.inv"),
+    ),
     "pyro": ("https://docs.pyro.ai/en/stable/", None),
-    "torchmetrics": ("https://lightning.ai/docs/torchmetrics/stable/", None),
+    "torchmetrics": (
+        "https://lightning.ai/docs/torchmetrics/stable/",
+        (None, "_inventories/torchmetrics.inv"),
+    ),
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
