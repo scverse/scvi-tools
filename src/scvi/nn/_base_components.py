@@ -1,5 +1,6 @@
 import collections
 from collections.abc import Callable, Iterable
+from functools import cache
 from typing import Literal
 
 import torch
@@ -12,6 +13,23 @@ from scvi.nn._utils import ExpActivation
 
 def _identity(x):
     return x
+
+
+@cache
+def _mps_supports_batchnorm_slice() -> bool:
+    """Whether BatchNorm1d can run on a non-contiguous MPS slice without a defensive ``.clone()``.
+
+    Probed rather than version-compared for the same reason as
+    :func:`scvi.distributions._utils._mps_supports`: source and nightly builds report versions
+    that a comparison reads wrongly. See https://github.com/pytorch/pytorch/issues/132605.
+    """
+    try:
+        bn = nn.BatchNorm1d(1).to("mps")
+        x = torch.zeros(2, 3, 1, device="mps")
+        bn(x[0])
+    except (NotImplementedError, RuntimeError):
+        return False
+    return True
 
 
 class FCLayers(nn.Module):
@@ -47,6 +65,10 @@ class FCLayers(nn.Module):
         Whether to inject covariates in each layer, or just the first (default).
     activation_fn
         Which activation function to use
+    residual
+        Whether to add a residual skip connection around every block except the first, whenever
+        that block's input and output widths match. The first block is always excluded, so this
+        requires ``n_layers >= 2`` to have any effect.
     """
 
     def __init__(
@@ -64,6 +86,7 @@ class FCLayers(nn.Module):
         bias: bool = True,
         inject_covariates: bool = True,
         activation_fn: nn.Module = nn.ReLU,
+        residual: bool = False,
     ):
         super().__init__()
         self.bias = bias
@@ -73,6 +96,7 @@ class FCLayers(nn.Module):
         self.activation_fn = activation_fn
         self.dropout_rate = dropout_rate
         self.inject_covariates = inject_covariates
+        self.residual = residual
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 
         if n_cat_list is not None:
@@ -145,7 +169,7 @@ class FCLayers(nn.Module):
                     b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
-    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None, **kwargs):
         """Forward computation on ``x``.
 
         Parameters
@@ -156,6 +180,9 @@ class FCLayers(nn.Module):
             list of category membership(s) for this sample
         cont
             tensor of continuous covariates with shape ``(n_cont,)``
+        kwargs
+            Extra per-call context threaded to the ``_apply_layer`` / ``_apply_batch_norm`` hooks
+            for subclasses to consume; ignored by the base layers.
 
         Returns
         -------
@@ -179,18 +206,21 @@ class FCLayers(nn.Module):
                 one_hot_cat_list += [one_hot_cat]
         cov_list = cont_list + one_hot_cat_list
         for i, layers in enumerate(self.fc_layers):
+            x_in = x
             for layer in layers:
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
-                        x = self._apply_batch_norm(layer, x)
+                        x = self._apply_batch_norm(layer, x, **kwargs)
                     else:
-                        x = self._apply_layer(layer, x, cov_list, i)
+                        x = self._apply_layer(layer, x, cov_list, i, **kwargs)
+            if self.residual and i > 0 and x.shape == x_in.shape:
+                x = x + x_in
         return x
 
-    def _apply_batch_norm(self, layer: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    def _apply_batch_norm(self, layer: nn.Module, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """Apply a batch-norm layer, handling the 3D (and MPS) case."""
         if x.dim() == 3:
-            if x.device.type == "mps":  # TODO: remove this when MPS supports for loop.
+            if x.device.type == "mps" and not _mps_supports_batchnorm_slice():
                 return torch.cat([(layer(slice_x.clone())).unsqueeze(0) for slice_x in x], dim=0)
             return torch.cat([layer(slice_x).unsqueeze(0) for slice_x in x], dim=0)
         return layer(x)
@@ -201,6 +231,7 @@ class FCLayers(nn.Module):
         x: torch.Tensor,
         cov_list: list[torch.Tensor],
         layer_index: int,
+        **kwargs,
     ) -> torch.Tensor:
         """Apply a (non batch-norm) layer, injecting covariates into linear layers."""
         if self._is_linear_layer(layer) and self.inject_into_layer(layer_index):

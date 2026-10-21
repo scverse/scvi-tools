@@ -14,7 +14,11 @@ from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data._utils import _validate_adata_dataloader_input
-from scvi.distributions._utils import DistributionConcatenator, subset_distribution
+from scvi.distributions._utils import (
+    DistributionConcatenator,
+    _needs_cpu_detour,
+    subset_distribution,
+)
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._de_core import _de_core
 from scvi.model.utils import _de_core_for_annbatch
@@ -350,10 +354,14 @@ class RNASeqMixin:
             exprs = exprs.mean(0)
 
         if (return_numpy is None or return_numpy is False) and dataloader is None:
+            obs_names = adata.obs_names[indices]
+            if n_samples_overall is not None:
+                # rows of exprs were resampled; row r comes from cell r % n_cells
+                obs_names = obs_names[ind_ % len(obs_names)]
             return pd.DataFrame(
                 exprs,
                 columns=adata.var_names[gene_mask],
-                index=adata.obs_names[indices],
+                index=obs_names,
             )
         else:
             return exprs
@@ -690,10 +698,10 @@ class RNASeqMixin:
             # This gamma is using scVI manuscript notation
             p = rate / (rate + px_dispersion)
             r = px_dispersion
-            # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
+            on_mps = device.type == "mps"
             l_train = (
                 torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample()
-                if device.type == "mps"
+                if _needs_cpu_detour(on_mps, torch._standard_gamma)
                 else torch.distributions.Gamma(r, (1 - p) / p).sample().cpu()
             )
             data = l_train.numpy()
@@ -854,7 +862,6 @@ class RNASeqMixin:
             if self.module.gene_likelihood == "zinb":
                 px_dropout = px.zi_probs
                 dropout_list += [px_dropout.cpu().numpy()]
-                dropout = np.concatenate(dropout_list, axis=-2)
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
             if self.module.gene_likelihood != "poisson":
@@ -867,6 +874,8 @@ class RNASeqMixin:
 
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
+        if self.module.gene_likelihood == "zinb":
+            dropout = np.concatenate(dropout_list, axis=-2)
 
         if give_mean and n_samples > 1:
             if self.module.gene_likelihood == "zinb":

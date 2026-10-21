@@ -1,12 +1,16 @@
 import os
 
+import anndata as ad
 import numpy as np
+import pandas as pd
 import pytest
 
 from scvi.criticism import PosteriorPredictiveCheck
 from scvi.criticism._constants import METRIC_CV_GENE
 from scvi.data import synthetic_iid
 from scvi.external import cytovi
+from scvi.external.cytovi import _model as cytovi_model
+from scvi.external.cytovi._utils import log_median
 
 RAW_LAYER_KEY = "raw"
 SCALED_LAYER_KEY = "scaled"
@@ -82,6 +86,63 @@ def test_cytovi_preprocess(adata, overlapping_adatas):
     assert NAN_LAYER_KEY in adata_merged.layers
 
 
+def test_cytovi_subsample_multi_modality(adata):
+    # smoke test mimicking the DiagVI spatial proteomics tutorial, which combines multiple
+    # modalities into one AnnData (via `ad.concat(..., label="modality")`) and then uses
+    # `cytovi.subsample(..., groupby="modality")` to balance the subsample across them before
+    # scib-metrics benchmarking.
+    adata_rna = adata.copy()
+    adata_protein = adata.copy()
+
+    adata_combined = ad.concat(
+        [adata_rna, adata_protein],
+        axis=0,
+        join="inner",
+        label="modality",
+        keys=["rna", "protein"],
+    )
+    adata_combined.obs_names_make_unique()
+
+    n_obs_group = 50
+    adata_combined_sub = cytovi.subsample(
+        adata_combined, n_obs=2 * n_obs_group, groupby="modality"
+    )
+
+    assert adata_combined_sub.n_obs == 2 * n_obs_group
+    counts = adata_combined_sub.obs["modality"].value_counts()
+    assert set(counts.index) == {"rna", "protein"}
+    assert (counts == n_obs_group).all()
+
+
+@pytest.mark.parametrize("protein_likelihood", ["normal", "beta"])
+def test_cytovi_overlapping_protein_likelihood(overlapping_adatas, protein_likelihood):
+    # regression test for https://github.com/scverse/scvi-tools/issues/4006
+    # merging overlapping panels replaces missing markers with 0 in the scaled layer,
+    # which is outside the support of the Beta likelihood and previously produced NaN
+    # training losses.
+    adata1, adata2 = overlapping_adatas
+    cytovi.transform_arcsinh(adata1)
+    cytovi.scale(adata1)
+    cytovi.transform_arcsinh(adata2)
+    cytovi.scale(adata2)
+    adata_merged = cytovi.merge_batches([adata1, adata2])
+    assert NAN_LAYER_KEY in adata_merged.layers
+
+    cytovi.CYTOVI.setup_anndata(
+        adata_merged,
+        layer=SCALED_LAYER_KEY,
+        batch_key=BATCH_KEY,
+    )
+
+    model = cytovi.CYTOVI(adata_merged, protein_likelihood=protein_likelihood)
+    model.train(max_epochs=N_EPOCHS)
+    assert model.is_trained
+    assert np.isfinite(model.history_["elbo_train"].to_numpy(dtype=float)).all()
+
+    imp_exp = model.get_normalized_expression()
+    assert imp_exp.shape == adata_merged.shape
+
+
 @pytest.mark.optional
 def test_cytovi_plotting(adata):
     cytovi.plot_biaxial(
@@ -135,6 +196,35 @@ def test_cytovi(adata):
 
     model = cytovi.CYTOVI(adata)
     model.train(max_epochs=N_EPOCHS)
+
+
+@pytest.mark.parametrize("protein_likelihood", ["normal", "beta"])
+@pytest.mark.parametrize("latent_distribution", ["normal", "ln"])
+def test_cytovi_likelihood_and_latent_distribution(adata, protein_likelihood, latent_distribution):
+    cytovi.transform_arcsinh(adata)
+    cytovi.scale(adata)
+
+    cytovi.CYTOVI.setup_anndata(
+        adata,
+        layer=SCALED_LAYER_KEY,
+        batch_key=BATCH_KEY,
+        sample_key=SAMPLE_KEY,
+    )
+
+    model = cytovi.CYTOVI(
+        adata,
+        protein_likelihood=protein_likelihood,
+        latent_distribution=latent_distribution,
+    )
+    model.train(max_epochs=N_EPOCHS)
+    assert model.is_trained
+    assert np.isfinite(model.history_["elbo_train"].to_numpy(dtype=float)).all()
+
+    latent = model.get_latent_representation()
+    assert latent.shape[0] == adata.n_obs
+
+    imp_exp = model.get_normalized_expression()
+    assert imp_exp.shape == adata.shape
 
 
 @pytest.mark.optional
@@ -212,3 +302,80 @@ def test_cytovi_write_read_fcs(adata, save_path):
     adata_read = cytovi.read_fcs(save_path + "test_cytovi.fcs")
     assert adata_read.shape == adata.shape
     assert np.allclose(adata_read.X, adata.layers[SCALED_LAYER_KEY])
+
+
+@pytest.fixture
+def small_model():
+    # untrained model on a tiny AnnData, for unit tests that only exercise plumbing
+    adata = ad.AnnData(np.random.default_rng(0).uniform(0.1, 0.9, (12, 4)).astype(np.float32))
+    adata.obs["sample"] = ["a"] * 6 + ["b"] * 6
+    cytovi.CYTOVI.setup_anndata(adata, sample_key="sample")
+    model = cytovi.CYTOVI(adata, n_latent=2)
+    model.is_trained_ = True
+    return model
+
+
+@pytest.mark.parametrize("lfc_clipping", [False, True])
+def test_cytovi_de_forwards_test_mode(small_model, monkeypatch, lfc_clipping):
+    # https://github.com/scverse/scvi-tools/pull/4037
+    received = {}
+    monkeypatch.setattr(cytovi_model, "_de_core", lambda *args, **kwargs: received.update(kwargs))
+    small_model.differential_expression(
+        groupby="sample", test_mode="three", lfc_clipping=lfc_clipping, balance_samples=False
+    )
+    assert received["test_mode"] == "three"
+
+
+def test_cytovi_log_median():
+    # https://github.com/scverse/scvi-tools/pull/4040
+    # even counts average the central values in probability space: log((1 + 9) / 2)
+    np.testing.assert_allclose(log_median(np.log([[1.0, 9.0]])), np.log([5.0]))
+    # extreme log probabilities would under/overflow if exponentiated
+    np.testing.assert_allclose(log_median([[-900.0, -900.0], [880.0, 880.0]]), [-900.0, 880.0])
+
+
+def test_cytovi_aggregated_posterior_scale_is_std(small_model, monkeypatch):
+    # https://github.com/scverse/scvi-tools/pull/4034
+    means = np.zeros((3, 2), dtype=np.float32)
+    variances = np.array([[0.25, 4.0], [9.0, 16.0], [1.0, 0.0625]], dtype=np.float32)
+    # get_latent_representation(return_dist=True) returns means and variances
+    monkeypatch.setattr(
+        small_model, "get_latent_representation", lambda **kwargs: (means, variances)
+    )
+    posterior = small_model.get_aggregated_posterior(indices=np.arange(3))
+    np.testing.assert_allclose(
+        posterior.component_distribution.scale.cpu().numpy(), np.sqrt(variances).T
+    )
+
+
+def test_cytovi_uses_supplied_adata(small_model):
+    # https://github.com/scverse/scvi-tools/pull/4035
+    adata = small_model.adata[[9, 1, 7, 3]].copy()
+    posterior = small_model.get_aggregated_posterior(adata)
+    assert posterior.component_distribution.loc.shape == (2, adata.n_obs)
+    log_probs = small_model.get_sample_logprobs(adata)
+    assert log_probs.shape == (adata.n_obs, 2)
+
+
+def test_cytovi_da_alignment(small_model, monkeypatch):
+    # https://github.com/scverse/scvi-tools/pull/4036
+    adata = small_model.adata
+    adata.obs["condition"] = adata.obs["sample"].map({"a": "case", "b": "control"}).astype(str)
+
+    da = small_model.differential_abundance(groupby="condition")
+    assert da.index.tolist() == adata.obs_names.tolist()
+    assert set(da.columns) == {"DA_case", "DA_control"}
+
+    # grouping by the sample key itself
+    da = small_model.differential_abundance(groupby="sample")
+    assert set(da.columns) == {"DA_a", "DA_b"}
+
+    # conditions are matched to score columns by sample name, not by position
+    scores = pd.DataFrame({"b": -3.0, "a": -1.0}, index=adata.obs_names)
+    monkeypatch.setattr(small_model, "get_sample_logprobs", lambda *args, **kwargs: scores)
+    da = small_model.differential_abundance(groupby="condition")
+    np.testing.assert_allclose(da["DA_case"], 2.0)
+
+    adata.obs["condition"] = ["x", "y"] * 6
+    with pytest.raises(ValueError, match="exactly one condition per sample"):
+        small_model.differential_abundance(groupby="condition")

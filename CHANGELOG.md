@@ -5,42 +5,106 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
-### 1.5.1 (2026-XX-XX)
+### 1.5.2 (unreleased)
 
 #### Added
 
 - Add support for Python 3.15, {pr}`3997`.
+- Add a `residual` option to {class}`scvi.nn.FCLayers` that wraps every block except the first in
+    a skip connection, whenever that block's input and output widths match. The first block is
+    always excluded, so the flag needs `n_layers >= 2` to have any effect, {pr}`4019`.
+- Add a `residual` option to {class}`scvi.external.DRVI` that turns on skip connections in the
+    encoder and decoder, {pr}`4020`.
+
+#### Fixed
+
+- Fix `get_likelihood_parameters` with `gene_likelihood="zinb"` re-concatenating the dropout
+    probabilities on every minibatch, which made its runtime quadratic in the number of cells,
+    {pr}`4049`.
+- Fix `get_normalized_expression(n_samples_overall=..., return_numpy=False)` crashing with a
+    shape mismatch in {class}`scvi.model.base.RNASeqMixin`, {class}`scvi.external.CYTOVI` and
+    {class}`scvi.external.MRVI`. The returned DataFrame is now indexed by the cell each sampled
+    row was drawn from, {pr}`4049`.
+- Fix {func}`~scvi.data.pbmc_dataset` pairing 48 pbmc8k cells' labels and metadata with the
+    counts of unrelated pbmc4k cells that share their barcode, and dropping 49 pbmc4k cells. The
+    dataset now has the documented 12,039 cells instead of 11,990, {pr}`4058`.
+
+#### Changed
+
+- {class}`scvi.nn.FCLayers`'s `forward` now accepts arbitrary `**kwargs` and threads them to the
+    `_apply_layer` and `_apply_batch_norm` hooks, so subclasses can branch on per-call context.
+    The base layers ignore them, {pr}`4019`.
+- Break the DRVI module, decoder, split layers and interpretability mixin into overridable seams
+    so downstream models can subclass them without copying `generative`. Behaviour is unchanged,
+    {pr}`4020`.
+- Speed up `differential_expression` and `differential_abundance`, with identical outputs:
+    `auto_move_data` and `BaseModuleClass.device` read the device from the first parameter
+    instead of collecting every parameter's device on each call, and
+    `scrna_raw_counts_properties` takes column means on CSR instead of COO, {pr}`4049`.
+
+#### Fixed
+
+- Fix {class}`scvi.external.CYTOVI`'s `get_aggregated_posterior` passing the latent posterior
+    variance instead of the standard deviation as the scale of its Normal/Student-t components.
+    This changes the results of `get_aggregated_posterior`, `get_sample_logprobs` and
+    `differential_abundance` compared with earlier versions, {pr}`4048`.
+- Fix {class}`scvi.external.CYTOVI`'s `differential_expression` ignoring `test_mode` when
+    `lfc_clipping=False`, {pr}`4048`.
+- Fix numerical underflow/overflow in {class}`scvi.external.CYTOVI`'s differential-abundance
+    aggregation by computing the log-median of probabilities in log space, {pr}`4048`.
+- Fix {class}`scvi.external.CYTOVI`'s `get_aggregated_posterior` and `get_sample_logprobs`
+    using the training AnnData instead of the supplied `adata` for default indices and query
+    latent representations, {pr}`4048`.
+- Fix {class}`scvi.external.CYTOVI`'s `differential_abundance` dropping cell names from the
+    result index and matching conditions to sample columns by position instead of by sample
+    identifier. `groupby` may now equal the sample key, and invalid designs (missing labels,
+    a sample with multiple conditions, or fewer than two conditions) raise a `ValueError`,
+    {pr}`4048`.
+
+### 1.5.1 (2026-09-10)
+
+#### Added
+
+- Extend native `mps` support across the rest of scvi-tools' gamma/Poisson/Dirichlet/Binomial
+    sampling and `lgamma` call sites, on top of {class}`scvi.distributions.NegativeBinomial`,
+    {class}`scvi.distributions.ZeroInflatedNegativeBinomial`and
+    {class}`scvi.distributions.NegativeBinomialMixture`. Also drops the .clone()` workaround for
+    3D `BatchNorm1d` on `mps` in {class}`scvi.nn.FCLayers` and the .contiguous()` workaround for
+    `torch.lgamma` on non-contiguous `mps` tensors once the kernel is available, {pr}`3981`.
+- Add {class}`scvi.external.VIVS`, a conditional-randomization-test model for gene-level
+    variable selection against niche composition or other `obsm` responses, ported from the
+    original [VIVS](https://github.com/YosefLab/VIVS) JAX implementation, {pr}`3954`.
 
 #### Fixed
 
 - Fix {class}`scvi.module.MULTIVAE`'s accessibility reconstruction loss crashing on `mps` for
-    RNA+protein-only `MULTIVI` configurations (`n_input_regions=0`): `BCELoss` asserts on a
-    zero-element `mps` tensor, so the loss over zero features is now returned directly as zero
-    (correct on every backend) rather than routed through the op, {pr}`3989`.
+    RNA+protein-only `MULTIVI` configurations (`n_input_regions=0`), {pr}`3989`.
 - Fix unsubstituted `%(de_silent)s` docstring template placeholders being rendered literally in
     several public model methods by applying the missing `de_dsp` docstring processor, {pr}`3921`.
 - Fix how mudata object is saved with AutotuneExperiment, {pr}`3927`.
 - Fix `scvi.hub` eagerly requiring `huggingface_hub` at package-import time {pr}`3950`.
-- Fix `load_query_data` crashing with `TypeError: '<' not supported between instances of
-    'str' and 'float'` when extending batch categories for query data whose batch column
+- Fix `load_query_data` crashing when extending batch categories for query data whose batch column
     contains missing values, {pr}`3962`.
 - Fix {func}`~scvi.data.purified_pbmc_dataset` returning a duplicated `cd4_t_helper` batch {pr}`3985`.
 - Fix builtin datasets downloads failing outright on a single transient, {pr}`3987`.
-- Fix `setup_annbatch` crashing with `AttributeError: 'Group' object has no attribute 'asstr'`
-    when reading `var` names from h5ad files written by `anndata>=0.13` with `pandas>=3.0`,
-    which encodes the index as a `nullable-string-array` group instead of a plain string
-    dataset, {pr}`3993`.
-- Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`
-    raising `AttributeError: '...' object has no attribute '_registry'`, {pr}`3995`.
+- Fix `setup_annbatch` crashing when reading `var` names from h5ad files written by `anndata>=0.13` with `pandas>=3.0`, {pr}`3993`.
+- Fix {class}`scvi.model.base.BaseModelClass`'s `view_registry` and `update_setup_method_args`, {pr}`3995`.
+- Fix {class}`scvi.external.CYTOVI` producing a `nan` ELBO with `protein_likelihood="beta"`when overlapping antibody panels are merged with `merge_batches()`. Masked entries are now substituted with a likelihood-safe value before scoring, see {pr}`4007`.
+- Fix `cytovi.subsample()`'s `groupby` argument crashing on `pandas>=3.0`, Per-group sampling no
+longer depends on that internal index shape, {pr}`4012`.
 
 
 #### Changed
 
+- Use the fused implementation of `Adam` and `AdamW` in {class}`scvi.train.TrainingPlan` when the
+    backend supports it. Pass `plan_kwargs={"fused_optimizer": False}` to restore the previous behaviour, {pr}`3998`.
+- Restore `torch._dynamo.config.suppress_errors` once training ends instead of leaving it enabled
+    for the rest of the process, and warn when `compile=True` silently fell back to eager, so a
+    failed compilation is no longer indistinguishable from a successful one, {pr}`3998`.
 - Updated dockerfile to py3.13, {pr}`3920`.
 - Updated several github workflows with recent github actions modules, {pr}`3916`.
 - Align the repository with the [scverse cookiecutter template](https://github.com/scverse/cookiecutter-scverse) v0.8.0 and track it via `.cruft.json`, so template updates arrive as automated pull requests, {pr}`3607`.
     Development, test and documentation dependencies moved from extras to [dependency groups](https://packaging.python.org/en/latest/specifications/dependency-groups/) (`dev`, `test`, `doc`), and every test suite is now defined as a `hatch` environment in `pyproject.toml` and invoked from CI through `hatch`.
-    The `tests`, `test`, `editing`, `dev`, `docs` and `docsbuild` extras were removed as a result; see the [contributing guide](https://docs.scvi-tools.org/en/stable/developer/code.html) for the replacements.
 
 #### Removed
 

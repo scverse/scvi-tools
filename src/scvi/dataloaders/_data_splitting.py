@@ -1,4 +1,5 @@
 import warnings
+from functools import cache
 from math import ceil, floor
 
 import lightning.pytorch as pl
@@ -19,6 +20,25 @@ from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
+
+
+@cache
+def _mps_supports_sparse_compressed_tensor() -> bool:
+    """Whether MPS can hold a sparse CSR/CSC tensor at all.
+
+    Probed rather than version-compared for the same reason as
+    :func:`scvi.distributions._utils._mps_supports`.
+    """
+    try:
+        torch.sparse_csr_tensor(
+            torch.zeros(1, dtype=torch.int64, device="mps"),
+            torch.zeros(0, dtype=torch.int64, device="mps"),
+            torch.zeros(0, device="mps"),
+            size=(1, 1),
+        )
+    except (NotImplementedError, RuntimeError):
+        return False
+    return True
 
 
 def validate_data_split(
@@ -327,6 +347,25 @@ class DataSplitter(pl.LightningDataModule):
             )
         else:
             pass
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        """Densifies sparse tensors before the transfer if the device can't hold them.
+
+        MPS has no sparse CSR/CSC tensor support at all (unlike a missing single-op kernel,
+        the whole layout is unimplemented there), so the default transfer would crash trying to
+        move the still-sparse tensor onto the device; densify first in that case.
+        """
+        if (
+            self.load_sparse_tensor
+            and device.type == "mps"
+            and not _mps_supports_sparse_compressed_tensor()
+        ):
+            for key, val in batch.items():
+                layout = val.layout if isinstance(val, torch.Tensor) else None
+                if layout is torch.sparse_csr or layout is torch.sparse_csc:
+                    batch[key] = val.to_dense()
+
+        return super().transfer_batch_to_device(batch, device, dataloader_idx)
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
         """Converts sparse tensors to dense if necessary."""

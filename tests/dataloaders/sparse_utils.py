@@ -24,7 +24,12 @@ class TestSparseDataSplitter(scvi.dataloaders.DataSplitter):
     def on_after_batch_transfer(self, batch, dataloader_idx):
         X = batch.get(scvi.REGISTRY_KEYS.X_KEY)
         assert isinstance(X, torch.Tensor)
-        assert X.layout is self.expected_sparse_layout
+        if X.device.type == "mps":
+            # MPS has no sparse tensor support at all, so transfer_batch_to_device must have
+            # already densified this before the transfer even reached the device.
+            assert X.layout == torch.strided
+        else:
+            assert X.layout is self.expected_sparse_layout
 
         batch = super().on_after_batch_transfer(batch, dataloader_idx)
 

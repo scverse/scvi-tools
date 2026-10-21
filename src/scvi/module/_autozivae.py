@@ -9,6 +9,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.distributions._utils import _needs_cpu_detour
 from scvi.module.base import LossOutput, auto_move_data
 
 from ._vae import VAE
@@ -174,10 +175,11 @@ class AutoZIVAE(VAE):
         # Warning : use logs and perform logsumexp to avoid numerical issues
 
         # Sample from Gamma
-        if alpha.device.type == "mps":
-            # TODO MPS support of Gamma distribution
-            sample_x_log = torch.log(Gamma(alpha.to("cpu"), 1).rsample() + eps_gamma).to("mps")
-            sample_y_log = torch.log(Gamma(beta.to("cpu"), 1).rsample() + eps_gamma).to("mps")
+        device = alpha.device
+        on_mps = device.type == "mps"
+        if _needs_cpu_detour(on_mps, torch._standard_gamma):
+            sample_x_log = torch.log(Gamma(alpha.to("cpu"), 1).rsample() + eps_gamma).to(device)
+            sample_y_log = torch.log(Gamma(beta.to("cpu"), 1).rsample() + eps_gamma).to(device)
         else:
             sample_x_log = torch.log(Gamma(alpha, 1).rsample() + eps_gamma)
             sample_y_log = torch.log(Gamma(beta, 1).rsample() + eps_gamma)

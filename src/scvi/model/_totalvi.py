@@ -18,6 +18,7 @@ from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _check_nonnegative_integers, _get_adata_minify_type
 from scvi.dataloaders import DataSplitter
+from scvi.distributions._utils import _needs_cpu_detour
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_manager,
@@ -1023,10 +1024,12 @@ class TOTALVI(
             # This gamma is really l*w using scVI manuscript notation
             p = rate / (rate + dispersion)
             r = dispersion
-            # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
+            on_mps = self.device.type == "mps"
             l_train = (
-                torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample().to("mps")
-                if self.device.type == "mps"
+                torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu"))
+                .sample()
+                .to(self.device)
+                if _needs_cpu_detour(on_mps, torch._standard_gamma)
                 else torch.distributions.Gamma(r, (1 - p) / p).sample()
             )
             data = l_train.cpu().numpy()

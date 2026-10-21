@@ -508,6 +508,20 @@ def test_scvi_error_on_es(n_latent: int):
         model.train(1, train_size=1.0, early_stopping=True)
 
 
+@pytest.mark.parametrize("n_samples_overall", [10, 150])
+def test_scvi_normalized_expression_n_samples_overall_dataframe(n_samples_overall: int):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata, batch_key="batch")
+    model = SCVI(adata, n_latent=5)
+    model.train(1, train_size=1.0)
+    indices = np.arange(50)
+    out = model.get_normalized_expression(
+        indices=indices, n_samples_overall=n_samples_overall, return_numpy=False
+    )
+    assert out.shape == (n_samples_overall, adata.n_vars)
+    assert out.index.isin(adata.obs_names[indices]).all()
+
+
 @pytest.mark.parametrize("n_latent", [5])
 def test_scvi_n_obs_error(n_latent: int):
     adata = synthetic_iid()

@@ -347,13 +347,18 @@ class CytoVAE(BaseModuleClass):
         else:
             kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(dim=1)
 
-        reconst_loss_int = -generative_outputs["px"].log_prob(x)
-
         # mask loss for unobserved values in batches
         if nan_mask is not None:
+            # unobserved (masked) entries are filled with a placeholder value that may fall
+            # outside the support of the likelihood (e.g. `Beta.log_prob(0)` is `-inf`).
+            # Replace them with a value safe for any likelihood before scoring, otherwise
+            # `-inf * 0` (mask) evaluates to `nan` and poisons the loss.
+            x = torch.where(nan_mask.bool(), x, torch.full_like(x, 0.5))
+            reconst_loss_int = -generative_outputs["px"].log_prob(x)
             reconst_loss = (reconst_loss_int * nan_mask).sum(-1)
 
         else:
+            reconst_loss_int = -generative_outputs["px"].log_prob(x)
             reconst_loss = reconst_loss_int.sum(-1)
 
         kl_local_for_warmup = kl_divergence_z

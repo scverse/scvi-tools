@@ -8,6 +8,7 @@ notebooks/use_cases/autotune_scvi
 notebooks/use_cases/minification
 notebooks/use_cases/interpretability
 notebooks/use_cases/multiGPU
+notebooks/use_cases/VIVS_niche_gene_selection
 ```
 
 ```{customcard}
@@ -43,4 +44,11 @@ Use integrated gradient or SHAP values for model explainability
 :tags: Analysis
 
 Example of how to train an SCVI model using multi GPU settings
+```
+
+```{customcard}
+:path: notebooks/use_cases/VIVS_niche_gene_selection
+:tags: Analysis, Gene-selection, Differential-comparison
+
+Identify genes conditionally dependent on niche composition or another response using VIVS's conditional randomization test.
 ```

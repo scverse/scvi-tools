@@ -5,7 +5,9 @@ import torch.nn.functional as F
 from torch.distributions import Distribution, constraints
 from torch.distributions.utils import broadcast_all
 
-from scvi.distributions._negative_binomial import _gamma, torch_lgamma_mps
+from scvi.distributions import NegativeBinomial, Normal, Poisson, ZeroInflatedNegativeBinomial
+from scvi.distributions._negative_binomial import _gamma, _lgamma_fn
+from scvi.distributions._utils import _needs_cpu_detour
 
 
 class LogNegativeBinomial(Distribution):
@@ -48,7 +50,8 @@ class LogNegativeBinomial(Distribution):
         validate_args: bool = False,
     ) -> None:
         self._eps = 1e-8
-        self.on_mps = log_m.device.type == "mps"  # TODO: until torch solves the MPS issues
+        self._device = log_m.device
+        self.on_mps = self._device.type == "mps"
         if log_scale is None:
             self.log_m, self.log_r = broadcast_all(log_m, log_r)
             self.log_scale = None
@@ -97,7 +100,7 @@ class LogNegativeBinomial(Distribution):
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         """Negative-binomial log-probability evaluated from the log-parameters."""
         log_m, log_r, eps = self.log_m, self.log_r, self._eps
-        lgamma = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma = _lgamma_fn(self.on_mps)
         r = torch.exp(log_r)
         # log C(value + r - 1, value)
         choice = lgamma(value + r + eps) - lgamma(value + 1 + eps) - lgamma(r + eps)
@@ -111,16 +114,14 @@ class LogNegativeBinomial(Distribution):
     def sample(self, sample_shape: torch.Size | tuple | None = None) -> torch.Tensor:
         """Sample via the Gamma-Poisson mixture (same as a negative binomial)."""
         sample_shape = sample_shape or torch.Size()
-        gamma_d = _gamma(self.theta, self.mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU
+        gamma_d = _gamma(self.theta, self.mu, self.on_mps)
         p_means = gamma_d.sample(sample_shape)
         # Clamp as the distribution objects can behave badly when their parameters are too high.
         l_train = torch.clamp(p_means, max=1e8)
-        counts = (
-            torch.distributions.Poisson(l_train).sample().to("mps")
-            if self.on_mps  # TODO: NEED TORCH MPS FIX for 'aten::poisson'
-            else torch.distributions.Poisson(l_train).sample()
-        )
-        return counts
+        if _needs_cpu_detour(self.on_mps, torch.poisson):
+            l_train = l_train.to("cpu")
+        counts = torch.distributions.Poisson(l_train).sample()
+        return counts.to(self._device)
 
     def __repr__(self) -> str:
         param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
@@ -130,3 +131,53 @@ class LogNegativeBinomial(Distribution):
             if (v := self.__dict__[p]) is not None
         )
         return self.__class__.__name__ + "(" + args_string + ")"
+
+
+def build_gene_likelihood(
+    gene_likelihood: str,
+    px_scale_logit: torch.Tensor,
+    px_r_logit: torch.Tensor,
+    px_dropout_logit: torch.Tensor | None = None,
+    size_factor: torch.Tensor | None = None,
+) -> Distribution:
+    """Build the per-gene count/normal distribution from a DRVI decoder's log-space parameters.
+
+    Parameters
+    ----------
+    gene_likelihood
+        One of ``"nb"``, ``"pnb"``, ``"zinb"``, ``"poisson"``, ``"normal"``, ``"normal_unit_var"``.
+    px_scale_logit
+        Aggregated per-gene log-space scale logits, shape ``(*, n_genes)``.
+    px_r_logit
+        Per-gene dispersion logit: ``log theta`` for the NB family, ``log variance`` for the
+        normal likelihoods.
+    px_dropout_logit
+        ZINB dropout logits (used only when ``gene_likelihood == "zinb"``).
+    size_factor
+        Log library size, shape ``(*, 1)``; added to the log-softmax scale to form ``log(mu)``.
+        Required for the count likelihoods (``"nb"``, ``"pnb"``, ``"zinb"``, ``"poisson"``); unused
+        by ``"normal"`` / ``"normal_unit_var"``.
+    """
+    if gene_likelihood in ("nb", "pnb", "zinb", "poisson"):
+        # log_softmax over genes, then add the (log) library size to get log(mu)
+        px_scale_log = px_scale_logit - torch.logsumexp(px_scale_logit, dim=-1, keepdim=True)
+        px_rate_log = size_factor + px_scale_log  # size_factor == log(library size)
+        if gene_likelihood == "pnb":
+            return LogNegativeBinomial(log_m=px_rate_log, log_r=px_r_logit, log_scale=px_scale_log)
+        px_scale = torch.exp(px_scale_log)
+        px_rate = torch.exp(px_rate_log)
+        if gene_likelihood == "nb":
+            return NegativeBinomial(mu=px_rate, theta=torch.exp(px_r_logit), scale=px_scale)
+        if gene_likelihood == "poisson":
+            return Poisson(rate=px_rate, scale=px_scale)
+        return ZeroInflatedNegativeBinomial(
+            mu=px_rate, theta=torch.exp(px_r_logit), zi_logits=px_dropout_logit, scale=px_scale
+        )
+    if gene_likelihood == "normal":
+        # Gaussian with the mean modeled directly (the raw log-space decoder output, no
+        # library/softmax) and per-gene variance modeled in log space.
+        var = torch.nan_to_num(torch.exp(px_r_logit), posinf=100.0, neginf=0.0) + 1e-8
+        return Normal(px_scale_logit, var.sqrt(), normal_mu=px_scale_logit)
+    if gene_likelihood == "normal_unit_var":
+        return Normal(px_scale_logit, torch.ones_like(px_scale_logit), normal_mu=px_scale_logit)
+    raise ValueError(f"Unknown gene_likelihood: {gene_likelihood}")
