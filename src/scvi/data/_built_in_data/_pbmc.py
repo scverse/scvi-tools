@@ -72,21 +72,19 @@ def _load_pbmc_dataset(
         var_names="gene_ids",
         remove_extracted_data=remove_extracted_data,
     )
+    # 51 barcodes occur in both runs (unrelated cells); pbmc_metadata.pickle renames the
+    # pbmc4k copy "-1" -> "-11", so do the same here before joining on barcode
+    in_8k = set(pbmc8k.obs_names)
+    pbmc4k.obs_names = [b + "1" if b in in_8k else b for b in pbmc4k.obs_names]
     barcodes = np.concatenate((pbmc8k.obs_names, pbmc4k.obs_names))
 
     adata = anndata.concat([pbmc8k, pbmc4k], keys=["0", "1"], label="batch")
     adata.obs_names = barcodes
 
     dict_barcodes = dict(zip(barcodes, np.arange(len(barcodes)), strict=True))
-    subset_cells = []
     barcodes_metadata = pbmc_metadata["barcodes"].index.values.ravel().astype(str)
-    for barcode in barcodes_metadata:
-        if barcode in dict_barcodes:  # barcodes with end -11 filtered on 10X website (49 cells)
-            subset_cells += [dict_barcodes[barcode]]
+    subset_cells = [dict_barcodes[barcode] for barcode in barcodes_metadata]
     adata = adata[np.asarray(subset_cells), :].copy()
-    idx_metadata = np.asarray(
-        [not barcode.endswith("11") for barcode in barcodes_metadata], dtype=bool
-    )
     genes_to_keep = list(
         de_metadata["ENSG"].values
     )  # only keep the genes for which we have de data
@@ -97,9 +95,9 @@ def _load_pbmc_dataset(
         genes_to_keep.remove(gene)
 
     adata = adata[:, genes_to_keep].copy()
-    design = pbmc_metadata["design"][idx_metadata]
-    raw_qc = pbmc_metadata["raw_qc"][idx_metadata]
-    normalized_qc = pbmc_metadata["normalized_qc"][idx_metadata]
+    design = pbmc_metadata["design"]
+    raw_qc = pbmc_metadata["raw_qc"]
+    normalized_qc = pbmc_metadata["normalized_qc"]
 
     design.index = adata.obs_names
     raw_qc.index = adata.obs_names
@@ -109,8 +107,8 @@ def _load_pbmc_dataset(
     adata.obsm["raw_qc"] = raw_qc
     adata.obsm["normalized_qc"] = normalized_qc
 
-    adata.obsm["qc_pc"] = pbmc_metadata["qc_pc"][idx_metadata]
-    labels = pbmc_metadata["clusters"][idx_metadata]
+    adata.obsm["qc_pc"] = pbmc_metadata["qc_pc"]
+    labels = pbmc_metadata["clusters"]
     cell_types = pbmc_metadata["list_clusters"]
     adata.obs["labels"] = labels
     adata.uns["cell_types"] = cell_types

@@ -36,22 +36,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     always injecting covariates into its hidden layers. With the default
     (`deeply_inject_covariates=False`) the protein decoder now has fewer parameters, so MULTIVI
     models with protein data saved with earlier versions cannot be loaded, {pr}`4025`.
-
-#### Changed
-
-- {class}`scvi.nn.FCLayers`'s `forward` now accepts arbitrary `**kwargs` and threads them to the
-    `_apply_layer` and `_apply_batch_norm` hooks, so subclasses can branch on per-call context.
-    The base layers ignore them, {pr}`4019`.
-- Break the DRVI module, decoder, split layers and interpretability mixin into overridable seams
-    so downstream models can subclass them without copying `generative`. Behaviour is unchanged,
-    {pr}`4020`.
-- Speed up `differential_expression` and `differential_abundance`, with identical outputs:
-    `auto_move_data` and `BaseModuleClass.device` read the device from the first parameter
-    instead of collecting every parameter's device on each call, and
-    `scrna_raw_counts_properties` takes column means on CSR instead of COO, {pr}`4049`.
-
-#### Fixed
-
+- Fix {func}`~scvi.data.pbmc_dataset` pairing 48 pbmc8k cells' labels and metadata with the
+    counts of unrelated pbmc4k cells that share their barcode, and dropping 49 pbmc4k cells. The
+    dataset now has the documented 12,039 cells instead of 11,990, {pr}`4058`.
 - Fix {class}`scvi.external.CYTOVI`'s `get_aggregated_posterior` passing the latent posterior
     variance instead of the standard deviation as the scale of its Normal/Student-t components.
     This changes the results of `get_aggregated_posterior`, `get_sample_logprobs` and
@@ -68,6 +55,21 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     identifier. `groupby` may now equal the sample key, and invalid designs (missing labels,
     a sample with multiple conditions, or fewer than two conditions) raise a `ValueError`,
     {pr}`4048`.
+    
+#### Changed
+
+- {class}`scvi.nn.FCLayers`'s `forward` now accepts arbitrary `**kwargs` and threads them to the
+    `_apply_layer` and `_apply_batch_norm` hooks, so subclasses can branch on per-call context.
+    The base layers ignore them, {pr}`4019`.
+- Break the DRVI module, decoder, split layers and interpretability mixin into overridable seams
+    so downstream models can subclass them without copying `generative`. Behaviour is unchanged,
+    {pr}`4020`.
+- Speed up `differential_expression` and `differential_abundance`, with identical outputs:
+    `auto_move_data` and `BaseModuleClass.device` read the device from the first parameter
+    instead of collecting every parameter's device on each call, and
+    `scrna_raw_counts_properties` takes column means on CSR instead of COO, {pr}`4049`.
+
+#### Removed
 
 ### 1.5.1 (2026-09-10)
 
