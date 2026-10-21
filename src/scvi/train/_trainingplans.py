@@ -171,7 +171,7 @@ class TrainingPlan(pl.LightningModule):
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: TorchOptimizerCreator | None = None,
-        fused_optimizer: bool = True,
+        fused_optimizer: bool = False,
         lr: float = 1e-3,
         update_only_decoder: bool = False,
         weight_decay: float = 1e-6,
