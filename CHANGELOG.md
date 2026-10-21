@@ -55,7 +55,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     identifier. `groupby` may now equal the sample key, and invalid designs (missing labels,
     a sample with multiple conditions, or fewer than two conditions) raise a `ValueError`,
     {pr}`4048`.
-    
+
 #### Changed
 
 - {class}`scvi.nn.FCLayers`'s `forward` now accepts arbitrary `**kwargs` and threads them to the
