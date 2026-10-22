@@ -536,6 +536,7 @@ def test_drvi_interpretability(split_method, split_aggregation, batch_representa
     model.set_latent_dimension_stats(embed, adata=adata)
     for col in ["reconstruction_effect", "order", "min", "max", "vanished"]:
         assert col in embed.var
+    assert np.isfinite(embed.obs["total_effect"]).all()
 
     model.calculate_interpretability_scores(embed, methods="ALL", n_steps=4, n_samples=3)
     assert "OOD_combined_positive" in embed.varm
@@ -566,8 +567,9 @@ def test_drvi_interpretability_split_smaller_than_latent(split_aggregation):
     model.train(max_epochs=2, batch_size=adata.n_obs)
 
     # per-split reconstruction effect: one value per split
-    recon = model.get_reconstruction_effect_of_each_split(directional=False)
+    recon, total_effect = model.get_reconstruction_effect_of_each_split(directional=False)
     assert recon.shape == (n_split,)
+    assert total_effect.shape == (adata.n_obs,)
 
     # per-split, per-gene effects: every aggregation is (n_split, n_genes)
     effects = model.get_effect_of_splits_within_distribution(directional=False)

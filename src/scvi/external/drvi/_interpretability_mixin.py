@@ -47,8 +47,8 @@ def get_direct_effect_of_latent_splits(
     unaggregated_params: Tensor,
     split_aggregation: str,
     add_to_counts: float,
-) -> Tensor:
-    """Per-split, per-gene effect ``(n_cells, n_splits, n_genes)`` from a decoder's split params.
+) -> tuple[Tensor, Tensor]:
+    """Per-split, per-gene effect and per-cell total effect from a decoder's split params.
 
     Parameters
     ----------
@@ -59,6 +59,13 @@ def get_direct_effect_of_latent_splits(
         How the decoder aggregates the splits: ``"logsumexp"`` or ``"mean"``.
     add_to_counts
         Pseudo-count added before taking the effect ratio (``"logsumexp"`` only).
+
+    Returns
+    -------
+    effect
+        Per-split, per-gene effect, ``(n_cells, n_splits, n_genes)``.
+    total_effect_per_cell
+        Each cell's total decoder output before the softmax, in log space, ``(n_cells,)``.
     """
     if split_aggregation == "logsumexp":
         # softmax(x) == softmax(x + c); the library / -log(K) constants cancel, but the
@@ -72,13 +79,15 @@ def get_direct_effect_of_latent_splits(
             ],
             dim=-2,
         )  # n_samples x (n_splits + 1) x n_genes
-        return -torch.log(1 - F.softmax(log_mean_params, dim=-2)[:, :-1, :])
+        effect = -torch.log(1 - F.softmax(log_mean_params, dim=-2)[:, :-1, :])
     elif split_aggregation == "mean":
-        return torch.abs(unaggregated_params)
+        total_effect_per_cell = torch.logsumexp(unaggregated_params.mean(dim=-2), dim=-1)
+        effect = torch.abs(unaggregated_params)
     else:
         raise NotImplementedError(
             "Only 'logsumexp' and 'mean' aggregations are supported for interpretability."
         )
+    return effect, total_effect_per_cell
 
 
 class InterpretabilityMixin:
@@ -106,8 +115,8 @@ class InterpretabilityMixin:
 
     def _get_direct_effect_of_latent_splits(
         self, generative_outputs: dict, add_to_counts: float
-    ) -> Tensor:
-        """Per-split, per-gene effect ``(n_cells, n_splits, n_genes)`` from the decoder params."""
+    ) -> tuple[Tensor, Tensor]:
+        """Per-split, per-gene effect and per-cell total effect from the decoder params."""
         return get_direct_effect_of_latent_splits(
             generative_outputs[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY],
             self.module.split_aggregation,
@@ -124,7 +133,7 @@ class InterpretabilityMixin:
         directional: bool = True,
         **kwargs: Any,
     ):
-        """Yield ``(effect_tensor, latent)`` per minibatch: each split's effect on every gene.
+        """Yield ``(effect_tensor, latent, total_effect_per_cell)`` per minibatch.
 
         Low-level building block behind the in-distribution scores: it runs the autoencoder over
         the data and converts the per-split decoder parameters into a per-gene effect. The effect
@@ -155,6 +164,8 @@ class InterpretabilityMixin:
             ``(n_cells, 2, n_splits, n_genes)`` when ``directional``).
         latent
             Posterior-mean latent for the minibatch, ``(n_cells, n_latent)``.
+        total_effect_per_cell
+            Each cell's total decoder output before the softmax, in log space, ``(n_cells,)``.
         """
         if directional and self.module.n_latent != self.module.n_split_latent:
             raise NotImplementedError(
@@ -169,7 +180,7 @@ class InterpretabilityMixin:
         ):
             # posterior mean, n_cells x n_latent
             latent = inference_outputs[MODULE_KEYS.QZ_KEY].loc
-            effect_tensor = self._get_direct_effect_of_latent_splits(
+            effect_tensor, total_effect_per_cell = self._get_direct_effect_of_latent_splits(
                 generative_outputs, add_to_counts
             )
 
@@ -181,7 +192,7 @@ class InterpretabilityMixin:
                     dim=1,
                 )  # n_samples x 2 x n_splits x n_genes
 
-            yield effect_tensor, latent
+            yield effect_tensor, latent, total_effect_per_cell
 
     @torch.inference_mode()
     def get_reconstruction_effect_of_each_split(
@@ -193,7 +204,7 @@ class InterpretabilityMixin:
         deterministic: bool = True,
         directional: bool = False,
         **kwargs: Any,
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Effect of each split on reconstruction (summed over genes).
 
         Used by :meth:`set_latent_dimension_stats` to rank latent factors by how much they drive
@@ -219,11 +230,15 @@ class InterpretabilityMixin:
 
         Returns
         -------
-        ``(n_splits,)`` (or ``(2, n_splits)`` if directional) when aggregating over cells, else
-        ``(n_cells, n_splits)`` (or ``(n_cells, 2, n_splits)``).
+        effect
+            ``(n_splits,)`` (or ``(2, n_splits)`` if directional) when aggregating over cells, else
+            ``(n_cells, n_splits)`` (or ``(n_cells, 2, n_splits)``).
+        total_effect_per_cell
+            Each cell's total decoder output before the softmax, in log space, ``(n_cells,)``.
         """
         store = None if aggregate_over_cells else []
-        for effect_tensor, _latent in self.iterate_on_effect_of_splits_within_distribution(
+        totals = []
+        for effect_tensor, _latent, total in self.iterate_on_effect_of_splits_within_distribution(
             adata=adata,
             dataloader=dataloader,
             add_to_counts=add_to_counts,
@@ -231,6 +246,7 @@ class InterpretabilityMixin:
             directional=directional,
             **kwargs,
         ):
+            totals.append(total.cpu())
             effect_share = effect_tensor.sum(dim=-1).detach().cpu()
             if aggregate_over_cells:
                 effect_share = effect_share.sum(dim=0).to_dense()
@@ -238,9 +254,8 @@ class InterpretabilityMixin:
             else:
                 store.append(effect_share)
 
-        if aggregate_over_cells:
-            return store.numpy(force=True)
-        return torch.cat(store, dim=0).numpy(force=True)
+        effect = store if aggregate_over_cells else torch.cat(store, dim=0)
+        return effect.numpy(force=True), torch.cat(totals).numpy(force=True)
 
     @torch.inference_mode()
     def set_latent_dimension_stats(
@@ -276,7 +291,8 @@ class InterpretabilityMixin:
         -----
         Adds the columns ``reconstruction_effect``, ``order``, ``max_value``, ``mean``, ``min``,
         ``max``, ``std``, ``std_abs``, ``title`` and ``vanished`` (+ per-direction vanished flags)
-        to ``embed.var``.
+        to ``embed.var``, and ``total_effect`` (each cell's total decoder output before the
+        softmax, in log space) to ``embed.obs``.
         """
         n_latent = self.module.n_latent
         n_split = self.module.n_split_latent
@@ -285,9 +301,10 @@ class InterpretabilityMixin:
 
         # reconstruction effect is computed per split; when a split groups several latent dims
         # (n_split_latent < n_latent) broadcast each split's effect to the dims it contains.
-        recon_per_split = self.get_reconstruction_effect_of_each_split(
+        recon_per_split, total_effect = self.get_reconstruction_effect_of_each_split(
             adata=adata, dataloader=dataloader
         )
+        embed.obs["total_effect"] = total_effect
         recon_per_dim = np.repeat(recon_per_split, n_latent // n_split)
         embed.var["reconstruction_effect"] = 0.0
         embed.var.loc[embed.var.sort_values("original_dim_id").index, "reconstruction_effect"] = (
@@ -364,7 +381,7 @@ class InterpretabilityMixin:
             aggregations = [aggregations]
 
         store = {}
-        for i, (effect_tensor, latent) in enumerate(
+        for i, (effect_tensor, latent, _total) in enumerate(
             self.iterate_on_effect_of_splits_within_distribution(
                 adata=adata,
                 dataloader=dataloader,
@@ -463,12 +480,13 @@ class InterpretabilityMixin:
         * ``combined`` -- the product ``max_possible * min_possible``; large only when the factor
           is both strong and specific.
 
-        ``add_to_counts`` is a pseudo-count (relative to a ``1e6``-count reference cell) folded
-        into LFC calculations for numerical stability. See the DRVI paper :cite:p:`Moinfar2024`
-        (Supplementary Note "Interpretation of Latent Factors via Additive Decoder Architecture")
-        for the full derivation.
+        ``add_to_counts`` is a pseudo-count, per ``1e6`` counts of a typical cell (the median of
+        ``embed.obs["total_effect"]``), folded into LFC calculations for numerical stability. See
+        the DRVI paper :cite:p:`Moinfar2024` (Supplementary Note "Interpretation of Latent Factors
+        via Additive Decoder Architecture") for the full derivation.
 
-        This function Requires ``embed.var`` to contain ``min`` and ``max``.
+        This function requires ``embed.var`` to contain ``min`` and ``max`` and ``embed.obs`` to
+        contain ``total_effect``, as set by :meth:`set_latent_dimension_stats`.
 
         The batch/covariate combinations are sampled randomly. Pass ``seed`` for a reproducible
         sample; ``None`` (default) leaves the RNG untouched, so it still honors a previously set
@@ -483,6 +501,12 @@ class InterpretabilityMixin:
             raise ValueError(f"n_steps must be even, got {n_steps}.")
         dim_mins = np.minimum(embed.var["min"].values, 0.0)
         dim_maxs = np.maximum(embed.var["max"].values, 0.0)
+        if "total_effect" not in embed.obs:
+            raise ValueError(
+                "`embed.obs` has no `total_effect`; run `set_latent_dimension_stats`."
+            )
+        # add_to_counts pseudo-count per 1e6 counts of a typical cell, for numerical stability.
+        log_add_to_counts = np.median(embed.obs["total_effect"]) + np.log(add_to_counts / 1e6)
 
         n_cat_total = [self.summary_stats.n_batch] + self._get_n_cats_per_cov()
         all_cat_combinations = np.asarray(
@@ -530,12 +554,7 @@ class InterpretabilityMixin:
                 effect_tensors.amax(dim=1) if directional else max_per_split
             )
 
-            # add_to_counts pseudo-count (vs a 1e6-count cell) for numerical stability.
-            log_add_to_counts = torch.logsumexp(max_per_split, dim=[0, 1]) + np.log(
-                add_to_counts / 1e6
-            )
-            add_min = log_add_to_counts.reshape(1, 1).expand(1, min_per_split.shape[1])
-            add_max = log_add_to_counts.reshape(1, 1).expand(1, max_per_split.shape[1])
+            add_min = add_max = torch.full_like(min_per_split[:1], log_add_to_counts)
             # All factors at maximum
             lse_min = torch.logsumexp(
                 torch.cat([min_per_split, add_min], dim=0), dim=0, keepdim=True
