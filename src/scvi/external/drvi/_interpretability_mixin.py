@@ -439,6 +439,7 @@ class InterpretabilityMixin:
         directional: bool = True,
         batch_size: int = scvi.settings.batch_size,
         seed: int | None = None,
+        n_reference_cells: int = 128,
     ) -> dict[str, np.ndarray]:
         """Out-of-distribution per-split, per-gene effect scores via latent traversal.
 
@@ -463,12 +464,14 @@ class InterpretabilityMixin:
         * ``combined`` -- the product ``max_possible * min_possible``; large only when the factor
           is both strong and specific.
 
-        ``add_to_counts`` is a pseudo-count (relative to a ``1e6``-count reference cell) folded
-        into LFC calculations for numerical stability. See the DRVI paper :cite:p:`Moinfar2024`
-        (Supplementary Note "Interpretation of Latent Factors via Additive Decoder Architecture")
-        for the full derivation.
+        ``add_to_counts`` is a pseudo-count, per ``1e6`` counts of a typical cell, folded into LFC
+        calculations for numerical stability. The typical cell's total decoder output is the median
+        over ``n_reference_cells`` cells sampled from ``embed``, as in the in-distribution scores.
+        See the DRVI paper :cite:p:`Moinfar2024` (Supplementary Note "Interpretation of Latent
+        Factors via Additive Decoder Architecture") for the full derivation.
 
-        This function Requires ``embed.var`` to contain ``min`` and ``max``.
+        This function requires ``embed.X`` to hold the latent and ``embed.var`` to contain ``min``
+        and ``max``.
 
         The batch/covariate combinations are sampled randomly. Pass ``seed`` for a reproducible
         sample; ``None`` (default) leaves the RNG untouched, so it still honors a previously set
@@ -493,6 +496,10 @@ class InterpretabilityMixin:
         if seed is not None:
             np.random.seed(seed)
         all_cat_combinations = np.random.permutation(all_cat_combinations)[:n_samples]
+        reference_idx = np.sort(
+            np.random.choice(embed.n_obs, min(n_reference_cells, embed.n_obs), replace=False)
+        )
+        reference_latent = np.asarray(embed.X[reference_idx], dtype=np.float32)
 
         n_combined = 0
         store = {"min_possible": None, "max_possible": None, "combined": None}
@@ -505,20 +512,23 @@ class InterpretabilityMixin:
                 [steps[:, None] * dim_maxs[None, :], steps[:, None] * dim_mins[None, :]],
                 axis=0,
             ).astype(np.float32)  # n_steps x n_latent
+            # the reference cells are decoded under the same covariates as the traversal
+            z = np.concatenate([span_values, reference_latent], axis=0)
 
             effect_tensors = []
             for gen_output in self.iterate_on_decoded_latent_samples(
-                z=span_values,
-                lib=np.ones(n_steps) * 1e4,
-                batch_values=np.full(n_steps, batch_val),
-                cat_values=np.array([cat_vals] * n_steps) if cat_vals else None,
+                z=z,
+                lib=np.ones(len(z)) * 1e4,
+                batch_values=np.full(len(z), batch_val),
+                cat_values=np.array([cat_vals] * len(z)) if cat_vals else None,
                 cont_values=None,
                 batch_size=batch_size,
                 map_cat_values=False,
             ):
                 effect_tensors.append(gen_output[DRVI_MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY])
-            effect_tensors = torch.cat(effect_tensors, dim=0)  # n_steps x n_splits x n_genes
-            effect_tensors = effect_tensors.reshape(
+            effect_tensors = torch.cat(effect_tensors, dim=0)  # len(z) x n_splits x n_genes
+            reference_tensors = effect_tensors[n_steps:]
+            effect_tensors = effect_tensors[:n_steps].reshape(
                 2, int(n_steps / 2), effect_tensors.shape[1], effect_tensors.shape[2]
             )
 
@@ -530,8 +540,8 @@ class InterpretabilityMixin:
                 effect_tensors.amax(dim=1) if directional else max_per_split
             )
 
-            # add_to_counts pseudo-count (vs a 1e6-count cell) for numerical stability.
-            log_add_to_counts = torch.logsumexp(max_per_split, dim=[0, 1]) + np.log(
+            # add_to_counts pseudo-count per 1e6 counts of a typical cell, for numerical stability.
+            log_add_to_counts = torch.logsumexp(reference_tensors, dim=[1, 2]).median() + np.log(
                 add_to_counts / 1e6
             )
             add_min = log_add_to_counts.reshape(1, 1).expand(1, min_per_split.shape[1])
