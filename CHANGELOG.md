@@ -9,6 +9,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add support for Python 3.15, {pr}`3997`.
 - Add a `residual` option to {class}`scvi.nn.FCLayers` that wraps every block except the first in
     a skip connection, whenever that block's input and output widths match. The first block is
     always excluded, so the flag needs `n_layers >= 2` to have any effect, {pr}`4019`.
@@ -120,6 +121,7 @@ longer depends on that internal index shape, {pr}`4012`.
 
 #### Removed
 
+- Removed support for Python 3.12, {pr}`3997`.
 - Removed the `tests`, `test`, `editing`, `dev`, `docs` and `docsbuild` extras in favour of the `dev`, `test` and `doc` dependency groups, {pr}`3607`.
 
 ### 1.5.0 (2026-07-08)
