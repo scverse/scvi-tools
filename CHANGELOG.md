@@ -26,7 +26,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     row was drawn from, {pr}`4049`.
 - Fix {meth}`scvi.model.SCANVI.from_scvi_model` ignoring the `registry` argument and always
     using the scVI model's registry, which broke the datamodule (`adata=None`) workflow,
-    {pr}`4026`.
+    {pr}`4026`. The resulting model now registers itself as `SCANVI` in that registry, so it
+    can be saved and reloaded with {meth}`scvi.model.SCANVI.load` even when the datamodule was
+    built for scVI.
 - Fix {class}`scvi.distributions.NegativeBinomialMixture` `sample` drawing the mixture component
     once per batch element and reusing it across `sample_shape`, so all draws in a call came from
     the same component, {pr}`4027`.
