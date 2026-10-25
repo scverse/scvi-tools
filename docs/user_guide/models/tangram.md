@@ -39,7 +39,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/spatial/tangram_scvi_tools`
+-   [Tangram: Mapping Single Cells onto Spatial Data](https://scviva-tools.readthedocs.io/en/latest/tutorials/tangram_scvi_tools.html)
 ```
 
 ## Preliminaries
