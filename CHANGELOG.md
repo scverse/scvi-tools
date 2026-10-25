@@ -57,6 +57,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     identifier. `groupby` may now equal the sample key, and invalid designs (missing labels,
     a sample with multiple conditions, or fewer than two conditions) raise a `ValueError`,
     {pr}`4048`.
+- Fix {class}`scvi.external.SCBASSET` training crashing or logging a wrong `auroc_train` on
+    MPS once a batch has 65,536 or more logits, caused by an upstream bug in torchmetrics'
+    binary AUROC on MPS. The metric is now computed on CPU when the model is on MPS,
+    {pr}`4075`.
 
 #### Changed
 
