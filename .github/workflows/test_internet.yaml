@@ -62,6 +62,9 @@ jobs:
           PLATFORM: ubuntu-latest
           DISPLAY: :42
           COLUMNS: 120
+          # keep pytest's tmp dirs (and the multi-GB dataset downloads) off /tmp, which has
+          # a small size/quota limit on newer ubuntu images
+          TMPDIR: ${{ runner.temp }}
         run: uvx hatch run $HATCH_ENV:run-cov -v --color=yes --internet-tests
 
       - name: Generate coverage report

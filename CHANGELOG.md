@@ -74,6 +74,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     `auto_move_data` and `BaseModuleClass.device` read the device from the first parameter
     instead of collecting every parameter's device on each call, and
     `scrna_raw_counts_properties` takes column means on CSR instead of COO, {pr}`4049`.
+- Point the tutorial links in the user guide model pages and docstrings to their maintained versions in scVIVA-Tools, {pr}`4077`.
 
 #### Removed
 

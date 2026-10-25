@@ -20,7 +20,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/spatial/resolVI_tutorial`
+-   [resolVI: Correcting Noise and Bias in Spatial Transcriptomics](https://scviva-tools.readthedocs.io/en/latest/tutorials/resolVI_tutorial.html)
 ```
 
 ## Preliminaries
