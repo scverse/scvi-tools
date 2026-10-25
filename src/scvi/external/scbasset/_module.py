@@ -386,11 +386,13 @@ class ScBassetModule(BaseModuleClass):
         )
         if self.l2_reg_cell_embedding > 0:
             loss += self.l2_reg_cell_embedding * torch.square(self.cell_embedding).mean()
-        auroc = torchmetrics.functional.auroc(
-            torch.sigmoid(reconstruction_logits).ravel(),
-            target.int().ravel(),
-            task="binary",
-        )
+        auroc_preds = torch.sigmoid(reconstruction_logits.detach()).ravel()
+        auroc_target = target.int().ravel()
+        if auroc_preds.device.type == "mps":
+            # torchmetrics' binary AUROC is wrong on MPS for inputs >= 65,536 elements
+            # (upstream F.pad bug: pytorch/pytorch#121961, Lightning-AI/torchmetrics#1727)
+            auroc_preds, auroc_target = auroc_preds.cpu(), auroc_target.cpu()
+        auroc = torchmetrics.functional.auroc(auroc_preds, auroc_target, task="binary")
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconstruction_loss,
