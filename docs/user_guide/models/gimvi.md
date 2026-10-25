@@ -23,7 +23,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/spatial/gimvi_tutorial`
+-   [gimVI: Imputing Missing Spatial Genes](https://scviva-tools.readthedocs.io/en/latest/tutorials/gimvi_tutorial.html)
 ```
 
 :::{note}
