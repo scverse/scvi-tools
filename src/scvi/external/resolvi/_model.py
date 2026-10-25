@@ -89,7 +89,7 @@ class RESOLVI(
     -----
     See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/spatial/resolVI_tutorial`
+    1. `resolVI: Correcting Noise and Bias in Spatial Transcriptomics <https://scviva-tools.readthedocs.io/en/latest/tutorials/resolVI_tutorial.html>`__
     """
 
     _module_cls = RESOLVAE

@@ -131,7 +131,7 @@ class SCVIVA(
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/quick_start/api_overview`
-    2. :doc:`/tutorials/notebooks/spatial/scVIVA_tutorial`
+    2. `scVIVA: Representing Cells and Their Spatial Environment <https://scviva-tools.readthedocs.io/en/latest/tutorials/scVIVA_tutorial.html>`__
 
 
     See Also

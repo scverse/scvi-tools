@@ -22,7 +22,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/spatial/scVIVA_tutorial`
+-   [scVIVA: Representing Cells and Their Spatial Environment](https://scviva-tools.readthedocs.io/en/latest/tutorials/scVIVA_tutorial.html)
 ```
 
 ## Preliminaries
