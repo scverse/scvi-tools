@@ -18,26 +18,26 @@ It can capture nonlinear and cell-type-specific variation of sample-level covari
 MrVI takes as input a scRNA-seq gene expression matrix $X$ with $N$ cells and $G$ genes.
 Additionally, it requires specification, for each cell $n$:
 - a sample-level target covariate $s_n$, that typically corresponds to the sample ID,
-	which defines which sample entities will be compared in exploratory and comparative analyses.
+  which defines which sample entities will be compared in exploratory and comparative analyses.
 - nuisance covariates $b_n$ (e.g. sequencing run, processing day).
 
 Optionally, MrVI can also take as input
-	- Cell-type labels for guided integration across samples, via a mixture of Gaussians prior where each mixture component serves as the mode of a cell type.
-	- Additional sample-level covariates of interest $c_s$ for each sample $s$ (e.g.,
-	  disease status, age, treatment) for comparative analysis.
+- Cell-type labels for guided integration across samples, via a mixture of Gaussians prior where each mixture component serves as the mode of a cell type.
+- Additional sample-level covariates of interest $c_s$ for each sample $s$ (e.g.,
+disease status, age, treatment) for comparative analysis.
 
 ## Generative process
 
 MrVI posits a two-level hierarchical model (Figure 1):
 
 1. A cell-level latent variable $u_n$ capturing cell state in a batch-corrected manner:
-    $u_n \sim \mathrm{MixtureOfGaussians}(\mu_1, ..., \mu_K, \Sigma_1, ..., \Sigma_K, \pi_1, ..., \pi_K)$
+   $u_n \sim \mathrm{MixtureOfGaussians}(\mu_1, ..., \mu_K, \Sigma_1, ..., \Sigma_K, \pi_1, ..., \pi_K)$
 2. A cell-level latent variable $z_n$ capturing both cell state and effects of sample $s_n$:
-    $z_n | u_n \sim \mathcal{N}(u_n, I_L)$
+   $z_n | u_n \sim \mathcal{N}(u_n, I_L)$
 3. The normalized gene expression levels $h_n$ are generated from $z_n$ as:
-    $h_n = \mathrm{softmax}(A_{zh} \times [z_n + g_\theta(z_n, b_n)] + \gamma_{zh})$
+   $h_n = \mathrm{softmax}(A_{zh} \times [z_n + g_\theta(z_n, b_n)] + \gamma_{zh})$
 4. Finally, the gene expression counts are generated as:
-    $x_{ng} | h_{ng} \sim \mathrm{NegativeBinomial}(l_n h_{ng}, r_{ng})$
+   $x_{ng} | h_{ng} \sim \mathrm{NegativeBinomial}(l_n h_{ng}, r_{ng})$
 
 Here $l_n$ is the library size of cell $n$, $r_{ng}$ is the gene-specific inverse dispersion,
 $A_{zh}$ is a linear matrix of dimension $G \times L$, $\gamma_{zh}$ is a bias vector of dimension
@@ -45,7 +45,7 @@ $G$, and $\theta$ are neural network parameters.
 $u_n$ captures broad cell states invariant to sample and batch,
 while $z_n$ augments $u_n$ with sample-specific effects while correcting for nuisance covariate effects.
 Gene expression is obtained from $z_n$ using multi-head attention mechanisms to
-    flexibly model batch and sample effects.
+flexibly model batch and sample effects.
 
 :::{figure} figures/mrvi_graphical_model.svg
 :align: center
@@ -114,13 +114,15 @@ sample-sample distance matrices, for every cell $n$:
 2. Compute cell-specific sample-sample distance matrices $D^{(n)}$ based on the Euclidean distance between all pairs of $z^{(s)}_n$.
 3. Cluster cells based on their $D^{(n)}$ to find cell populations with distinct sample stratification.
 4. Average $D^{(n)}$ within each cell cluster and hierarchically cluster samples
-This automatically reveals distinct sample stratification that are specific to particular cell
-subsets.
+   This automatically reveals distinct sample stratification that are specific to particular cell
+   subsets.
 
 ### Comparative analysis
+
 MrVI also enables supervised comparative analysis to detect cell-type-specific DE and DA between sample groups.
 
 #### Differential expression
+
 At a high level, the DE procedure regresses, within each cell $n$, counterfactual cell states $z^{(s)}_n$ on sample-level covariates $c_s$ of interest for analysis as
 $z^{(s)}_n = \beta_n c_s + \beta_0 + \epsilon_n$.
 For instance, if $c_s$ is a binary covariate, then $\beta_n$ will capture the shift (in $z$-space) induced by samples for which $c_s = 1$ compared to samples for which $c_s = 0$.
@@ -129,6 +131,7 @@ First, comparing the norm of $\beta_n$ (using $\chi^2$ statistics) across cells 
 Second, by decoding the linear approximation of $z^{(s)}_n$ for different covariate vectors that we would like to compare, we can compute associated log fold-changes to identify the genes at the cell level.
 
 #### Differential abundance
+
 To compare two sets of samples, MrVI computes the log-ratio between the aggregated posteriors of the two groups, $A_1 \subset [[1, S]]$ and $A_2 \subset [[1, S]]$, where $S$ is the total number of samples.
 In particular, the aggregated posterior for any sample $s$ is defined as
 $q_s := \frac{1}{|s|} \sum_{n, s_n=s} q^{u}_{n}$,

@@ -5,7 +5,7 @@ This page is under construction.
 :::
 
 :::{note}
- to run scvi-tools with custom dataloaders support, use: pip install scvi-tools[dataloaders]
+to run scvi-tools with custom dataloaders support, use: pip install scvi-tools[dataloaders]
 :::
 
 In SCVI, custom dataloaders allow you to create a tailored data pipeline that can handle unique formats or complex datasets not covered by the default loaders. A custom dataloader can be useful when you have a specific structure for your data or need to preprocess it in a particular way before feeding it into the model to gain some advantage.
@@ -68,7 +68,7 @@ TileDB is a general-purpose, multidimensional array storage engine designed for 
 Pros:
 
 - Efficient Data Access: With TileDB, you can query and access specific subsets of your data without needing to load the entire dataset into memory, improving performance.
-Scalability: Handles large datasets that exceed your system's memory capacity, making it ideal for single-cell RNA-seq datasets with millions of cells.
+  Scalability: Handles large datasets that exceed your system's memory capacity, making it ideal for single-cell RNA-seq datasets with millions of cells.
 - Flexibility: Supports multidimensional data storage, which can be useful for storing gene expression data across multiple conditions or time points.
 
 Note that using categorical covariates with TileDB requires them to be non-integer (even when saved as string in the adata).
@@ -137,13 +137,13 @@ model.train(
 ```
 
 3. In addition to those, we also added a {class}`scvi.dataloaders.CollectionAdapter` dataloader which is a scvi-tools wrapper for AnnData's AnnCollection.
-This API is intended for training models on a set of AnnData files. AnnCollection creates a layer concatenation of disk-backed files. The dataloader jointly subsets these datasets along the observation axis.
-This wrapper mimics the standard API; so in practice, users wrap their collection objects then proceed with the scvi-tools workflow as normal and not using the custom dataloader workflow.
-Note that to use it, count data should be in sparse form (sparse.csr_matrix).
+   This API is intended for training models on a set of AnnData files. AnnCollection creates a layer concatenation of disk-backed files. The dataloader jointly subsets these datasets along the observation axis.
+   This wrapper mimics the standard API; so in practice, users wrap their collection objects then proceed with the scvi-tools workflow as normal and not using the custom dataloader workflow.
+   Note that to use it, count data should be in sparse form (sparse.csr_matrix).
 
 4. [annbatch](https://github.com/scverse/annbatch) is a custom dataloader backend for streaming AnnData-like datasets at very large scale {cite:p}`Gold2026b`.
-It builds a zarr-backed `DatasetCollection` from one or more AnnData files and exposes an `annbatch.Loader` that can feed scvi-tools models without materializing the full dataset in memory.
-In scvi-tools, model classes expose this path through `setup_annbatch`, which returns an `AnnbatchDataModule` and a registry that can be passed directly to model constructors.
+   It builds a zarr-backed `DatasetCollection` from one or more AnnData files and exposes an `annbatch.Loader` that can feed scvi-tools models without materializing the full dataset in memory.
+   In scvi-tools, model classes expose this path through `setup_annbatch`, which returns an `AnnbatchDataModule` and a registry that can be passed directly to model constructors.
 
 annbatch is most useful when the input data already lives in AnnData files and the target workflow needs disk-backed or terabyte-scale training while preserving the familiar scvi-tools training API.
 For a full worked example, see {doc}`/tutorials/notebooks/custom_dl/api_overview_annbatch`.

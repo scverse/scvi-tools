@@ -296,16 +296,16 @@ For prediction, scANVI returns $q_\eta(c_n \mid z_n)$ in the following function:
 ```
 
 [^refts]:
-    Tabula Sapiens Consortium (2021),
-    _The Tabula Sapiens: a single cell transcriptomic atlas of multiple organs from individual human donors_,
-    [BioRxiv](https://www.biorxiv.org/content/10.1101/2021.07.19.452956v1.full.pdf).
+Tabula Sapiens Consortium (2021),
+_The Tabula Sapiens: a single cell transcriptomic atlas of multiple organs from individual human donors_,
+[BioRxiv](https://www.biorxiv.org/content/10.1101/2021.07.19.452956v1.full.pdf).
 
 [^ref2]:
-    Diederik P. Kingma, Shakir Mohamed, Danilo Jimenez Rezende, and Max Welling (2014),
-    _Semi-supervised learning with deep generative models_,
-    [Advances in neural information processing systems](https://proceedings.neurips.cc/paper/2014/file/d523773c6b194f37b938d340d5d02232-Paper.pdf).
+Diederik P. Kingma, Shakir Mohamed, Danilo Jimenez Rezende, and Max Welling (2014),
+_Semi-supervised learning with deep generative models_,
+[Advances in neural information processing systems](https://proceedings.neurips.cc/paper/2014/file/d523773c6b194f37b938d340d5d02232-Paper.pdf).
 
 [^ref3]:
-    Diederik P. Kingma, Max Welling (2013) (2014),
-    _Auto-Encoding Variational Bayes_,
-    [Arxiv](https://arxiv.org/abs/1312.6114).
+Diederik P. Kingma, Max Welling (2013) (2014),
+_Auto-Encoding Variational Bayes_,
+[Arxiv](https://arxiv.org/abs/1312.6114).

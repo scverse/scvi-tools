@@ -68,7 +68,7 @@ Please be sure to install a version of [PyTorch] that is compatible with your GP
 - Please use the [issues] to submit bug reports.
 - If you'd like to contribute, check out our [contributing guide].
 - If you find a model useful for your research, please consider citing the corresponding
-    publication.
+  publication.
 
 # Reference
 

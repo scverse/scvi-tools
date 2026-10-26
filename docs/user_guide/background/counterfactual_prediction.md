@@ -18,8 +18,8 @@ Cartoon of the counterfactual prediction task across two conditions. This counte
 
 Suppose we have a trained model $f_\theta$ that takes in a data point $x$ (e.g., gene expression counts) and a condition $c$ (e.g., treatment group) and returns a prediction $\hat{y}$.
 Each data point takes the form of a tuple $(x,c) \in \mathcal{D}$.
-We can define a *counterfactual query* as a pair $(x,c')$ where $c' \neq c$,
-and the respective model output as the *counterfactual prediction*, $\hat{y}' = f_\theta(x,c')$.
+We can define a _counterfactual query_ as a pair $(x,c')$ where $c' \neq c$,
+and the respective model output as the _counterfactual prediction_, $\hat{y}' = f_\theta(x,c')$.
 
 We separate $c$ here out from $x$ to make the counterfactual portion of the query explicit, but it can be thought of as another dimension of $x$.
 
@@ -48,16 +48,16 @@ scGen[^ref4] is a direct example of this style of counterfactual prediction: it 
 For more details on how counterfactual prediction is used in another method implemented in scvi-tools, see the {doc}`/user_guide/models/mrvi`.
 
 [^ref1]:
-    Judea Pearl. Causality. Cambridge university press, 2009.
+Judea Pearl. Causality. Cambridge university press, 2009.
 [^ref2]:
-     Pierre Boyeau, Justin Hong, Adam Gayoso, Martin Kim, Jose L McFaline-Figueroa, Michael Jordan, Elham Azizi, Can Ergen, Nir Yosef (2024),
-    _Deep generative modeling of sample-level heterogeneity in single-cell genomics_,
-    [bioRxiv](https://doi.org/10.1101/2022.10.04.510898).
+Pierre Boyeau, Justin Hong, Adam Gayoso, Martin Kim, Jose L McFaline-Figueroa, Michael Jordan, Elham Azizi, Can Ergen, Nir Yosef (2024),
+_Deep generative modeling of sample-level heterogeneity in single-cell genomics_,
+[bioRxiv](https://doi.org/10.1101/2022.10.04.510898).
 [^ref3]:
-    Mohammad Lotfollahi, Anna Klimovskaia Susmelj, Carlo De Donno, Leon Hetzel, Yuge Ji, Ignacio L Ibarra, Sanjay R Srivatsan, Mohsen Naghipourfar, Riza M Daza, Beth Martin, Jay Shendure, Jose L McFaline‐Figueroa, Pierre Boyeau, F Alexander Wolf, Nafissa Yakubova, Stephan Günnemann, Cole Trapnell, David Lopez‐Paz, Fabian J Theis (2023),
-    _Predicting cellular responses to complex perturbations in high‐throughput screens_,
-    [Molecular Systems Biology](https://doi.org/10.15252/msb.202211517).
+Mohammad Lotfollahi, Anna Klimovskaia Susmelj, Carlo De Donno, Leon Hetzel, Yuge Ji, Ignacio L Ibarra, Sanjay R Srivatsan, Mohsen Naghipourfar, Riza M Daza, Beth Martin, Jay Shendure, Jose L McFaline‐Figueroa, Pierre Boyeau, F Alexander Wolf, Nafissa Yakubova, Stephan Günnemann, Cole Trapnell, David Lopez‐Paz, Fabian J Theis (2023),
+_Predicting cellular responses to complex perturbations in high‐throughput screens_,
+[Molecular Systems Biology](https://doi.org/10.15252/msb.202211517).
 [^ref4]:
-    Mohammad Lotfollahi, F Alexander Wolf, Fabian J Theis (2019),
-    _scGen predicts single-cell perturbation responses_,
-    [Nature Methods](https://doi.org/10.1038/s41592-019-0494-8).
+Mohammad Lotfollahi, F Alexander Wolf, Fabian J Theis (2019),
+_scGen predicts single-cell perturbation responses_,
+[Nature Methods](https://doi.org/10.1038/s41592-019-0494-8).
