@@ -19,7 +19,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorial:
 
--   {doc}`/tutorials/notebooks/spatial/DestVI_tutorial`
+-   [DestVI: Multi-Resolution Deconvolution of Spatial Transcriptomics](https://scviva-tools.readthedocs.io/en/latest/tutorials/DestVI_tutorial.html)
 ```
 
 ## Preliminaries

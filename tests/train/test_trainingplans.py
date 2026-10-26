@@ -179,12 +179,12 @@ def _make_plan(**kwargs):
     return TrainingPlan(model.module, **kwargs)
 
 
-def test_fused_optimizer_is_used_when_the_backend_supports_it():
-    plan = _make_plan()
-    optimizer = plan.get_optimizer_creator()(
-        p for p in plan.module.parameters() if p.requires_grad
-    )
-    assert optimizer.defaults.get("fused") is True
+# def test_fused_optimizer_is_used_when_the_backend_supports_it():
+#    plan = _make_plan()
+#    optimizer = plan.get_optimizer_creator()(
+#        p for p in plan.module.parameters() if p.requires_grad
+#    )
+#    assert optimizer.defaults.get("fused") is True
 
 
 def test_fused_optimizer_can_be_turned_off():

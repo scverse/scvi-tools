@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
+    _MODEL_NAME_KEY,
     _SETUP_ARGS_KEY,
     ADATA_MINIFY_TYPE,
 )
@@ -287,7 +288,13 @@ class SCANVI(
                 **scvi_setup_args,
             )
 
-        scanvi_model = cls(adata, scvi_model.registry, **non_kwargs, **kwargs, **scanvi_kwargs)
+        if registry is None:
+            registry = scvi_model.registry
+        if adata is None:
+            # the registry typically comes from the scVI datamodule; register it under this
+            # class so the saved model can be loaded with ``cls.load``
+            registry = {**registry, _MODEL_NAME_KEY: cls.__name__}
+        scanvi_model = cls(adata, registry, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
         scanvi_model.was_pretrained = True

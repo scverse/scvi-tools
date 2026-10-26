@@ -25,8 +25,8 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/multimodal/DiagVI_spatial_transcriptomics`
--   {doc}`/tutorials/notebooks/multimodal/DiagVI_spatial_proteomics`
+-   [Integration of scRNA-seq and spatial transcriptomics data with DiagVI](https://scviva-tools.readthedocs.io/en/latest/tutorials/DiagVI_spatial_transcriptomics.html)
+-   [Integration of scRNA-seq and spatial proteomics data with DiagVI](https://scviva-tools.readthedocs.io/en/latest/tutorials/DiagVI_spatial_proteomics.html)
 ```
 
 :::{note}

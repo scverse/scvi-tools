@@ -40,7 +40,7 @@ dependencies = [
   "pandas",
   "pyro-ppl",
   "rich",
-  "scanpy[skmisc]>=1.10",
+  "scanpy[skmisc]>=1.11",
   "scikit-learn",
   "scipy",
   "sparse>=0.14",
