@@ -38,7 +38,7 @@ While the project is set up with `hatch` in mind, it is still possible to use di
     git remote add upstream https://github.com/scverse/scvi-tools.git
     ```
 
-4. Install the development dependencies and the package in editable mode into a virtual environment with Python 3.12 - 3.14.
+4. Install the development dependencies and the package in editable mode into a virtual environment with Python 3.13 - 3.15.
 
     :::::{tab-set}
     ::::{tab-item} Hatch
@@ -57,12 +57,12 @@ While the project is set up with `hatch` in mind, it is still possible to use di
     hatch env show
     ```
 
-    As the main development environment, we recommend `hatch-test` with the latest supported Python version, for example `hatch-test.py3.14-stable`.
+    As the main development environment, we recommend `hatch-test` with the latest supported Python version, for example `hatch-test.py3.15-stable`.
     Create it and print its path with
 
     ```bash
-    hatch env create hatch-test.py3.14-stable
-    hatch env find hatch-test.py3.14-stable
+    hatch env create hatch-test.py3.15-stable
+    hatch env find hatch-test.py3.15-stable
     ```
 
     and point your IDE at the `python` binary inside that directory.
