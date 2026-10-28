@@ -7,30 +7,30 @@ is a representation learning models that can remove significant batch effects.
 The advantages of SysVI are:
 
 -   Improved integration: For datasets with **substantial batch effects**
-(e.g., cross-species or organoid-tissue), where other models often fail.
-It provides a good tradeoff between batch correction and preservation of
-cell-type and sub-cell-type biological variation.
+    (e.g., cross-species or organoid-tissue), where other models often fail.
+    It provides a good tradeoff between batch correction and preservation of
+    cell-type and sub-cell-type biological variation.
 - Tunable integration: The **integration strength is directly tunable**
-via cycle consistency loss.
+  via cycle consistency loss.
 - Generally applicable: The model operates on
-**approximately normally distributed data**
-(e.g., normalized and log+1 transformed scRNA-seq data), which makes it
-more generally applicable than just scRNA-seq.
+  **approximately normally distributed data**
+  (e.g., normalized and log+1 transformed scRNA-seq data), which makes it
+  more generally applicable than just scRNA-seq.
 - Scalable: Can integrate very large datasets if using a GPU.
 
 The limitations of SysVI include:
 
 -   Weak batch effects: For datasets with **small batch effects**
-(e.g., multiple subjects from a single laboratory) we recommend using scVI instead,
-as it has slightly higher biological preservation in this setting.
-To determine whether a dataset has substantial batch effects,
-please refer to our paper.
+    (e.g., multiple subjects from a single laboratory) we recommend using scVI instead,
+    as it has slightly higher biological preservation in this setting.
+    To determine whether a dataset has substantial batch effects,
+    please refer to our paper.
 - Model selection: The best performance is achieved if
-**selecting the best model** from multiple
-runs with a few different cycle consistency loss weights and random seed
-initializations, as explained in the tutorial.
-However, we provide **defaults** that generate decent results in
-many settings.
+  **selecting the best model** from multiple
+  runs with a few different cycle consistency loss weights and random seed
+  initializations, as explained in the tutorial.
+  However, we provide **defaults** that generate decent results in
+  many settings.
 
 
 ```{topic} Tutorials:
@@ -78,12 +78,12 @@ the switched-batch cell is computed. The model is trained to minimize this dista
 
 Benefits of this approach:
 - As only cells with identical biological background are compared, this method
-retains good biological preservation even when removing
-substantial batch effects. This distinguishes it from alternative approaches
-that compare cells with different biological backgrounds
-(e.g., via adversarial loss; see Hrovatin and Moinfar (2023) for details).
+  retains good biological preservation even when removing
+  substantial batch effects. This distinguishes it from alternative approaches
+  that compare cells with different biological backgrounds
+  (e.g., via adversarial loss; see Hrovatin and Moinfar (2023) for details).
 - The integration strength can be directly tuned via the cycle-consistency
-loss weight.
+  loss weight.
 
 ### Improved biological preservation via the VampPrior
 
@@ -104,9 +104,9 @@ prior for which the mode positions are learned during the training.
 
 Benefits of this approach:
 - More expressive latent space leads to increased preservation of
-biological variability.
+  biological variability.
 - VampPrior was more robust with respect to the number of modes than the
-better-known Gaussian mixture prior.
+  better-known Gaussian mixture prior.
 
 ### Application flexibility due to using normally distributed inputs
 
@@ -134,18 +134,18 @@ and
 provide additional advice on scRNA-seq integration that applies beyond SysVI.
 The two most important insights are:
 - Try to make the **integration task as easy for the model** as possible.
-This means that data should be pre-processed in a way that already eliminates
-some of the batch differences, when possible:
+  This means that data should be pre-processed in a way that already eliminates
+  some of the batch differences, when possible:
   - Use intersection of HVGs across batches with substantial batch effects
-  (e.g., the systems).
+    (e.g., the systems).
   - Mitigate known technical artefacts, such as ambient gene expression
-  ([Hrovatin and Sikkema, 2024](https://doi.org/10.1038/s41592-024-02532-y)).
+    ([Hrovatin and Sikkema, 2024](https://doi.org/10.1038/s41592-024-02532-y)).
 - Ensure that **the metrics used to evaluate integration are of high quality**:
   - They should be able to capture the key properties required for downstream tasks.
-  For example, the standard cell-type-based biological preservation metrics do
-  not assess whether subtler biological differences, such as within-cell-type
-  disease effects, are preserved.
+    For example, the standard cell-type-based biological preservation metrics do
+    not assess whether subtler biological differences, such as within-cell-type
+    disease effects, are preserved.
   - Be cautious of potential biases within integration metric scores. -
-  The scores may not directly correspond to the desired data property,
-  being influenced by other factors, or
-  certain models may be able to trick the metrics.
+    The scores may not directly correspond to the desired data property,
+    being influenced by other factors, or
+    certain models may be able to trick the metrics.
