@@ -72,13 +72,13 @@ where $\pi$ is a learned (or uniform) prior over cell types, $u_n$ is a cell-typ
 
 The latent variables are summarized below.
 
-| Latent variable | Code variable | Description |
-| :--- | :--- | :--- |
-| $c$ | `predicted_label` | Cell type label |
-| $z_1$ (= $z$) | `z` | Observation-level cell state |
-| $u$ (= $z_2$) | `untran_z` | Cell-type-specific latent state |
-| $\ell$ | `library` | RNA library size |
-| $\beta$ | `back_rate` | Protein background rate |
+| Latent variable | Code variable     | Description                     |
+| :-------------- | :---------------- | :------------------------------ |
+| $c$             | `predicted_label` | Cell type label                 |
+| $z_1$ (= $z$)   | `z`               | Observation-level cell state    |
+| $u$ (= $z_2$)   | `untran_z`        | Cell-type-specific latent state |
+| $\ell$          | `library`         | RNA library size                |
+| $\beta$         | `back_rate`       | Protein background rate         |
 
 ## Inference
 
@@ -108,7 +108,7 @@ $$
 For **labeled** cells, the known label is used directly, and a cross-entropy classification term is added:
 
 $$
-\mathcal{L}_S = \mathcal{L}_U\big|_{c = c^*} + \alpha \cdot \mathrm{CE}\!\left(q(c \mid z),\, c^*\right)
+\mathcal{L}_S = \mathcal{L}*U\big|*{c = c^_} + \alpha \cdot \mathrm{CE}\!\left(q(c \mid z),\, c^_\right)
 $$
 
 where $\alpha$ is the `classification_ratio` hyperparameter (default 50; tutorial uses 200 for large datasets).

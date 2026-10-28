@@ -27,7 +27,7 @@ such measurements may be separated based on methylation context (e.g., CpG methy
 For each context, methylVI accepts two count matrices as input $Y^{C}_{mc}$ and $Y^{C}_{cov}$. Here $C$ refers to
 an arbitrary methylation context, and each of these matrices has data from $N$ cells and $M$ genomic regions.
 Each entry in $Y_{cov}$ represents the _total_ number of cytosines profiled at a given region in a cell, while the
-entries in $Y_{mc}$ denote the number of _methylated_ cytosines in a region for a cell.  Additionally, a vector of
+entries in $Y_{mc}$ denote the number of _methylated_ cytosines in a region for a cell. Additionally, a vector of
 categorical covariates $S$, representing batch, donor, etc., is an optional input to the model.
 
 ## Generative process

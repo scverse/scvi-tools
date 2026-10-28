@@ -24,6 +24,7 @@ The limitations of CytoVI include:
 <!--  note: to populate -->
 
 ## Preliminaries
+
 CytoVI can process protein expression matrices from the following technologies:
 - Flow cytometry (traditional PMT-based cytometers or full spectrum analyzers)
 - Mass cytometry
@@ -43,6 +44,7 @@ CytoVI expects the input matrix $x_{np}$ to be processed using common preprocess
 
 
 ## Descriptive model
+
 CytoVI is a latent variable model that assumes each cell $n$ has a $d$-dimensional latent representation $z_n$ capturing its intrinsic state that is decoupled from the variation in $s$. It models the observed protein expression $x_{np}$ for protein $p$ as a function of $z_n$ and its associated batch $s_n$.
 
 We assume a prior on the latent space $z_n$ that can be either:
@@ -99,10 +101,12 @@ $$
 The Gaussian likelihood is suited for arcsinh/log-transformed (and optionally scaled) cytometry data. The Beta likelihood requires a scaling of the data to a $[0, 1]$ range.
 
 ## Inference
+
 Since the posterior $p(z_n \mid x_n)$ is intractable, we use variational inference and specifically auto-encoding variational bayes (see {doc}`/user_guide/background/variational_inference`) to learn both the model parameters (the
 neural network params, params for the protein observation model, etc.) and an approximate posterior distribution.
 
 ## Handling of overlapping antibody panels
+
 To integrate datasets with different protein panels, CytoVI employs a masking strategy inspired by {class}`~scvi.model.TOTALVI` {cite:p}`GayosoSteier21`.
 
 Let $x_n^{(s)} \in \mathbb{R}^{P_s}$ be the observed input vector for cell $n$ in batch $s$. Denote:
@@ -137,6 +141,7 @@ $$
 The decoder reconstructs $\mathcal{U}$, yielding a reconstructed protein expression vector $x_n^{\mathcal{(U)}}$ for each cell.
 
 ## Tasks
+
 Here we provide an overview of some of the tasks that scVI can perform. Please see {class}`scvi.external.CYTOVI` for the full API reference.
 
 ### Dimensionality reduction
@@ -170,6 +175,7 @@ A CytoVI model can be pre-trained on reference data and updated with query data 
 See the {doc}`/user_guide/background/transfer_learning` guide for more information.
 
 ### Label-free differential abundance
+
 CytoVI supports label-free differential abundance estimation via {func}`~scvi.external.CYTOVI.differential_abundance` to detect shifts in cellular composition across sample-level covariates (e.g., disease vs. control), as described in {cite:p}`Boyeau24`.
 
 This method:
@@ -184,10 +190,11 @@ This approach enables cluster-free detection of condition-associated cell states
 ```
 
 ### Normalization/denoising/imputation of expression
+
 In {func}`~scvi.external.CYTOVI.get_normalized_expression` CytoVI returns the expected value of $x_{n}^{(s)}$ under the approximate posterior. For one cell $n$, this can be written as:
 
 $$
-   \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[f_x\left( z_n, s_n \right) \right]
+\mathbb{E}_{q_\eta(z_n \mid x_n)}\left[f_x\left( z_n, s_n \right) \right]
 $$
 
 By default, we decode the reconstructed protein expression across all possible batches $S$ and return the mean, yielding a batch-corrected version of the protein expression.
@@ -195,6 +202,7 @@ By default, we decode the reconstructed protein expression across all possible b
 In the case of overlapping antibody panels, CytoVI by default returns protein expression of all markers $x_{n,\mathcal{U}}$, thereby effectively imputing missing proteins.
 
 ### Differential expression
+
 Differential expression analysis is achieved with {func}`~scvi.external.CYTOVI.differential_expression`. CytoVI tests differences in magnitude of $f_x\left( z_n, s_n \right)$. More info is in {doc}`/user_guide/background/differential_expression`.
 
 If a sample_key is provided, CytoVI by default samples equal numbers of cells for each patient for differential expression computation.
@@ -204,11 +212,13 @@ If a sample_key is provided, CytoVI by default samples equal numbers of cells fo
 ```
 
 ### Data simulation
+
 Data can be generated from the model using the posterior predictive distribution in {func}`~scvi.external.CYTOVI.posterior_predictive_sample`.
 This is equivalent to feeding a cell through the model, sampling from the posterior
 distributions of the latent variables, retrieving the likelihood parameters (of $p(x \mid z, s)$), and finally, sampling from this distribution.
 
 ### RNA/modality imputation
+
 CytoVI enables cross-modal imputation by leveraging a shared latent space between datasets with overlapping protein features via {func}`~scvi.external.CYTOVI.impute_rna_from_reference`. For example, transcriptomic profiles from a CITE-seq reference can be imputed into a flow cytometry dataset.
 
 To do this:
