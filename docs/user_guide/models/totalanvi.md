@@ -108,7 +108,7 @@ $$
 For **labeled** cells, the known label is used directly, and a cross-entropy classification term is added:
 
 $$
-\mathcal{L}_S = \mathcal{L}_U\big|_{c = c^_} + \alpha \cdot \mathrm{CE}\!\left(q(c \mid z),\, c^_\right)
+\mathcal{L}_S = \mathcal{L}*U\big|*{c = c^_} + \alpha \cdot \mathrm{CE}\!\left(q(c \mid z),\, c^_\right)
 $$
 
 where $\alpha$ is the `classification_ratio` hyperparameter (default 50; tutorial uses 200 for large datasets).
