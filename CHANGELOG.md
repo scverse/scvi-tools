@@ -5,7 +5,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
-### 1.5.2 (unreleased)
+### 1.5.2  (2026-10-28)
 
 #### Added
 
