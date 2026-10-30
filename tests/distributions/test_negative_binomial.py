@@ -10,6 +10,7 @@ from scvi.distributions import _negative_binomial as nb_module
 from scvi.distributions import _utils as dist_utils
 from scvi.distributions._negative_binomial import (
     _gamma,
+    log_mixture_nb,
     log_nb_positive,
     log_zinb_positive,
 )
@@ -228,3 +229,48 @@ def test_log_prob_matches_with_and_without_the_lgamma_contiguous_detour(monkeypa
     lp_without_detour = dist.log_prob(x)
 
     assert torch.equal(lp_with_detour, lp_without_detour)
+
+
+_NB_LOG_PROBS = {
+    "nb": log_nb_positive,
+    "zinb": lambda x, mu, theta: log_zinb_positive(x, mu, theta, torch.zeros_like(mu)),
+    "mixture": lambda x, mu, theta: log_mixture_nb(
+        x, mu, 2.0 * mu, theta, None, torch.zeros_like(mu)
+    ),
+}
+
+
+@pytest.mark.parametrize("name", list(_NB_LOG_PROBS))
+def test_float32_mu_gradient_survives_large_counts_over_theta(name):
+    """Regression for #4086: d log_prob / d mu used to lose 6-100% in float32 when x/theta >= 1e5."""
+    log_prob = _NB_LOG_PROBS[name]
+    counts = torch.tensor([1e2, 1e4, 1e5, 1e6, 5e6], dtype=torch.float64)
+    grads = {}
+    for dtype in (torch.float32, torch.float64):
+        for theta_value in (0.1, 1.0, 10.0):
+            # mu is off the mode (mu == x), where the gradient would be ~0
+            mu = (1.1 * counts).to(dtype).requires_grad_(True)
+            theta = torch.full_like(mu, theta_value)
+            (grad,) = torch.autograd.grad(log_prob(counts.to(dtype), mu, theta).sum(), mu)
+            assert torch.isfinite(grad).all()
+            grads[dtype, theta_value] = grad.double()
+
+    for theta_value in (0.1, 1.0, 10.0):
+        ref = grads[torch.float64, theta_value]
+        rel_err = (grads[torch.float32, theta_value] - ref).abs() / ref.abs()
+        assert rel_err.max() < 1e-2, (theta_value, rel_err)
+
+
+def test_log_nb_positive_matches_closed_form_in_float64():
+    """The logsigmoid rate terms must not change the value of the log-likelihood."""
+    x = torch.tensor([0.0, 1.0, 7.0, 150.0, 1e4], dtype=torch.float64)
+    mu = torch.tensor([0.5, 3.0, 7.0, 90.0, 2e4], dtype=torch.float64)
+    theta = torch.tensor([0.1, 1.0, 10.0, 2.5, 0.3], dtype=torch.float64)
+    expected = (
+        theta * (torch.log(theta) - torch.log(theta + mu))
+        + x * (torch.log(mu) - torch.log(theta + mu))
+        + torch.lgamma(x + theta)
+        - torch.lgamma(theta)
+        - torch.lgamma(x + 1)
+    )
+    torch.testing.assert_close(log_nb_positive(x, mu, theta), expected, rtol=1e-6, atol=1e-6)

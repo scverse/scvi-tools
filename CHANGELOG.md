@@ -5,6 +5,21 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
+### 1.5.3  (unreleased)
+
+#### Fixed
+
+- Fix float32 loss of precision in the gradient of the negative binomial log-likelihood with
+  respect to `mu` in `log_nb_positive`, `log_zinb_positive` and `log_mixture_nb` (and hence {class}`scvi.distributions.NegativeBinomial`,
+  {class}`scvi.distributions.ZeroInflatedNegativeBinomial` and
+  {class}`scvi.distributions.NegativeBinomialMixture`). The terms `log(theta / (theta + mu))` and
+  `log(mu / (theta + mu))` were formed by subtracting two nearly equal logarithms, which made the
+  gradient 6% off at `x / theta = 1e5`, 28% off at `1e6` and exactly zero beyond; they are now
+  computed with `logsigmoid`, as in {class}`torch.distributions.NegativeBinomial`. With a shared
+  `theta`, `log_mixture_nb` now also adds the `lgamma` normalizer after the `logsumexp`, so the
+  mixture weights no longer collapse for large counts. `log_mixture_nb` also now forwards `eps`,
+  `log_fn` and `lgamma_fn` when `theta_2` is given, {issue}`4086`.
+
 ### 1.5.2  (2026-10-28)
 
 #### Added
