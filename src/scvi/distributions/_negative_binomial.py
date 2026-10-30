@@ -49,18 +49,19 @@ def _log_nb_rates(
     mu: torch.Tensor,
     theta: torch.Tensor,
     eps: float = 1e-8,
-    log_fn: callable = torch.log,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Return ``log(theta / (theta + mu))`` and ``log(mu / (theta + mu))``.
+    """Return the NB rate terms ``log(theta / (theta + mu))`` and ``log(mu / (theta + mu))``.
 
-    Both are taken from ``logsigmoid`` of ``logits = log(mu) - log(theta)``, as in
-    :class:`torch.distributions.NegativeBinomial`. Forming them as ``log(mu) - log(theta + mu)``
-    instead subtracts two nearly equal logs whenever ``mu >> theta``; in float32 that makes the
-    gradient with respect to ``mu`` lose most of its digits, or vanish, once ``x / theta``
-    exceeds ~1e5 (:issue:`4086`).
+    Both are taken from ``-log1p`` of a single ratio. Forming them as
+    ``log(mu + eps) - log(theta + mu + eps)`` instead subtracts two nearly equal logs whenever
+    ``mu >> theta``; in float32 that makes the gradient with respect to ``mu`` lose most of its
+    digits, or vanish, once ``x / theta`` exceeds ~1e5 (:issue:`4086`). Each ratio carries only
+    its own ``eps``, so the values match the eps-stabilised expressions even when ``theta`` or
+    ``mu`` is below ``eps``.
     """
-    logits = log_fn(mu + eps) - log_fn(theta + eps)
-    return F.logsigmoid(-logits), F.logsigmoid(logits)
+    log_theta_rate = -torch.log1p(mu / (theta + eps))
+    log_mu_rate = -torch.log1p(theta / (mu + eps))
+    return log_theta_rate, log_mu_rate
 
 
 def log_zinb_positive(
@@ -95,7 +96,6 @@ def log_zinb_positive(
     -----
     We parametrize the bernoulli using the logits, hence the softplus functions appearing.
     """
-    log = log_fn
     lgamma = lgamma_fn
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless
     # of batch or labels)
@@ -104,7 +104,7 @@ def log_zinb_positive(
 
     # Uses log(sigmoid(x)) = -softplus(-x)
     softplus_pi = F.softplus(-pi)
-    log_theta_rate, log_mu_rate = _log_nb_rates(mu, theta, eps, log)
+    log_theta_rate, log_mu_rate = _log_nb_rates(mu, theta, eps)
     pi_theta_log = -pi + theta * log_theta_rate
 
     case_zero = F.softplus(pi_theta_log) - softplus_pi
@@ -150,9 +150,8 @@ def log_nb_positive(
     lgamma_fn
         log gamma function
     """
-    log = log_fn
     lgamma = lgamma_fn
-    log_theta_rate, log_mu_rate = _log_nb_rates(mu, theta, eps, log)
+    log_theta_rate, log_mu_rate = _log_nb_rates(mu, theta, eps)
     res = (
         theta * log_theta_rate
         + x * log_mu_rate
@@ -217,8 +216,8 @@ def log_mixture_nb(
         if theta.ndimension() == 1:
             theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
 
-        log_theta_rate_1, log_mu_rate_1 = _log_nb_rates(mu_1, theta, eps, log)
-        log_theta_rate_2, log_mu_rate_2 = _log_nb_rates(mu_2, theta, eps, log)
+        log_theta_rate_1, log_mu_rate_1 = _log_nb_rates(mu_1, theta, eps)
+        log_theta_rate_2, log_mu_rate_2 = _log_nb_rates(mu_2, theta, eps)
         log_unnormalized_1 = theta * log_theta_rate_1 + x * log_mu_rate_1
         log_unnormalized_2 = theta * log_theta_rate_2 + x * log_mu_rate_2
         # The lgamma normalizer is shared by both components, so it is added after the

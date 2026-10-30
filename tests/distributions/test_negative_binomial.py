@@ -274,3 +274,25 @@ def test_log_nb_positive_matches_closed_form_in_float64():
         - torch.lgamma(x + 1)
     )
     torch.testing.assert_close(log_nb_positive(x, mu, theta), expected, rtol=1e-6, atol=1e-6)
+
+
+@pytest.mark.parametrize(("theta_value", "mu_value"), [(1e-10, 1.0), (1.0, 1e-10)])
+def test_log_nb_positive_matches_eps_stabilised_formula_below_eps(theta_value, mu_value):
+    """eps on one rate's numerator must not leak into the other when theta or mu is below eps."""
+    eps = 1e-8
+    x = torch.tensor([0.0, 3.0, 1e6], dtype=torch.float64)
+    mu = torch.full_like(x, mu_value, requires_grad=True)
+    theta = torch.full_like(x, theta_value)
+    log_theta_mu_eps = torch.log(theta + mu + eps)
+    expected = (
+        theta * (torch.log(theta + eps) - log_theta_mu_eps)
+        + x * (torch.log(mu + eps) - log_theta_mu_eps)
+        + torch.lgamma(x + theta)
+        - torch.lgamma(theta)
+        - torch.lgamma(x + 1)
+    )
+    actual = log_nb_positive(x, mu, theta, eps=eps)
+    torch.testing.assert_close(actual, expected, rtol=1e-9, atol=1e-9)
+    (grad_actual,) = torch.autograd.grad(actual.sum(), mu)
+    (grad_expected,) = torch.autograd.grad(expected.sum(), mu)
+    torch.testing.assert_close(grad_actual, grad_expected, rtol=1e-6, atol=1e-12)
