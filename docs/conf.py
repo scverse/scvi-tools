@@ -6,6 +6,7 @@ from importlib.metadata import metadata
 from datetime import datetime
 
 from scverse_doc.config import DEFAULTS
+from sphinx.ext.autodoc.mock import MockFinder
 from scverse_doc.registry import intersphinx
 
 HERE = Path(__file__).parent
@@ -55,6 +56,7 @@ nitpick_ignore = [
     ("py:class", "LongTensor"),
     ("py:class", "LossRecord"),
     ("py:class", "Tensor"),
+    ("py:class", "callable"),
     ("py:class", "optional"),
     ("py:class", "return"),
     ("py:meth", "save_hyperparameters"),
@@ -120,6 +122,9 @@ autodoc_mock_imports = [
     )
     if not _importable(name)
 ]
+# sphinx-autodoc-typehints looks objects up after autodoc's import-time mocks are gone,
+# and scvi.model raises on access to mlxSCVI when mlx is missing, so keep them for the whole build.
+sys.meta_path.insert(0, MockFinder(autodoc_mock_imports))
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
