@@ -171,6 +171,8 @@ intersphinx_mapping = intersphinx() | {
 # -- Options for HTML output -------------------------------------------
 
 html_logo = "_static/logo.png"
+# The user guide numbers and references equations with \tag and \ref, which math-core does not support.
+html_math_renderer = "mathjax"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
