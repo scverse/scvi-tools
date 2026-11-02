@@ -152,7 +152,7 @@ doc = [
   "ipykernel",
   "ipython",
   "pandas",
-  "scverse-doc[full]>=0.3",
+  "scverse-doc[full]>=0.4",
   "sphinx>=9.1",
   "sphinx-autodoc-typehints",
   "sphinxcontrib-bibtex>=1",
