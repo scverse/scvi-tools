@@ -382,7 +382,7 @@ class VAEMixin:
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
         dof: float | None = 3.0,
-    ) -> torch.dist.Distribution:
+    ) -> torch.distributions.Distribution:
         """Compute the aggregated posterior over the ``u`` latent representations.
 
         Parameters
