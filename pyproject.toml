@@ -151,17 +151,11 @@ doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
   "ipykernel",
   "ipython",
-  "myst-nb>=1.1",
-  "myst-parser",
   "pandas",
-  "scverse-doc[theme]>=0.3",
-  "sphinx>=8.1,<9",
+  "scverse-doc[full]>=0.3",
+  "sphinx>=9.1",
   "sphinx-autodoc-typehints",
-  "sphinx-copybutton",
-  "sphinx-design",
-  "sphinx-hoverxref",
   "sphinxcontrib-bibtex>=1",
-  "sphinxext-opengraph",
 ]
 
 [tool.hatch]

@@ -9,8 +9,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Changed
 
-- The documentation uses the shared scverse theme from `scverse-doc` and its sidebar layout:
+- The documentation is built with `scverse-doc` on Sphinx 9 and uses its sidebar layout:
   Getting started, Guides, Reference and Project, with a new citation page.
+  `sphinx-hoverxref`, which does not support Sphinx 9, and its tooltips are gone.
 
 #### Fixed
 
