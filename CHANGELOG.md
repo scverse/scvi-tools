@@ -7,6 +7,11 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ### 1.5.3  (unreleased)
 
+#### Changed
+
+- The documentation uses the shared scverse theme from `scverse-doc` and its sidebar layout:
+  Getting started, Guides, Reference and Project, with a new citation page.
+
 #### Fixed
 
 - Fix float32 loss of precision in the gradient of the negative binomial log-likelihood with respect

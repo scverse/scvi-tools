@@ -11,6 +11,8 @@ from importlib.metadata import metadata
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from scverse_doc.registry import intersphinx
+
 try:
     from sphinx.deprecation import RemovedInSphinx90Warning
 except ImportError:  # removed starting with Sphinx 9.0, where the warning no longer applies
@@ -25,12 +27,13 @@ sys.path[:0] = [str(HERE.parent / "src"), str(HERE.parent), str(HERE / "extensio
 # -- Project information -----------------------------------------------------
 
 info = metadata("scvi-tools")
-project_name = info["Name"]
+project = project_name = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
 repository_url = urls["Source"]
+source_repository = repository_url
 
 # The full version, including alpha/beta/rc tags
 release = info["Version"]
@@ -72,14 +75,6 @@ nitpick_ignore = [
     ("py:meth", "save_hyperparameters"),
 ]
 
-html_context = {
-    "display_github": True,  # Integrate GitHub
-    "github_user": "scverse",  # Username
-    "github_repo": project_name,  # Repo name
-    "github_version": "main",  # Version
-    "conf_py_path": "/docs/",  # Path in the checkout to the docs root
-}
-
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
@@ -98,6 +93,9 @@ extensions = [
     "sphinx_design",
     "sphinxext.opengraph",
     "hoverxref.extension",
+    # The scverse theme, source links and package registry; scverse_doc's full extension stack needs Sphinx 9.
+    "scverse_doc.theme",
+    "scverse_doc.registry",
 ]
 
 # sphinx-hoverxref 1.4.2 still uses the tuple interface of Sphinx' config values.
@@ -197,16 +195,10 @@ extlinks = {
 }
 
 intersphinx_mapping = {
-    "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
+    **intersphinx(),
     "ipython": ("https://ipython.readthedocs.io/en/stable/", None),
-    "matplotlib": ("https://matplotlib.org/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "pandas": ("https://pandas.pydata.org/docs/", None),
-    "python": ("https://docs.python.org/3", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
     "sklearn": ("https://scikit-learn.org/stable/", None),
     "torch": ("https://pytorch.org/docs/master/", None),
-    "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
     # lightning.ai intermittently 404s on objects.inv from RTD builders; fall back to a local snapshot
     "lightning": (
         "https://lightning.ai/docs/pytorch/stable/",
@@ -220,7 +212,6 @@ intersphinx_mapping = {
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
-    "mudata": ("https://mudata.readthedocs.io/stable/", None),
     "ray": ("https://docs.ray.io/en/latest/", None),
     "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
     "sparse": ("https://sparse.pydata.org/en/stable/", None),
@@ -228,28 +219,12 @@ intersphinx_mapping = {
     "rich": ("https://rich.readthedocs.io/en/stable/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
     "torch_geometric": ("https://pytorch-geometric.readthedocs.io/en/latest/", None),
-    "rapids_singlecell": ("https://rapids-singlecell.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------
 
-# html_show_sourcelink = True
-html_theme = "sphinx_book_theme"
-html_title = project_name
-
+html_theme = "scverse"
 html_logo = "_static/logo.png"
-
-html_theme_options = {
-    "repository_url": repository_url,
-    "use_repository_button": True,
-    "show_toc_level": 1,
-    "navbar_persistent": [],
-    "launch_buttons": {"colab_url": "https://colab.research.google.com"},
-    "path_to_docs": "docs/",
-    "repository_branch": version,
-}
-
-pygments_style = "default"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
