@@ -1,4 +1,4 @@
-# Documentation
+# scvi-tools
 
 `scvi-tools` (single-cell variational inference tools) is a package for end-to-end analysis of
 single-cell omics data primarily developed and maintained by the
