@@ -73,19 +73,45 @@ Find a bug? Interested in improving scvi-tools? Check out our GitHub for the lat
 ::::
 
 ```{toctree}
+:caption: Getting started
+:hidden: true
+:maxdepth: 1
+
+installation
+Quickstart <tutorials/notebooks/quick_start/api_overview>
+```
+
+```{toctree}
+:caption: Guides
 :hidden: true
 :maxdepth: 2
 :titlesonly: true
 
-installation
 tutorials/index
 user_guide/index
-api/index
 developer/index
 faq
+```
+
+```{toctree}
+:caption: Reference
+:hidden: true
+:maxdepth: 2
+:titlesonly: true
+
+api/index
+user_guide/models/index
+```
+
+```{toctree}
+:caption: Project
+:hidden: true
+:maxdepth: 1
+
 changelog.md
+citation
 references
-Discussion <https://discourse.scverse.org/>
 GitHub <https://github.com/scverse/scvi-tools>
+Discourse <https://discourse.scverse.org/c/help/scvi-tools/7>
 Model hub <https://huggingface.co/scvi-tools>
 ```
