@@ -10,8 +10,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Changed
 
 - The documentation is built with `scverse-doc` on Sphinx 9 and uses its sidebar layout:
-  Getting started, Guides, Reference and Project, with a new citation page.
+  Getting started, Guides (tutorials, user guide, developer documentation, FAQ),
+  Reference (API, models) and General, with a new citation page.
   `sphinx-hoverxref`, which does not support Sphinx 9, and its tooltips are gone.
+  The Colab launch button on tutorial pages and the download and full screen buttons are kept {pr}`4091`.
 
 #### Fixed
 

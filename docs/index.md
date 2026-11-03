@@ -88,6 +88,8 @@ Quickstart <tutorials/notebooks/quick_start/api_overview>
 :titlesonly: true
 
 tutorials/index
+user_guide/index
+developer/index
 faq
 ```
 
@@ -98,16 +100,15 @@ faq
 :titlesonly: true
 
 api/index
-user_guide/index
+user_guide/models/index
 ```
 
 ```{toctree}
-:caption: Project
+:caption: General
 :hidden: true
 :maxdepth: 1
 
 changelog.md
-developer/index
 citation
 references
 GitHub <https://github.com/scverse/scvi-tools>

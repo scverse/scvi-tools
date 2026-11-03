@@ -171,6 +171,19 @@ intersphinx_mapping = intersphinx() | {
 # -- Options for HTML output -------------------------------------------
 
 html_logo = "_static/logo.png"
+html_theme_options = {
+    # The scverse theme's header, plus the Colab/download/fullscreen buttons that
+    # sphinx-book-theme used to provide (see extensions/edit_colab_url.py).
+    "article_header_end": [
+        "header-buttons",
+        "theme-switcher",
+        "navbar-icon-links",
+        "scverse-ecosystem",
+        "toggle-secondary-sidebar",
+    ],
+}
+# Copy sources under their own suffix, so the download button serves e.g. a usable .ipynb.
+html_sourcelink_suffix = ""
 # The user guide numbers and references equations with \tag and \ref, which math-core does not support.
 html_math_renderer = "mathjax"
 
