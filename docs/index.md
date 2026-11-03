@@ -104,7 +104,7 @@ user_guide/models/index
 ```
 
 ```{toctree}
-:caption: General
+:caption: Project
 :hidden: true
 :maxdepth: 1
 

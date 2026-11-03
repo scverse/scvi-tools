@@ -142,6 +142,8 @@ extlinks = {
     "ghuser": ("https://github.com/%s", "@%s"),
 }
 
+# intersphinx() is scverse-doc's registry: it already maps anndata, matplotlib, mudata, numpy,
+# pandas, python, scanpy, scipy and the other scverse packages, so only the rest is listed here.
 intersphinx_mapping = intersphinx() | {
     "ipython": ("https://ipython.readthedocs.io/en/stable/", None),
     "sklearn": ("https://scikit-learn.org/stable/", None),
@@ -166,6 +168,8 @@ intersphinx_mapping = intersphinx() | {
     "rich": ("https://rich.readthedocs.io/en/stable/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
     "torch_geometric": ("https://pytorch-geometric.readthedocs.io/en/latest/", None),
+    # The registry names it "rapids-singlecell"; keep the key used before scverse-doc.
+    "rapids_singlecell": ("https://rapids-singlecell.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------

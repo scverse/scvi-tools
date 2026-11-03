@@ -153,17 +153,19 @@
 
 /* Article header buttons (see docs/_templates/header-buttons.html) */
 .scvi-colab-logo {
-    height: 1.4em;
+    height: 1.2em;
     width: auto;
+    margin-right: 0.25em;
     vertical-align: middle;
 }
 
+.scvi-launch-dropdown .dropdown-toggle::after,
 .scvi-download-dropdown .dropdown-toggle::after {
     display: none;
 }
 
 @media print {
-    .scvi-launch-colab,
+    .scvi-launch-dropdown,
     .scvi-download-dropdown,
     .scvi-fullscreen-button {
         display: none !important;

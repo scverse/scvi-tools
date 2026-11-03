@@ -1,20 +1,38 @@
 {#- Article header buttons that sphinx-book-theme used to provide: launch in Colab, download, full screen.
     Context comes from docs/extensions/edit_colab_url.py; JS handlers live in _static/js/custom.js. -#}
-{#- Opens the current tutorial notebook in Google Colab.
+{#- Launch menu, as in sphinx-book-theme: a rocket button with Colab underneath.
     Rendered only on scvi-tutorials pages. -#}
 {%- if scvi_colab_url %}
-  <a
-    class="nav-link pst-navbar-icon scvi-launch-colab"
-    href="{{ scvi_colab_url }}"
-    target="_blank"
-    rel="noopener"
-    title="{{ _("Open in Colab") }}"
-    aria-label="{{ _("Open in Colab") }}"
+  <div
+    class="dropdown scvi-launch-dropdown"
     data-bs-toggle="tooltip"
     data-bs-placement="bottom"
+    title="{{ _("Launch interactive content") }}"
   >
-    <img src="{{ pathto('_static/img/logo_colab.png', 1) }}" alt="" class="scvi-colab-logo" />
-  </a>
+    <button
+      type="button"
+      class="btn btn-sm nav-link pst-navbar-icon dropdown-toggle"
+      data-bs-toggle="dropdown"
+      aria-expanded="false"
+      aria-label="{{ _("Launch interactive content") }}"
+    >
+      <i class="fa-solid fa-rocket fa-lg" aria-hidden="true"></i>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li>
+        <a
+          class="dropdown-item scvi-launch-colab"
+          href="{{ scvi_colab_url }}"
+          target="_blank"
+          rel="noopener"
+          title="{{ _("Launch on Colab") }}"
+        >
+          <img src="{{ pathto('_static/img/logo_colab.png', 1) }}" alt="" class="scvi-colab-logo" />
+          Colab
+        </a>
+      </li>
+    </ul>
+  </div>
 {%- endif %}
 
 {#- Download the page's source file (e.g. the .ipynb of a tutorial) or print it to PDF. -#}
