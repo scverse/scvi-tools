@@ -1,23 +1,13 @@
 import importlib
-import importlib.util
-import inspect
-import os
-import re
-import subprocess
 import sys
 import warnings
 from pathlib import Path
 from importlib.metadata import metadata
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-try:
-    from sphinx.deprecation import RemovedInSphinx90Warning
-except ImportError:  # removed starting with Sphinx 9.0, where the warning no longer applies
-    RemovedInSphinx90Warning = None
-
-if TYPE_CHECKING:
-    from typing import Any
+from scverse_doc.config import DEFAULTS
+from sphinx.ext.autodoc.mock import MockFinder
+from scverse_doc.registry import intersphinx
 
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent / "src"), str(HERE.parent), str(HERE / "extensions")]
@@ -25,20 +15,18 @@ sys.path[:0] = [str(HERE.parent / "src"), str(HERE.parent), str(HERE / "extensio
 # -- Project information -----------------------------------------------------
 
 info = metadata("scvi-tools")
-project_name = info["Name"]
+project = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
-repository_url = urls["Source"]
+source_repository = urls["Source"]
 
 # The full version, including alpha/beta/rc tags
 release = info["Version"]
 
 bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
-nitpicky = True  # Warn about broken links
-needs_sphinx = "4.0"
 
 # The spatial/multimodal tutorial notebooks superseded by scviva-tools (resolVI, scVIVA,
 # DestVI, gimVI, Tangram, Stereoscope, Cell2location, DiagVI) are no longer linked from any
@@ -66,44 +54,24 @@ nitpick_ignore = [
     ("py:class", "pathlib._local.Path"),
     ("py:class", "Distribution"),
     ("py:class", "LongTensor"),
+    ("py:class", "LossRecord"),
     ("py:class", "Tensor"),
+    ("py:class", "callable"),
     ("py:class", "optional"),
     ("py:class", "return"),
     ("py:meth", "save_hyperparameters"),
 ]
 
-html_context = {
-    "display_github": True,  # Integrate GitHub
-    "github_user": "scverse",  # Username
-    "github_repo": project_name,  # Repo name
-    "github_version": "main",  # Version
-    "conf_py_path": "/docs/",  # Path in the checkout to the docs root
-}
-
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    "myst_nb",
-    "sphinx.ext.autodoc",
-    "sphinx.ext.intersphinx",
+    "scverse_doc",
     "sphinx.ext.linkcode",
-    "sphinx.ext.mathjax",
-    "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx.ext.extlinks",
-    "sphinx.ext.autosummary",
     "sphinxcontrib.bibtex",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
-    "sphinx_copybutton",
-    "sphinx_design",
-    "sphinxext.opengraph",
-    "hoverxref.extension",
 ]
-
-# sphinx-hoverxref 1.4.2 still uses the tuple interface of Sphinx' config values.
-if RemovedInSphinx90Warning is not None:
-    warnings.filterwarnings("ignore", category=RemovedInSphinx90Warning, module="hoverxref")
-
 
 # for sharing urls with nice info
 ogp_site_url = "https://docs.scvi-tools.org/"
@@ -111,31 +79,15 @@ ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 
 
 # Generate the API documentation when building
-autosummary_generate = True
 autodoc_member_order = "bysource"
 bibtex_reference_style = "author_year"
 napoleon_google_docstring = True  # for pytorch lightning
-napoleon_numpy_docstring = True  # use numpydoc style
-napoleon_include_init_with_doc = False
-napoleon_use_rtype = True  # having a separate entry generally helps readability
-napoleon_use_param = True
 napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
-myst_enable_extensions = [
-    "amsmath",
-    "colon_fence",
-    "deflist",
-    "dollarmath",
-    "html_image",
-    "html_admonition",
-]
 myst_url_schemes = ("http", "https", "mailto")
 # Auto-generate #slug anchors for headings so in-page links like
 # [prerequisites](#prerequisites) resolve (up to h4, the deepest level used in docs).
 myst_heading_anchors = 4
-nb_output_stderr = "remove"
-nb_execution_mode = "off"
-nb_merge_streams = True
 typehints_defaults = "braces"
 always_use_bars_union = True
 
@@ -170,43 +122,32 @@ autodoc_mock_imports = [
     )
     if not _importable(name)
 ]
-
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".ipynb": "myst-nb",
-    ".myst": "myst-nb",
-}
+# sphinx-autodoc-typehints looks objects up after autodoc's import-time mocks are gone,
+# and scvi.model raises on access to mlxSCVI when mlx is missing, so keep them for the whole build.
+sys.meta_path.insert(0, MockFinder(autodoc_mock_imports))
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = [
-    "_build",
-    "Thumbs.db",
-    ".DS_Store",
-    "**.ipynb_checkpoints",
+    *DEFAULTS.exclude_patterns,
     "tutorials/notebooks/.github/**",
     "tutorials/notebooks/README.md",
 ]
 
 # extlinks config
 extlinks = {
-    "issue": (f"{repository_url}/issues/%s", "#%s"),
-    "pr": (f"{repository_url}/pull/%s", "#%s"),
+    "issue": (f"{source_repository}/issues/%s", "#%s"),
+    "pr": (f"{source_repository}/pull/%s", "#%s"),
     "ghuser": ("https://github.com/%s", "@%s"),
 }
 
-intersphinx_mapping = {
-    "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
+# intersphinx() is scverse-doc's registry: it already maps anndata, matplotlib, mudata, numpy,
+# pandas, python, scanpy, scipy and the other scverse packages, so only the rest is listed here.
+intersphinx_mapping = intersphinx() | {
     "ipython": ("https://ipython.readthedocs.io/en/stable/", None),
-    "matplotlib": ("https://matplotlib.org/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "pandas": ("https://pandas.pydata.org/docs/", None),
-    "python": ("https://docs.python.org/3", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
     "sklearn": ("https://scikit-learn.org/stable/", None),
     "torch": ("https://pytorch.org/docs/master/", None),
-    "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
     # lightning.ai intermittently 404s on objects.inv from RTD builders; fall back to a local snapshot
     "lightning": (
         "https://lightning.ai/docs/pytorch/stable/",
@@ -220,7 +161,6 @@ intersphinx_mapping = {
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
-    "mudata": ("https://mudata.readthedocs.io/stable/", None),
     "ray": ("https://docs.ray.io/en/latest/", None),
     "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
     "sparse": ("https://sparse.pydata.org/en/stable/", None),
@@ -228,28 +168,28 @@ intersphinx_mapping = {
     "rich": ("https://rich.readthedocs.io/en/stable/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
     "torch_geometric": ("https://pytorch-geometric.readthedocs.io/en/latest/", None),
+    # The registry names it "rapids-singlecell"; keep the key used before scverse-doc.
     "rapids_singlecell": ("https://rapids-singlecell.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------
 
-# html_show_sourcelink = True
-html_theme = "sphinx_book_theme"
-html_title = project_name
-
 html_logo = "_static/logo.png"
-
 html_theme_options = {
-    "repository_url": repository_url,
-    "use_repository_button": True,
-    "show_toc_level": 1,
-    "navbar_persistent": [],
-    "launch_buttons": {"colab_url": "https://colab.research.google.com"},
-    "path_to_docs": "docs/",
-    "repository_branch": version,
+    # The scverse theme's header, plus the Colab/download/fullscreen buttons that
+    # sphinx-book-theme used to provide (see extensions/edit_colab_url.py).
+    "article_header_end": [
+        "header-buttons",
+        "theme-switcher",
+        "navbar-icon-links",
+        "scverse-ecosystem",
+        "toggle-secondary-sidebar",
+    ],
 }
-
-pygments_style = "default"
+# Copy sources under their own suffix, so the download button serves e.g. a usable .ipynb.
+html_sourcelink_suffix = ""
+# The user guide numbers and references equations with \tag and \ref, which math-core does not support.
+html_math_renderer = "mathjax"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -273,78 +213,3 @@ def setup(app):
         },
         True,
     )
-
-
-# -- Config for linkcode -------------------------------------------
-
-
-def git(*args):
-    """Run git command and return output as string."""
-    return subprocess.check_output(["git", *args]).strip().decode()
-
-
-# https://github.com/DisnakeDev/disnake/blob/7853da70b13fcd2978c39c0b7efa59b34d298186/docs/conf.py#L192
-# Current git reference. Uses branch/tag name if found, otherwise uses commit hash
-git_ref = None
-try:
-    git_ref = git("name-rev", "--name-only", "--no-undefined", "HEAD")
-    git_ref = re.sub(r"^(remotes/[^/]+|tags)/", "", git_ref)
-except Exception:
-    pass
-
-# (if no name found or relative ref, use commit hash instead)
-if not git_ref or re.search(r"[\^~]", git_ref):
-    try:
-        git_ref = git("rev-parse", "HEAD")
-    except Exception:
-        git_ref = "main"
-
-# https://github.com/DisnakeDev/disnake/blob/7853da70b13fcd2978c39c0b7efa59b34d298186/docs/conf.py#L192
-_scvi_tools_module_path = os.path.dirname(importlib.util.find_spec("scvi").origin)  # type: ignore
-
-
-def linkcode_resolve(domain, info):
-    """Determine the URL corresponding to Python object."""
-    if domain != "py":
-        return None
-
-    try:
-        obj: Any = sys.modules[info["module"]]
-        for part in info["fullname"].split("."):
-            obj = getattr(obj, part)
-        obj = inspect.unwrap(obj)
-
-        if isinstance(obj, property):
-            obj = inspect.unwrap(obj.fget)  # type: ignore
-
-        path = os.path.relpath(inspect.getsourcefile(obj), start=_scvi_tools_module_path)  # type: ignore
-        src, lineno = inspect.getsourcelines(obj)
-    except Exception:
-        return None
-
-    path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
-    return f"{repository_url}/blob/{git_ref}/src/scvi/{path}"
-
-
-# -- Config for hoverxref -------------------------------------------
-
-hoverx_default_type = "tooltip"
-hoverxref_domains = ["py"]
-hoverxref_role_types = dict.fromkeys(
-    ["ref", "class", "func", "meth", "attr", "exc", "data", "mod"],
-    "tooltip",
-)
-hoverxref_intersphinx = [
-    "python",
-    "numpy",
-    "scanpy",
-    "anndata",
-    "pytorch_lightning",
-    "scipy",
-    "pandas",
-    "ml_collections",
-    "ray",
-]
-# use proxied API endpoint on rtd to avoid CORS issues
-if os.environ.get("READTHEDOCS"):
-    hoverxref_api_host = "/_"

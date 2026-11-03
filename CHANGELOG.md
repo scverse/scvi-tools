@@ -7,6 +7,15 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ### 1.5.3  (unreleased)
 
+#### Changed
+
+- The documentation is built with `scverse-doc` on Sphinx 9 and uses its sidebar layout:
+  Getting started, Guides (tutorials, user guide, developer documentation, FAQ),
+  Reference (API, models) and Project, with a new citation page.
+  `sphinx-hoverxref`, which does not support Sphinx 9, and its tooltips are gone.
+  The Colab launch button on tutorial pages, the download and full screen buttons,
+  and the tutorial filters are kept {pr}`4091`.
+
 #### Fixed
 
 - Fix float32 loss of precision in the gradient of the negative binomial log-likelihood with respect
