@@ -176,6 +176,8 @@ intersphinx_mapping = intersphinx() | {
 
 html_logo = "_static/logo.png"
 html_theme_options = {
+    # html_logo is the light-mode logo; the navy text is recoloured for dark mode.
+    "logo": {"image_dark": "_static/logo-dark.png"},
     # The scverse theme's header, plus the Colab/download/fullscreen buttons that
     # sphinx-book-theme used to provide (see extensions/edit_colab_url.py).
     "article_header_end": [
