@@ -1,5 +1,13 @@
 # User guide
 
+```{toctree}
+:maxdepth: 2
+:hidden:
+
+background/index
+use_case/index
+```
+
 scvi-tools is composed of models that can perform one or many analysis tasks. In the user guide, we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
 
 :::{figure} /\_static/tasks.png
@@ -249,12 +257,3 @@ which parameters are optimized, as well as the validation loop to monitor metric
 data to the correct device (CPU/GPU).
 :::
 ::::
-
-
-```{toctree}
-:maxdepth: 2
-:hidden:
-
-background/index
-use_case/index
-```
