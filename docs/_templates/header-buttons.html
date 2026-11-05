@@ -1,0 +1,87 @@
+{#- Article header buttons that sphinx-book-theme used to provide: launch in Colab, download, full screen.
+    Context comes from docs/extensions/edit_colab_url.py; JS handlers live in _static/js/custom.js. -#}
+{#- Launch menu, as in sphinx-book-theme: a rocket button with Colab underneath.
+    Rendered only on scvi-tutorials pages. -#}
+{%- if scvi_colab_url %}
+  <div
+    class="dropdown scvi-launch-dropdown"
+    data-bs-toggle="tooltip"
+    data-bs-placement="bottom"
+    title="{{ _("Launch interactive content") }}"
+  >
+    <button
+      type="button"
+      class="btn btn-sm nav-link pst-navbar-icon dropdown-toggle"
+      data-bs-toggle="dropdown"
+      aria-expanded="false"
+      aria-label="{{ _("Launch interactive content") }}"
+    >
+      <i class="fa-solid fa-rocket fa-lg" aria-hidden="true"></i>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li>
+        <a
+          class="dropdown-item scvi-launch-colab"
+          href="{{ scvi_colab_url }}"
+          target="_blank"
+          rel="noopener"
+          title="{{ _("Launch on Colab") }}"
+        >
+          <img src="{{ pathto('_static/img/logo_colab.png', 1) }}" alt="" class="scvi-colab-logo" />
+          Colab
+        </a>
+      </li>
+    </ul>
+  </div>
+{%- endif %}
+
+{#- Download the page's source file (e.g. the .ipynb of a tutorial) or print it to PDF. -#}
+{%- if scvi_page_source_suffix and sourcename %}
+  <div
+    class="dropdown scvi-download-dropdown"
+    data-bs-toggle="tooltip"
+    data-bs-placement="bottom"
+    title="{{ _("Download this page") }}"
+  >
+    <button
+      type="button"
+      class="btn btn-sm nav-link pst-navbar-icon dropdown-toggle"
+      data-bs-toggle="dropdown"
+      aria-expanded="false"
+      aria-label="{{ _("Download this page") }}"
+    >
+      <i class="fa-solid fa-download fa-lg" aria-hidden="true"></i>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li>
+        <a
+          class="dropdown-item"
+          href="{{ pathto('_sources', 1) }}/{{ sourcename }}"
+          download
+          title="{{ _("Download source file") }}"
+        >
+          <i class="fa-solid {{ 'fa-code' if scvi_page_source_suffix == '.ipynb' else 'fa-file' }} fa-fw" aria-hidden="true"></i>
+          {{ scvi_page_source_suffix }}
+        </a>
+      </li>
+      <li>
+        <button type="button" class="dropdown-item scvi-print-pdf" title="{{ _("Print to PDF") }}">
+          <i class="fa-solid fa-file-pdf fa-fw" aria-hidden="true"></i>
+          .pdf
+        </button>
+      </li>
+    </ul>
+  </div>
+{%- endif %}
+
+{#- Toggles full screen mode; the click handler lives in _static/js/custom.js. -#}
+<button
+  type="button"
+  class="btn btn-sm nav-link pst-navbar-icon scvi-fullscreen-button"
+  title="{{ _("Fullscreen mode") }}"
+  aria-label="{{ _("Fullscreen mode") }}"
+  data-bs-toggle="tooltip"
+  data-bs-placement="bottom"
+>
+  <i class="fa-solid fa-expand fa-lg" aria-hidden="true"></i>
+</button>

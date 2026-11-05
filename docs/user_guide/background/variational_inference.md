@@ -119,16 +119,16 @@ of $q(z)$ for that cell. Inference will tend to be more scalable as the variatio
 Overall, this technique is typically called _amortized variational inference_ and in some cases _auto-encoding variational bayes_ [^ref3].
 
 [^ref1]:
-    Blei, David M., Alp Kucukelbir, and Jon D. McAuliffe (2017),
-    _Variational inference: A review for statisticians._,
-    Journal of the American statistical Association.
+Blei, David M., Alp Kucukelbir, and Jon D. McAuliffe (2017),
+_Variational inference: A review for statisticians._,
+Journal of the American statistical Association.
 
 [^ref2]:
-    Cremer, Chris, Xuechen Li, and David Duvenaud.
-    _Inference suboptimality in variational autoencoders._
-    International Conference on Machine Learning. PMLR, 2018.
+Cremer, Chris, Xuechen Li, and David Duvenaud.
+_Inference suboptimality in variational autoencoders._
+International Conference on Machine Learning. PMLR, 2018.
 
 [^ref3]:
-    Kingma, Diederik P., and Max Welling (2019),
-    _An introduction to variational autoencoders._,
-    arXiv preprint arXiv:1906.02691.
+Kingma, Diederik P., and Max Welling (2019),
+_An introduction to variational autoencoders._,
+arXiv preprint arXiv:1906.02691.

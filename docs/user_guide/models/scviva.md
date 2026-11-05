@@ -133,12 +133,12 @@ In {meth}`~scvi.external.SCVIVA.get_normalized_expression` scVIVA returns the ex
 
 ### Differential Expression (DE)
 
-Differential expression analysis is achieved with {meth}`~scvi.external.SCVIVA.differential_expression`. \
-We leverage the lvm-DE method (see {doc}`/user_guide/background/differential_expression`) and adapt it to spatial data by taking into account cell neighborhood expression in a bid to discard false positives due to contamination. \
+Differential expression analysis is achieved with {meth}`~scvi.external.SCVIVA.differential_expression`.\
+We leverage the lvm-DE method (see {doc}`/user_guide/background/differential_expression`) and adapt it to spatial data by taking into account cell neighborhood expression in a bid to discard false positives due to contamination.\
 Considering two groups of cells $\textit{C1}$ and $\textit{C2}$ corresponding to different spatial contexts (for instance, astrocytes in two brain regions), the goal is to determine which genes have different expression levels between the two groups. When setting `niche_mode="true"`, we compute the group spatial neighborhoods $\textit{N1}$ and $\textit{N2}$, which are the spatial nearest neighbors of a different type than the cells in $\textit{C1}$, and $\textit{C2}$ respectively.
 
 
-To determine the upregulated genes of $\textit{C1 vs C2}$, we compute DE between $\{\textit{C1, C2}\}$, $\{\textit{N1, C2}\}$ and $\{\textit{C1, N1}\}$: using lvm-DE, we test differences in expression levels $\rho_{n}$ to compute Log-Fold Changes (LFC). \
+To determine the upregulated genes of $\textit{C1 vs C2}$, we compute DE between $\{\textit{C1, C2}\}$, $\{\textit{N1, C2}\}$ and $\{\textit{C1, N1}\}$: using lvm-DE, we test differences in expression levels $\rho_{n}$ to compute Log-Fold Changes (LFC).\
 The significantly upregulated genes for $\textit{C1, N1}$ define a set of local cell type markers, denoted $\mathcal{S}_1$. Conversely, if a gene is both higher expressed in $\textit{N1}$ compared to $\textit{C1}$ and $\textit{C1}$ compared to $\textit{C2}$, it is likely that the increased expression in $\textit{C1}$ is spurious.
 We argue that the probability of a gene being a $\textit{local marker}$ could be a relevant score to filter spurious genes. To compute this score, we considered the upregulation of a gene in one group relative to the upregulation in its neighborhood: a local marker $g$ should verify
 
@@ -149,6 +149,6 @@ We argue that the probability of a gene being a $\textit{local marker}$ could be
 \end{align}
 ```
 
-which means that the signal comes from cells in $\textit{C1}$ rather than their neighbors $\textit{N1}$. \
-We select genes for which $\mathit{LFC_{C1~vs~C2}} > 0$ and use the genes $\mathcal{S}_1$ as truly differentially expressed. We also define $\mathcal{N}_1 = \{g|\mathit{LFC^{~g}_{C1~vs~C2}} > 0,~g \notin \mathcal{S}_1 \}$. \
-We train a Gaussian process classifier on $\mathbf{X} = [LFC_{C1~vs~C2}~,~LFC_{N1~vs~C2}]$ to classify between the $\textit{local markers}$ $\mathcal{S}_1$ and the $\textit{neighborhood genes}$ $\mathcal{N}_1$. Once fitted, the classifier returns a local marker probability $p_g=\mathit{p}(g \in \mathcal{S}_1 | \mathbf{X})$ for each gene $g$, that we can compare to a given threshold $\tau$ to filter the neighborhood genes.
+which means that the signal comes from cells in $\textit{C1}$ rather than their neighbors $\textit{N1}$.\
+We select genes for which $\mathit{LFC_{C1~vs~C2}} > 0$ and use the genes $\mathcal{S}_1$ as truly differentially expressed. We also define $\mathcal{N}*1 = \{g|\mathit{LFC^{~g}*{C1~vs~C2}} > 0,~g \notin \mathcal{S}*1 \}$. \
+We train a Gaussian process classifier on $\mathbf{X} = [LFC*{C1~vs~C2}~,~LFC_{N1~vs~C2}]$ to classify between the $\textit{local markers}$ $\mathcal{S}_1$ and the $\textit{neighborhood genes}$ $\mathcal{N}_1$. Once fitted, the classifier returns a local marker probability $p_g=\mathit{p}(g \in \mathcal{S}_1 | \mathbf{X})$ for each gene $g$, that we can compare to a given threshold $\tau$ to filter the neighborhood genes.

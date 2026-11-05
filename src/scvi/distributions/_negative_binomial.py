@@ -45,6 +45,25 @@ def _lgamma_fn(on_mps: bool) -> Callable[[torch.Tensor], torch.Tensor]:
     return torch.lgamma
 
 
+def _log_nb_rates(
+    mu: torch.Tensor,
+    theta: torch.Tensor,
+    eps: float = 1e-8,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return the NB rate terms ``log(theta / (theta + mu))`` and ``log(mu / (theta + mu))``.
+
+    Both are taken from ``-log1p`` of a single ratio. Forming them as
+    ``log(mu + eps) - log(theta + mu + eps)`` instead subtracts two nearly equal logs whenever
+    ``mu >> theta``; in float32 that makes the gradient with respect to ``mu`` lose most of its
+    digits, or vanish, once ``x / theta`` exceeds ~1e5 (:issue:`4086`). Each ratio carries only
+    its own ``eps``, so the values match the eps-stabilised expressions even when ``theta`` or
+    ``mu`` is below ``eps``.
+    """
+    log_theta_rate = -torch.log1p(mu / (theta + eps))
+    log_mu_rate = -torch.log1p(theta / (mu + eps))
+    return log_theta_rate, log_mu_rate
+
+
 def log_zinb_positive(
     x: torch.Tensor,
     mu: torch.Tensor,
@@ -77,7 +96,6 @@ def log_zinb_positive(
     -----
     We parametrize the bernoulli using the logits, hence the softplus functions appearing.
     """
-    log = log_fn
     lgamma = lgamma_fn
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless
     # of batch or labels)
@@ -86,9 +104,8 @@ def log_zinb_positive(
 
     # Uses log(sigmoid(x)) = -softplus(-x)
     softplus_pi = F.softplus(-pi)
-    log_theta_eps = log(theta + eps)
-    log_theta_mu_eps = log(theta + mu + eps)
-    pi_theta_log = -pi + theta * (log_theta_eps - log_theta_mu_eps)
+    log_theta_rate, log_mu_rate = _log_nb_rates(mu, theta, eps)
+    pi_theta_log = -pi + theta * log_theta_rate
 
     case_zero = F.softplus(pi_theta_log) - softplus_pi
     mul_case_zero = torch.mul((x < eps).type(torch.float32), case_zero)
@@ -96,7 +113,7 @@ def log_zinb_positive(
     case_non_zero = (
         -softplus_pi
         + pi_theta_log
-        + x * (log(mu + eps) - log_theta_mu_eps)
+        + x * log_mu_rate
         + lgamma(x + theta)
         - lgamma(theta)
         - lgamma(x + 1)
@@ -133,12 +150,11 @@ def log_nb_positive(
     lgamma_fn
         log gamma function
     """
-    log = log_fn
     lgamma = lgamma_fn
-    log_theta_mu_eps = log(theta + mu + eps)
+    log_theta_rate, log_mu_rate = _log_nb_rates(mu, theta, eps)
     res = (
-        theta * (log(theta + eps) - log_theta_mu_eps)
-        + x * (log(mu + eps) - log_theta_mu_eps)
+        theta * log_theta_rate
+        + x * log_mu_rate
         + lgamma(x + theta)
         - lgamma(theta)
         - lgamma(x + 1)
@@ -191,36 +207,30 @@ def log_mixture_nb(
     log = log_fn
     lgamma = lgamma_fn
     if theta_2 is not None:
-        log_nb_1 = log_nb_positive(x, mu_1, theta_1)
-        log_nb_2 = log_nb_positive(x, mu_2, theta_2)
+        log_nb_1 = log_nb_positive(x, mu_1, theta_1, eps=eps, log_fn=log, lgamma_fn=lgamma)
+        log_nb_2 = log_nb_positive(x, mu_2, theta_2, eps=eps, log_fn=log, lgamma_fn=lgamma)
+        logsumexp = torch.logsumexp(torch.stack((log_nb_1, log_nb_2 - pi_logits)), dim=0)
     # this is intended to reduce repeated computations
     else:
         theta = theta_1
         if theta.ndimension() == 1:
             theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
 
-        log_theta_mu_1_eps = log(theta + mu_1 + eps)
-        log_theta_mu_2_eps = log(theta + mu_2 + eps)
-        lgamma_x_theta = lgamma(x + theta)
-        lgamma_theta = lgamma(theta)
-        lgamma_x_plus_1 = lgamma(x + 1)
-
-        log_nb_1 = (
-            theta * (log(theta + eps) - log_theta_mu_1_eps)
-            + x * (log(mu_1 + eps) - log_theta_mu_1_eps)
-            + lgamma_x_theta
-            - lgamma_theta
-            - lgamma_x_plus_1
-        )
-        log_nb_2 = (
-            theta * (log(theta + eps) - log_theta_mu_2_eps)
-            + x * (log(mu_2 + eps) - log_theta_mu_2_eps)
-            + lgamma_x_theta
-            - lgamma_theta
-            - lgamma_x_plus_1
+        log_theta_rate_1, log_mu_rate_1 = _log_nb_rates(mu_1, theta, eps)
+        log_theta_rate_2, log_mu_rate_2 = _log_nb_rates(mu_2, theta, eps)
+        log_unnormalized_1 = theta * log_theta_rate_1 + x * log_mu_rate_1
+        log_unnormalized_2 = theta * log_theta_rate_2 + x * log_mu_rate_2
+        # The lgamma normalizer is shared by both components, so it is added after the
+        # logsumexp. Adding it first rounds both components to the same float32 value for
+        # large counts, which corrupts the mixture weights and hence the gradient (#4086).
+        log_normalizer = lgamma(x + theta) - lgamma(theta) - lgamma(x + 1)
+        logsumexp = (
+            torch.logsumexp(
+                torch.stack((log_unnormalized_1, log_unnormalized_2 - pi_logits)), dim=0
+            )
+            + log_normalizer
         )
 
-    logsumexp = torch.logsumexp(torch.stack((log_nb_1, log_nb_2 - pi_logits)), dim=0)
     softplus_pi = F.softplus(-pi_logits)
 
     log_mixture_nb_res = logsumexp - softplus_pi

@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "scvi-tools"
-version = "1.5.1"
+version = "1.5.2"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -150,17 +150,11 @@ doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
   "ipykernel",
   "ipython",
-  "myst-nb>=1.1",
-  "myst-parser",
   "pandas",
-  "sphinx>=8.1,<9",
+  "scverse-doc[full]>=0.4",
+  "sphinx>=9.1",
   "sphinx-autodoc-typehints",
-  "sphinx-book-theme>=1",
-  "sphinx-copybutton",
-  "sphinx-design",
-  "sphinx-hoverxref",
   "sphinxcontrib-bibtex>=1",
-  "sphinxext-opengraph",
 ]
 
 [tool.hatch]

@@ -53,7 +53,7 @@ DRVI models the generative parameters in **log space**, which is what makes the 
 aggregation a genuine additive decoder (summing the per-split contributions of the rate). In
 addition to scvi's `nb`, `zinb` and `poisson`, DRVI adds:
 
-- `pnb` — *parametrized negative binomial*: the same mean as `nb` (``library * softmax``) but
+- `pnb` — _parametrized negative binomial_: the same mean as `nb` (`library * softmax`) but
   parametrized and evaluated in log space via {class}`~scvi.external.drvi.LogNegativeBinomial`,
   which is numerically stable and composes the per-split log contributions directly.
 - `normal` / `normal_unit_var` — a Gaussian whose mean is modeled **directly** (no library/softmax),

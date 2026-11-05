@@ -257,5 +257,4 @@ data to the correct device (CPU/GPU).
 
 background/index
 use_case/index
-models/index
 ```

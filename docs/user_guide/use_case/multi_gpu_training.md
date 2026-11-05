@@ -18,9 +18,10 @@ Using **CUDA** with **DDP** for multi-GPU training can significantly boost the p
 ## Some of the benefits of using MultiGPU training
 
 ### 1. **Faster Training**
-   - **Parallel Processing:** Using multiple GPUs allows you to parallelize the training process, meaning different GPUs can work on different batches of data simultaneously, leading to faster training times.
-   - **Scalability:** As you add more GPUs to the system, the training can scale up, further reducing the time it takes to train large models.
-   - **Larger Models and Datasets:** With multiple GPUs, you can train models that are too large to fit into a single GPU’s memory. You can also work with larger datasets more efficiently.
+
+- **Parallel Processing:** Using multiple GPUs allows you to parallelize the training process, meaning different GPUs can work on different batches of data simultaneously, leading to faster training times.
+- **Scalability:** As you add more GPUs to the system, the training can scale up, further reducing the time it takes to train large models.
+- **Larger Models and Datasets:** With multiple GPUs, you can train models that are too large to fit into a single GPU’s memory. You can also work with larger datasets more efficiently.
 
 See the following figure which shows the training time (y-axis) of a PBMC data, SCVI model with and without the use of multiGPU vs. different sizes of cells in different adata (x-axis), going from smallest to largest:
 We can see the advantage with larger data, while for the small data, there's no much advantage due to multiGPU overhead needed.
@@ -32,12 +33,14 @@ We can see the advantage with larger data, while for the small data, there's no 
 :::
 
 ### 2. **Efficiency with DDP**
-   - **Data Parallelism:** DDP splits your data into smaller chunks, distributes them across multiple GPUs, and then aggregates the results. This allows for better use of available hardware resources.
-   - **Synchronization:** DDP efficiently synchronizes gradients and updates between GPUs after each batch, ensuring that each GPU works in sync with the others without much manual intervention.
-   - **Automatic Handling of Distributed Work:** DDP abstracts much of the complexity of managing multiple GPUs, so you don’t have to manually manage how data is split or how results are aggregated.
+
+- **Data Parallelism:** DDP splits your data into smaller chunks, distributes them across multiple GPUs, and then aggregates the results. This allows for better use of available hardware resources.
+- **Synchronization:** DDP efficiently synchronizes gradients and updates between GPUs after each batch, ensuring that each GPU works in sync with the others without much manual intervention.
+- **Automatic Handling of Distributed Work:** DDP abstracts much of the complexity of managing multiple GPUs, so you don’t have to manually manage how data is split or how results are aggregated.
 
 ### 3. **Memory Utilization**
-   - **Larger Memory Pool:** When using multiple GPUs, each GPU can hold a part of the model and data, effectively creating a larger memory pool. This allows for larger batch sizes or more complex models.
+
+- **Larger Memory Pool:** When using multiple GPUs, each GPU can hold a part of the model and data, effectively creating a larger memory pool. This allows for larger batch sizes or more complex models.
 
 ## Using MultiGPU training in SCVI-Tools
 
@@ -50,15 +53,15 @@ We can see the advantage with larger data, while for the small data, there's no 
    - {class}`~scvi.model.MULTIVI`
    - {class}`~scvi.model.PEAKVI`
 
-
-
 2. How to use it: during the model train command, we need to use the strategy parameter, and its value depends on whether we are running from command line/script or from an interactive session like jupyter notebook/colab:
+
 - From non-interactive session:
 ```python
 model.train(
     ..., accelerator="gpu", devices=-1, strategy="ddp_find_unused_parameters_true"
 )
 ```
+
 - From interactive session (e.g. jupyter notebook):
 ```python
 model.train(
@@ -71,6 +74,6 @@ model.train(
 
 3. There are a few limitations with the current implementation:
    - During an interactive session, like in a jupyter notebook, we can only train 1 model in multi GPU mode, per session.
-   It means that we can't train SCANVI model from SCVI model if the SCVI model was trained in the same notebook. Therefore, need to train and save the SCVI model in another session and load it in the other session. This is a torch lightning caveat.
+     It means that we can't train SCANVI model from SCVI model if the SCVI model was trained in the same notebook. Therefore, need to train and save the SCVI model in another session and load it in the other session. This is a torch lightning caveat.
    - It can't run with early stopping right now (and some models, like totalvi, use early stopping by default), so we disable early stopping once running with DDP. the reason is that the validation loop should be running on one device only and not multiGPU.
-Those caveats fixes are still under development as to SCVI-Tools v1.3.
+     Those caveats fixes are still under development as to SCVI-Tools v1.3.

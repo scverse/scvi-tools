@@ -1,6 +1,8 @@
 {
-    "$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
+    "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
     "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+    // Markdown formatting (biome >= 2.6) mangles MyST math, e.g. `_` -> `*` inside `$...$`.
+    "files": { "includes": ["**", "!**/*.md"] },
     "formatter": { "useEditorconfig": true },
     "overrides": [
         {

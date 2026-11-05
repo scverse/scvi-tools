@@ -106,11 +106,12 @@ MethylANVI posits the following factorized distribution for posterior inference
 :nowrap: true
 
 \begin{align}
-   q_\phi(z_i, u_i, c_i \mid y_i, n_i, s_i)
-   =
-   q_\phi(z_i \mid y_i, n_i, s_i)
-   q_\phi(c_i \mid z_i)
-   q_\phi(u_i \mid c_i, z_i)
+q_\phi(z_i, u_i, c_i \mid y_i, n_i, s_i)
+=
+
+q_\phi(z_i \mid y_i, n_i, s_i)
+q_\phi(c_i \mid z_i)
+q_\phi(u_i \mid c_i, z_i)
 \end{align}
 
 Each of the individual variational distributions in our factorized expression is parameterized by neural

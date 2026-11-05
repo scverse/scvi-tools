@@ -61,17 +61,17 @@ MeeseeksDev is a GitHub bot that handles automatic backporting. It is configured
 request if one of the following conditions is met:
 
 1. The pull request contains a label with the title and body set to
-    `on-merge: backport to MAJOR.MINOR.x`, where `MAJOR.MINOR.x` is an existing release branch.
-    The PR must be labeled _before_ it is merged to trigger the backport.
+   `on-merge: backport to MAJOR.MINOR.x`, where `MAJOR.MINOR.x` is an existing release branch.
+   The PR must be labeled _before_ it is merged to trigger the backport.
 
 2. The pull request contains a comment with the following text:
 
-    ```text
-    @meeseeksdev backport to MAJOR.MINOR.x
-    ```
+   ```text
+   @meeseeksdev backport to MAJOR.MINOR.x
+   ```
 
-    where `MAJOR.MINOR.x` is an existing release branch. This comment must be added _after_ the PR
-    is merged.
+   where `MAJOR.MINOR.x` is an existing release branch. This comment must be added _after_ the PR
+   is merged.
 
 Once the bot is triggered, it will create a new pull request into the specified release branch with
 the changes from the original pull request. This will be done from a fork of the repository, so it
@@ -223,7 +223,7 @@ a branch.
   Runs the test suite on a GitHub-hosted Windows runner. Useful for catching Windows-specific
   issues.
 - [`test (autotune)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_autotune.yaml):
-  Runs the ``scvi.autotune`` test suite on a self-hosted GPU runner. Triggered on pull requests
+  Runs the `scvi.autotune` test suite on a self-hosted GPU runner. Triggered on pull requests
   with the `autotune` or `all tests` labels, as well as on a nightly schedule.
 - [`test (mlflow)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_mlflow.yaml):
   Runs MLflow integration tests on a self-hosted GPU runner. Triggered on pull requests with the

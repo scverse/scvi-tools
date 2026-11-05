@@ -67,7 +67,7 @@ A single, shared multi-decoder ({class}`~scvi.nn.MultiDecoder`) maps the shared 
 
 #### Adversarial modality classifier
 
-A small classifier ({class}`~scvi.module.Classifier`, 3 layers, 2 output classes) is trained to predict, from a latent code $\mathbf{z}$, which modality it came from. The generative model is trained adversarially to *fool* this classifier, which pushes the sequencing and spatial latent distributions to overlap and yields an integrated, modality-mixed latent space. This is implemented in {class}`~scvi.external.gimvi._task.GIMVITrainingPlan` (a subclass of {class}`~scvi.train.AdversarialTrainingPlan`), and the strength of the adversarial term is set by the `kappa` argument of {meth}`~scvi.external.GIMVI.train`.
+A small classifier ({class}`~scvi.module.Classifier`, 3 layers, 2 output classes) is trained to predict, from a latent code $\mathbf{z}$, which modality it came from. The generative model is trained adversarially to _fool_ this classifier, which pushes the sequencing and spatial latent distributions to overlap and yields an integrated, modality-mixed latent space. This is implemented in {class}`~scvi.external.gimvi._task.GIMVITrainingPlan` (a subclass of {class}`~scvi.train.AdversarialTrainingPlan`), and the strength of the adversarial term is set by the `kappa` argument of {meth}`~scvi.external.GIMVI.train`.
 
 
 ## Generative process
@@ -89,7 +89,7 @@ For a cell $n$ in modality $m \in \{0, 1\}$ (0 = sequencing, 1 = spatial) with b
 \end{align}
 ```
 
-The latent code $\mathbf{z}_n$ is **shared across modalities** — the same prior and the same latent space are used for both datasets. The shared decoder $f_w$ produces normalized expression $\rho_n$ over the full gene set; for modality $m$, $\rho_n$ is renormalized to sum to 1 over only the genes observed in that modality ($\mathcal{M}_m$), and the mean rate is $\mu_{ng} = \ell_n \rho_{ng}$.
+The latent code $\mathbf{z}_n$ is **shared across modalities** — the same prior and the same latent space are used for both datasets. The shared decoder $f_w$ produces normalized expression $\rho_n$ over the full gene set; for modality $m$, $\rho_n$ is renormalized to sum to 1 over only the genes observed in that modality ($\mathcal{M}*m$), and the mean rate is $\mu*{ng} = \ell_n \rho_{ng}$.
 
 The observation model is chosen per modality via `generative_distributions` (default `["zinb", "nb"]`). gimVI supports:
 

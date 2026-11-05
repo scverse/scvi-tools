@@ -129,6 +129,6 @@ Like the `get_latent_representation()` method, this returns a Monte Carlo estima
 Similarly, we can configure the number of samples with `n_samples`.
 
 [^ref2]:
-    Akash Srivastava, Charles Sutton (2017),
-    _Autoencoding Variational Inference for Topic Models_,
-    [International Conference on Learning Representations](https://arxiv.org/pdf/1703.01488.pdf).
+Akash Srivastava, Charles Sutton (2017),
+_Autoencoding Variational Inference for Topic Models_,
+[International Conference on Learning Representations](https://arxiv.org/pdf/1703.01488.pdf).

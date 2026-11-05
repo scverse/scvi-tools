@@ -28,12 +28,12 @@ claude mcp add scvi-tools-mcp -s user -- uvx scvi-tools-mcp
 
 ```json
 {
-  "mcpServers": {
-    "scvi-tools-mcp": {
-      "command": "uvx",
-      "args": ["scvi-tools-mcp"]
+    "mcpServers": {
+        "scvi-tools-mcp": {
+            "command": "uvx",
+            "args": ["scvi-tools-mcp"]
+        }
     }
-  }
 }
 ```
 
@@ -53,22 +53,22 @@ args   = ["scvi-tools-mcp"]
 
 ### Available tools
 
-| Tool | Description |
-|---|---|
-| `recommend_model` | Rank models by task and data type — start here |
-| `get_model_overview` | Full model description, use cases, inputs/outputs |
-| `get_model_parameters` | Key `__init__` and `train()` parameters with defaults |
-| `get_setup_anndata_guide` | Exact `setup_anndata()` call + required obs/var fields |
-| `validate_data_requirements` | Pass/fail checklist for your AnnData against a model |
-| `list_tutorials` | Browse tutorials by category |
-| `get_tutorial` | Paginated tutorial content (code + prose) |
-| `search_tutorials` | Keyword search across all tutorials |
-| `get_api_reference` | Signature + docstring for any public symbol |
-| `search_api` | Search public symbols by keyword |
-| `get_workflow_template` | Step-by-step code template for an analysis task |
-| `get_downstream_guide` | Guide for DE, clustering, embedding, label transfer |
-| `get_faq` | Curated FAQ from docs, GitHub issues, and Discourse |
-| `search_knowledge` | Cross-search all knowledge (catch-all) |
+| Tool                         | Description                                            |
+| ---------------------------- | ------------------------------------------------------ |
+| `recommend_model`            | Rank models by task and data type — start here         |
+| `get_model_overview`         | Full model description, use cases, inputs/outputs      |
+| `get_model_parameters`       | Key `__init__` and `train()` parameters with defaults  |
+| `get_setup_anndata_guide`    | Exact `setup_anndata()` call + required obs/var fields |
+| `validate_data_requirements` | Pass/fail checklist for your AnnData against a model   |
+| `list_tutorials`             | Browse tutorials by category                           |
+| `get_tutorial`               | Paginated tutorial content (code + prose)              |
+| `search_tutorials`           | Keyword search across all tutorials                    |
+| `get_api_reference`          | Signature + docstring for any public symbol            |
+| `search_api`                 | Search public symbols by keyword                       |
+| `get_workflow_template`      | Step-by-step code template for an analysis task        |
+| `get_downstream_guide`       | Guide for DE, clustering, embedding, label transfer    |
+| `get_faq`                    | Curated FAQ from docs, GitHub issues, and Discourse    |
+| `search_knowledge`           | Cross-search all knowledge (catch-all)                 |
 
 Once connected, you can ask questions like:
 
@@ -107,7 +107,7 @@ Each skill covers recommended workflows, parameter guidance, and troubleshooting
 ```
 
 **Claude.ai users:**
-Organization admins can upload the skill ZIP via *Admin Settings > Skills*. Individual users can upload via *Settings > Capabilities > Skills*. Download instructions and the skill ZIP are provided in the [Anthropic tutorial](https://claude.com/resources/tutorials/how-to-use-the-scvi-tools-bioinformatics-skill-bundle-with-claude).
+Organization admins can upload the skill ZIP via _Admin Settings > Skills_. Individual users can upload via _Settings > Capabilities > Skills_. Download instructions and the skill ZIP are provided in the [Anthropic tutorial](https://claude.com/resources/tutorials/how-to-use-the-scvi-tools-bioinformatics-skill-bundle-with-claude).
 
 Once installed, you can ask questions like:
 > "I have 10x Chromium data from 3 donors with different sequencing depths. Which scvi-tools model should I use for integration, and what batch key should I set?"
@@ -209,14 +209,14 @@ BioMNI is particularly well-suited for biologists who want to run complete singl
 
 ## Summary
 
-| Platform | Best For | scvi-tools Integration |
-|---|---|---|
-| **Any MCP client** | Real-time API/tutorial/FAQ lookup inside the LLM | `scvi-tools-mcp` — works with Claude Code, Claude Desktop, Cursor, Codex, and more |
-| **Claude** | Guided workflows, parameter tuning, troubleshooting | MCP server + dedicated skill bundle with full model coverage |
-| **ChatGPT / Codex** | Code generation, custom GPTs, agentic pipelines | Custom GPTs + MCP tool use via `scvi-tools-mcp` |
-| **OpenClaw** | Lightweight Claude-based skill, CLI install | Installable scvi-tools skill via LobeHub |
-| **Gemini** | General code assistance, AI Studio prompting | General LLM assistance; MCP support via Gemini CLI |
-| **BioMNI** | End-to-end automated scverse pipelines | Native scverse/scvi-tools integration |
+| Platform            | Best For                                            | scvi-tools Integration                                                             |
+| ------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Any MCP client**  | Real-time API/tutorial/FAQ lookup inside the LLM    | `scvi-tools-mcp` — works with Claude Code, Claude Desktop, Cursor, Codex, and more |
+| **Claude**          | Guided workflows, parameter tuning, troubleshooting | MCP server + dedicated skill bundle with full model coverage                       |
+| **ChatGPT / Codex** | Code generation, custom GPTs, agentic pipelines     | Custom GPTs + MCP tool use via `scvi-tools-mcp`                                    |
+| **OpenClaw**        | Lightweight Claude-based skill, CLI install         | Installable scvi-tools skill via LobeHub                                           |
+| **Gemini**          | General code assistance, AI Studio prompting        | General LLM assistance; MCP support via Gemini CLI                                 |
+| **BioMNI**          | End-to-end automated scverse pipelines              | Native scverse/scvi-tools integration                                              |
 
 Each platform offers a different trade-off between ease of use, customization, and depth of scvi-tools knowledge. The `scvi-tools-mcp` server is the broadest integration: install once and any MCP-compatible client gains structured scvi-tools knowledge. For users who want fully guided workflows, Claude's skill bundle or BioMNI provide the deepest experience. For custom pipelines or agentic workflows, `scvi-tools-mcp` combined with a code-execution tool (ChatGPT function calling, Claude tool use) or BioMNI's open-source deployment offer the most flexibility.
 

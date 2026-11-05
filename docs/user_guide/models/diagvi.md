@@ -83,7 +83,7 @@ Feature correspondences are encoded in the guidance graph $\mathcal{G} = (\mathc
 -   a weight $w_{ij} \in (0, 1]$ reflecting the confidence of the link
 -   a sign $\sigma_{ij} \in \{-1,1\}$ specifying whether the interaction is associative ($\sigma_{ij} = 1$) or repressive ($\sigma_{ij} = -1$)
 
-The graph loss encourages the inner product between embeddings $\mathbf{v}_i$ and $\mathbf{v}_j$ of linked features to be large and positive for $\sigma_{ij} = 1$ and large and negative for $\sigma_{ij} = -1$, with strength modulated by edge weights.
+The graph loss encourages the inner product between embeddings $\mathbf{v}_i$ and $\mathbf{v}*j$ of linked features to be large and positive for $\sigma*{ij} = 1$ and large and negative for $\sigma_{ij} = -1$, with strength modulated by edge weights.
 
 #### Unbalanced optimal transport
 
@@ -186,8 +186,8 @@ Depending on the modality and data characteristics, different likelihood functio
 
 We generally recommend:
 
--   **Negative binomial (``nb``)** for count-based single-cell RNA-seq data.
--   **Normal (``normal``)** for transformed and scaled continuous measurements.
+-   **Negative binomial (`nb`)** for count-based single-cell RNA-seq data.
+-   **Normal (`normal`)** for transformed and scaled continuous measurements.
 
 More specialized likelihoods such as zero-inflated or mixture models may be beneficial for sparse or background-contaminated measurements.
 
@@ -466,16 +466,16 @@ Data can be generated from the model using the posterior predictive distribution
 ## References
 
 [^ref1]:
-    Cao, Zhi-Jie; Gao, Ge (2022),
-    _Multi-omics single-cell data integration and regulatory inference with graph-linked embedding_,
-    [Nature Biotechnology](https://www.nature.com/articles/s41587-022-01284-4).
+Cao, Zhi-Jie; Gao, Ge (2022),
+_Multi-omics single-cell data integration and regulatory inference with graph-linked embedding_,
+[Nature Biotechnology](https://www.nature.com/articles/s41587-022-01284-4).
 
 [^ref2]:
-    Séjourné, Thibault; Feydy, Jean; Vialard, François-Xavier; Trouvé, Alain; Peyré, Gabriel (2023),
-    _Sinkhorn Divergences for Unbalanced Optimal Transport_,
-    [arXiv](https://arxiv.org/abs/1910.12958).
+Séjourné, Thibault; Feydy, Jean; Vialard, François-Xavier; Trouvé, Alain; Peyré, Gabriel (2023),
+_Sinkhorn Divergences for Unbalanced Optimal Transport_,
+[arXiv](https://arxiv.org/abs/1910.12958).
 
 [^ref3]:
-    Feydy, Jean; Séjourné, Thibault; Vialard, François‑Xavier; Amari, Shun‑ichi; Trouvé, Alain; Peyré, Gabriel (2019)
-    _Interpolating between Optimal Transport and MMD using Sinkhorn Divergences_
-    [The 22nd International Conference on Artificial Intelligence and Statistics](https://arxiv.org/abs/1810.08278).
+Feydy, Jean; Séjourné, Thibault; Vialard, François‑Xavier; Amari, Shun‑ichi; Trouvé, Alain; Peyré, Gabriel (2019)
+_Interpolating between Optimal Transport and MMD using Sinkhorn Divergences_
+[The 22nd International Conference on Artificial Intelligence and Statistics](https://arxiv.org/abs/1810.08278).
