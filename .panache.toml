@@ -1,6 +1,6 @@
 #:schema https://panache.bz/panache.schema.json
 flavor = "myst"
-extend-exclude = ["docs/developer/code.md"]
+extend-exclude = ["docs/developer/code.md", ".github/pull_request_template.md"]
 
 [format]
 wrap = "preserve"
