@@ -168,6 +168,6 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/scverse/scvi-tools:buildcache
           cache-to: type=inline,ref=ghcr.io/scverse/scvi-tools:buildcache
           target: build
-          tags: ghcr.io/scverse/scvi-tools:py3.13-cu12-${{ inputs.tag }}-${{ steps.image.outputs.suffix }},ghcr.io/scverse/scvi-tools:py3.13-cu12-stable-${{ steps.image.outputs.suffix }}
+          tags: ghcr.io/scverse/scvi-tools:py3.14-cu13-${{ inputs.tag }}-${{ steps.image.outputs.suffix }},ghcr.io/scverse/scvi-tools:py3.13-cu12-stable-${{ steps.image.outputs.suffix }}
           build-args: |
             DEPENDENCIES=${{ matrix.dependencies }}
