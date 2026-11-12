@@ -12,4 +12,4 @@ tab-stops = "preserve"
 myst-colon-fence = true  # colon_fence
 definition-lists = true  # deflist
 tex-math-dollars = true  # dollarmath, amsmath
-raw-html = true  # html_image, html_admonition
+raw-html = true          # html_image, html_admonition
