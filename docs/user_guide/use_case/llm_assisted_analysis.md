@@ -2,7 +2,7 @@
 
 Large language models (LLMs) can significantly lower the barrier to using scvi-tools by helping researchers write code, choose models, tune parameters, and troubleshoot analyses through natural language. This page covers how to leverage popular AI platforms—Claude, ChatGPT, OpenClaw, Gemini, and BioMNI—to get the most out of scvi-tools.
 
----
+--------------------------------------------------------------------------------
 
 ## scvi-tools MCP Server
 
@@ -53,22 +53,22 @@ args   = ["scvi-tools-mcp"]
 
 ### Available tools
 
-| Tool                         | Description                                            |
-| ---------------------------- | ------------------------------------------------------ |
-| `recommend_model`            | Rank models by task and data type — start here         |
-| `get_model_overview`         | Full model description, use cases, inputs/outputs      |
-| `get_model_parameters`       | Key `__init__` and `train()` parameters with defaults  |
-| `get_setup_anndata_guide`    | Exact `setup_anndata()` call + required obs/var fields |
-| `validate_data_requirements` | Pass/fail checklist for your AnnData against a model   |
-| `list_tutorials`             | Browse tutorials by category                           |
-| `get_tutorial`               | Paginated tutorial content (code + prose)              |
-| `search_tutorials`           | Keyword search across all tutorials                    |
-| `get_api_reference`          | Signature + docstring for any public symbol            |
-| `search_api`                 | Search public symbols by keyword                       |
-| `get_workflow_template`      | Step-by-step code template for an analysis task        |
-| `get_downstream_guide`       | Guide for DE, clustering, embedding, label transfer    |
-| `get_faq`                    | Curated FAQ from docs, GitHub issues, and Discourse    |
-| `search_knowledge`           | Cross-search all knowledge (catch-all)                 |
+  | Tool                         | Description                                            |
+  | ---------------------------- | ------------------------------------------------------ |
+  | `recommend_model`            | Rank models by task and data type — start here         |
+  | `get_model_overview`         | Full model description, use cases, inputs/outputs      |
+  | `get_model_parameters`       | Key `__init__` and `train()` parameters with defaults  |
+  | `get_setup_anndata_guide`    | Exact `setup_anndata()` call + required obs/var fields |
+  | `validate_data_requirements` | Pass/fail checklist for your AnnData against a model   |
+  | `list_tutorials`             | Browse tutorials by category                           |
+  | `get_tutorial`               | Paginated tutorial content (code + prose)              |
+  | `search_tutorials`           | Keyword search across all tutorials                    |
+  | `get_api_reference`          | Signature + docstring for any public symbol            |
+  | `search_api`                 | Search public symbols by keyword                       |
+  | `get_workflow_template`      | Step-by-step code template for an analysis task        |
+  | `get_downstream_guide`       | Guide for DE, clustering, embedding, label transfer    |
+  | `get_faq`                    | Curated FAQ from docs, GitHub issues, and Discourse    |
+  | `search_knowledge`           | Cross-search all knowledge (catch-all)                 |
 
 Once connected, you can ask questions like:
 
@@ -80,7 +80,7 @@ Once connected, you can ask questions like:
 
 The server resolves these against baked-in knowledge (no network calls at tool-call time) and returns structured, scvi-tools-specific guidance.
 
----
+--------------------------------------------------------------------------------
 
 ## Claude (Anthropic)
 
@@ -102,19 +102,20 @@ Each skill covers recommended workflows, parameter guidance, and troubleshooting
 ### Installation
 
 **Claude Code users:**
+
 ```bash
 /plugin install scvi-tools@life-sciences
 ```
 
 **Claude.ai users:**
-Organization admins can upload the skill ZIP via _Admin Settings > Skills_. Individual users can upload via _Settings > Capabilities > Skills_. Download instructions and the skill ZIP are provided in the [Anthropic tutorial](https://claude.com/resources/tutorials/how-to-use-the-scvi-tools-bioinformatics-skill-bundle-with-claude).
+Organization admins can upload the skill ZIP via *Admin Settings > Skills*. Individual users can upload via *Settings > Capabilities > Skills*. Download instructions and the skill ZIP are provided in the [Anthropic tutorial](https://claude.com/resources/tutorials/how-to-use-the-scvi-tools-bioinformatics-skill-bundle-with-claude).
 
 Once installed, you can ask questions like:
 > "I have 10x Chromium data from 3 donors with different sequencing depths. Which scvi-tools model should I use for integration, and what batch key should I set?"
 
-See the full tutorial at [Anthropic's scvi-tools Skill Bundle guide](https://claude.com/resources/tutorials/how-to-use-the-scvi-tools-bioinformatics-skill-bundle-with-claude).
+See the full tutorial at [Anthropic’s scvi-tools Skill Bundle guide](https://claude.com/resources/tutorials/how-to-use-the-scvi-tools-bioinformatics-skill-bundle-with-claude).
 
----
+--------------------------------------------------------------------------------
 
 ## ChatGPT (OpenAI)
 
@@ -122,9 +123,10 @@ ChatGPT can assist with scvi-tools through two complementary routes: custom GPTs
 
 ### Custom GPTs
 
-OpenAI's GPT Store hosts community-built GPTs specialized in single-cell analysis. For example, the [Scanpy – Your Single-Cell RNA-seq Data Analyst](https://chatgpt.com/g/g-GKNExWk2P-scanpy-your-single-cell-rna-seq-data-analyst) GPT is configured to assist with scanpy-based workflows, which pair naturally with scvi-tools preprocessing pipelines.
+OpenAI’s GPT Store hosts community-built GPTs specialized in single-cell analysis. For example, the [Scanpy – Your Single-Cell RNA-seq Data Analyst](https://chatgpt.com/g/g-GKNExWk2P-scanpy-your-single-cell-rna-seq-data-analyst) GPT is configured to assist with scanpy-based workflows, which pair naturally with scvi-tools preprocessing pipelines.
 
 You can use such GPTs to:
+
 - Walk through an end-to-end scRNA-seq analysis
 - Get scvi-tools code snippets for common operations
 - Debug errors from scvi-tools model training
@@ -138,7 +140,7 @@ A simple agent prompt example:
 
 With tool use enabled, ChatGPT can generate the code and invoke a Python execution environment to produce results.
 
----
+--------------------------------------------------------------------------------
 
 ## OpenClaw
 
@@ -163,15 +165,16 @@ After installation, read the `SKILL.md` file in the extracted directory for usag
 
 This skill is best suited for users who want a lightweight Claude-compatible skill without requiring the full Claude.ai platform.
 
----
+--------------------------------------------------------------------------------
 
 ## Gemini (Google)
 
-Gemini is Google's general-purpose LLM, accessible via [Google AI Studio](https://aistudio.google.com) and the Gemini API. While there is no dedicated scvi-tools skill for Gemini, it is effective for assisted code generation, debugging, and conceptual guidance when working with scvi-tools.
+Gemini is Google’s general-purpose LLM, accessible via [Google AI Studio](https://aistudio.google.com) and the Gemini API. While there is no dedicated scvi-tools skill for Gemini, it is effective for assisted code generation, debugging, and conceptual guidance when working with scvi-tools.
 
 ### General Use
 
 Gemini can help with scvi-tools through natural language prompting for:
+
 - Generating scvi-tools setup and training code
 - Explaining model outputs and hyperparameters
 - Suggesting appropriate models for your data type
@@ -181,7 +184,7 @@ Gemini can help with scvi-tools through natural language prompting for:
 
 You can paste scvi-tools error messages, documentation excerpts, or code snippets directly into the chat to get targeted assistance.
 
----
+--------------------------------------------------------------------------------
 
 ## BioMNI (Stanford)
 
@@ -205,20 +208,20 @@ BioMNI handles parameter selection, dependency management, and returns documente
 
 BioMNI is particularly well-suited for biologists who want to run complete single-cell and spatial workflows without writing code, while still producing reproducible, shareable analyses.
 
----
+--------------------------------------------------------------------------------
 
 ## Summary
 
-| Platform            | Best For                                            | scvi-tools Integration                                                             |
-| ------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| **Any MCP client**  | Real-time API/tutorial/FAQ lookup inside the LLM    | `scvi-tools-mcp` — works with Claude Code, Claude Desktop, Cursor, Codex, and more |
-| **Claude**          | Guided workflows, parameter tuning, troubleshooting | MCP server + dedicated skill bundle with full model coverage                       |
-| **ChatGPT / Codex** | Code generation, custom GPTs, agentic pipelines     | Custom GPTs + MCP tool use via `scvi-tools-mcp`                                    |
-| **OpenClaw**        | Lightweight Claude-based skill, CLI install         | Installable scvi-tools skill via LobeHub                                           |
-| **Gemini**          | General code assistance, AI Studio prompting        | General LLM assistance; MCP support via Gemini CLI                                 |
-| **BioMNI**          | End-to-end automated scverse pipelines              | Native scverse/scvi-tools integration                                              |
+  | Platform            | Best For                                            | scvi-tools Integration                                                             |
+  | ------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
+  | **Any MCP client**  | Real-time API/tutorial/FAQ lookup inside the LLM    | `scvi-tools-mcp` — works with Claude Code, Claude Desktop, Cursor, Codex, and more |
+  | **Claude**          | Guided workflows, parameter tuning, troubleshooting | MCP server + dedicated skill bundle with full model coverage                       |
+  | **ChatGPT / Codex** | Code generation, custom GPTs, agentic pipelines     | Custom GPTs + MCP tool use via `scvi-tools-mcp`                                    |
+  | **OpenClaw**        | Lightweight Claude-based skill, CLI install         | Installable scvi-tools skill via LobeHub                                           |
+  | **Gemini**          | General code assistance, AI Studio prompting        | General LLM assistance; MCP support via Gemini CLI                                 |
+  | **BioMNI**          | End-to-end automated scverse pipelines              | Native scverse/scvi-tools integration                                              |
 
-Each platform offers a different trade-off between ease of use, customization, and depth of scvi-tools knowledge. The `scvi-tools-mcp` server is the broadest integration: install once and any MCP-compatible client gains structured scvi-tools knowledge. For users who want fully guided workflows, Claude's skill bundle or BioMNI provide the deepest experience. For custom pipelines or agentic workflows, `scvi-tools-mcp` combined with a code-execution tool (ChatGPT function calling, Claude tool use) or BioMNI's open-source deployment offer the most flexibility.
+Each platform offers a different trade-off between ease of use, customization, and depth of scvi-tools knowledge. The `scvi-tools-mcp` server is the broadest integration: install once and any MCP-compatible client gains structured scvi-tools knowledge. For users who want fully guided workflows, Claude’s skill bundle or BioMNI provide the deepest experience. For custom pipelines or agentic workflows, `scvi-tools-mcp` combined with a code-execution tool (ChatGPT function calling, Claude tool use) or BioMNI’s open-source deployment offer the most flexibility.
 
 :::{note}
 LLM-generated code should always be reviewed before running on important data. Check that model parameters, batch keys, and data shapes match your specific dataset.

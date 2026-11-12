@@ -12,8 +12,8 @@ The core logic for scArches is implemented in {class}`~scvi.model.base.ArchesMix
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
--   {doc}`/tutorials/notebooks/multimodal/totalVI_reference_mapping`
+- {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
+- {doc}`/tutorials/notebooks/multimodal/totalVI_reference_mapping`
 ```
 
 ### Preliminaries
@@ -34,7 +34,7 @@ where $W_x^{(1)} \in \mathbb{R}^{H \times G}$ and $W_s^{(1)} \in \mathbb{R}^{H \
 
 ### Architectural surgery
 
-Now suppose our cVAE has been trained on data. The so-called "architectural surgery" with scArches augments the first layer with new parameters corresponding
+Now suppose our cVAE has been trained on data. The so-called “architectural surgery” with scArches augments the first layer with new parameters corresponding
 to $L$ unseen categories in the query data (i.e., batches in single-cell language), which are represented in the one-hot vector $s'$.
 
 The first layer of the encoder is now specified as
@@ -54,7 +54,7 @@ Also, with scArches, the same architectural surgery is applied to the decoder, w
 Some of the cVAEs in scvi-tools use the categorical one-hot encodings in all hidden layers in the encoder.
 For example, the option `deeply_inject_covariates=True` can be used in {class}`~scvi.model.SCVI`.
 Empirically, this improves the removal of nuisance variation due to these covariates.
-In this case of "deep injection" there would be new parameters in each hidden layer. With two hidden layers
+In this case of “deep injection” there would be new parameters in each hidden layer. With two hidden layers
 this is written as
 
 ```{math}
@@ -72,7 +72,6 @@ Thus, all the previous parameters from the reference building stage are frozen.
 This results in a model in which the latent representation $z$ (encoder output) does not change for reference data after the
 query step.
 
-[^ref1]:
-Mohammad Lotfollahi, Mohsen Naghipourfar, Malte D. Luecken, Matin Khajavi, Maren Büttner, Marco Wagenstetter, Ziga Avsec, Adam Gayoso, Nir Yosef, Marta Interlandi, Sergei Rybakov, Alexander V. Misharin, and Fabian J. Theis (2021),
-_Mapping single-cell data to reference atlases by transfer learning._,
-[Nature Biotechnology](https://www.nature.com/articles/s41587-021-01001-7).
+[^ref1]: Mohammad Lotfollahi, Mohsen Naghipourfar, Malte D. Luecken, Matin Khajavi, Maren Büttner, Marco Wagenstetter, Ziga Avsec, Adam Gayoso, Nir Yosef, Marta Interlandi, Sergei Rybakov, Alexander V. Misharin, and Fabian J. Theis (2021),
+    *Mapping single-cell data to reference atlases by transfer learning.*,
+    [Nature Biotechnology](https://www.nature.com/articles/s41587-021-01001-7).

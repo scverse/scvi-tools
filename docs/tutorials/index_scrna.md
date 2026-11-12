@@ -37,7 +37,6 @@ Perform integration of multiple scRNA-seq datasets both with and without cell ty
 Analyze multi-sample scRNA-seq data with MrVI
 ```
 
-
 ```{customcard}
 :path: notebooks/scrna/scanvi_fix
 :tags: Analysis, Semi-supervised, Cell-type-annotation

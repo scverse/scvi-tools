@@ -6,11 +6,11 @@ This guide includes various sections that are applicable to maintainers of the p
 
 The [tutorials] repository is included as a git submodule in the main repository under
 `docs/tutorials/notebooks`. This allows us to lower the size of the main repository as the
-notebooks can be quite large. This also means that changes committed to the tutorials' repository
+notebooks can be quite large. This also means that changes committed to the tutorials’ repository
 are not immediately reflected in the main repository. To update the tutorials in the
 main repository (and subsequently the documentation), run the [update tutorials workflow], which
 will create a PR updating the head reference of the submodule to the latest commit in the
-tutorials' repository.
+tutorials’ repository.
 
 ## Releases
 
@@ -20,7 +20,7 @@ tagged with a version number in the format `MAJOR.MINOR.PATCH`.
 ### Release branches
 
 We create release branches for each increment in the major or minor version, formatted as
-`MAJOR.MINOR.x`, _e.g._, `1.0.x`. This means that all patch releases (_e.g._ `1.0.1`, `1.0.2`,
+`MAJOR.MINOR.x`, *e.g.*, `1.0.x`. This means that all patch releases (*e.g.* `1.0.1`, `1.0.2`,
 etc.) will be made from the `1.0.x` branch.
 
 This allows us to merge new features and/or breaking changes into the `main` branch without
@@ -62,7 +62,7 @@ request if one of the following conditions is met:
 
 1. The pull request contains a label with the title and body set to
    `on-merge: backport to MAJOR.MINOR.x`, where `MAJOR.MINOR.x` is an existing release branch.
-   The PR must be labeled _before_ it is merged to trigger the backport.
+   The PR must be labeled *before* it is merged to trigger the backport.
 
 2. The pull request contains a comment with the following text:
 
@@ -70,7 +70,7 @@ request if one of the following conditions is met:
    @meeseeksdev backport to MAJOR.MINOR.x
    ```
 
-   where `MAJOR.MINOR.x` is an existing release branch. This comment must be added _after_ the PR
+   where `MAJOR.MINOR.x` is an existing release branch. This comment must be added *after* the PR
    is merged.
 
 Once the bot is triggered, it will create a new pull request into the specified release branch with
@@ -100,7 +100,7 @@ release (see [#2327] for an example). This section provides an overview of the s
 
 As mentioned above, if the release increments the major or minor version, a new release branch
 should be created from `main`. This branch should be named according to the new version, with the
-literal `x` in place of the patch version, _e.g._, `1.0.x`. Our GitHub rulesets will automatically
+literal `x` in place of the patch version, *e.g.*, `1.0.x`. Our GitHub rulesets will automatically
 protect this branch from direct pushes and will require pull requests for changes.
 
 #### Bumping the version
@@ -125,21 +125,21 @@ It is possible that there are new bugs or issues in the tutorials revealed when 
 automated updates. Any new bugs should be addressed, and the tutorials re-run until they pass
 successfully.
 
-#### Publish a release off the tutorials' repository
+#### Publish a release off the tutorials’ repository
 
 Once all relevant tutorials have been updated and merged, create a new release on the tutorials
-repository targeting `main`. This release should be named according to the new version, _e.g._,
+repository targeting `main`. This release should be named according to the new version, *e.g.*,
 `1.0.0`.
 
 #### Updating the tutorials
 
-Then, update the tutorials' submodule in the main repository using the [update tutorials workflow].
+Then, update the tutorials’ submodule in the main repository using the [update tutorials workflow].
 
 #### Run the release workflow
 
 Once the version is bumped in `pyproject.toml` and the tutorials have been updated, it is time to
 run the [release workflow]. To run the workflow, you will need to provide two arguments: the
-semantic versioning tag (_e.g._ 1.1.5) and the release branch name (_e.g._, `1.0.x`). The workflow
+semantic versioning tag (*e.g.* 1.1.5) and the release branch name (*e.g.*, `1.0.x`). The workflow
 will fail if the version tag does not match the one in `pyproject.toml`.
 
 The workflow will build the package, tag the version with Git, publish the release on GitHub with
@@ -177,7 +177,7 @@ the recipe for building the package.
 Typically, a PR into the [feedstock repository] will be automatically created a couple of days after the
 PyPI release (see [#32] for an example) and will be automatically merged.
 
-If there are any issues with the recipe (_e.g._ due to dependency changes), it may need to be
+If there are any issues with the recipe (*e.g.* due to dependency changes), it may need to be
 updated manually. This can be done by following the instructions in the PR (see [#38] for an
 example).
 
@@ -210,12 +210,12 @@ a branch.
   triggered on pull requests with the `cuda tests` or `all tests` labels, which can only be added
   by maintainers.
 - [`test (private)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_private.yaml):
-  Runs on a GitHub-hosted runner for tests that require authentication (_e.g._, downloading and
+  Runs on a GitHub-hosted runner for tests that require authentication (*e.g.*, downloading and
   uploading to AWS S3). This workflow is triggered on pull requests with the `private tests` or
   `all tests` labels, which can only be added by maintainers.
 - [`test (resolution)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_resolution.yaml):
   Optionally triggered on pull requests with the `resolution tests` or `all tests` labels, this
-  workflow runs for various package resolution settings (_e.g._, pre-releases, lowest supported
+  workflow runs for various package resolution settings (*e.g.*, pre-releases, lowest supported
   dependencies). Useful for catching dependency issues early if packages have pre-releases.
 - [`test (macos)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_macos.yaml):
   Runs the test suite on a GitHub-hosted macOS runner. Useful for catching macOS-specific issues.
@@ -229,7 +229,7 @@ a branch.
   Runs MLflow integration tests on a self-hosted GPU runner. Triggered on pull requests with the
   `mlflow` or `all tests` labels, as well as on a nightly schedule.
 - [`test (custom dataloaders)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_custom_dataloader.yaml):
-  Runs tests for custom dataloaders (_e.g._, {class}`~scvi.dataloaders.AnnbatchDataModule`) across
+  Runs tests for custom dataloaders (*e.g.*, {class}`~scvi.dataloaders.AnnbatchDataModule`) across
   a matrix of GitHub-hosted runners. Triggered on pull requests with the `custom_dataloader` or
   `all tests` labels, as well as on a nightly schedule.
 - [`test (multi-GPU)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_multigpu.yaml):
@@ -240,7 +240,7 @@ a branch.
   Triggered on pull requests with the `optional tests` or `all tests` labels, as well as on a
   nightly schedule.
 - [`test (internet)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_internet.yaml):
-  Runs tests that require internet access (_e.g._, downloading datasets) across a matrix of
+  Runs tests that require internet access (*e.g.*, downloading datasets) across a matrix of
   GitHub-hosted runners. Triggered on pull requests with the `internet tests` or `all tests`
   labels, as well as on a nightly schedule.
 - [`test (mps)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_mps.yaml):
@@ -279,7 +279,7 @@ support the following types (loosely based on the [Angular convention]):
 - `perf`: A code change that improves performance
 - `refactor`: A code change that neither fixes a bug nor adds a feature
 - `release`: Changes necessary for a release
-- `style`: Changes that do not affect the meaning of the code (_e.g._ whitespace, formatting
+- `style`: Changes that do not affect the meaning of the code (*e.g.* whitespace, formatting
   changes in pre-commit configurations)
 - `test`: Changes that primarily add or modify tests
 

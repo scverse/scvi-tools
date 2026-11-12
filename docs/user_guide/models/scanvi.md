@@ -6,19 +6,19 @@ For this reason, scANVI can help annotate a data set of unlabelled cells from ma
 
 The advantages of scANVI are:
 
--   Comprehensive in capabilities.
--   Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of scANVI include:
 
--   Effectively requires a GPU for fast inference.
--   Latent space is not interpretable, unlike that of a linear method.
--   May not scale to a very large number of cell types.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
+- May not scale to a very large number of cell types.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/harmonization`
--   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
+- {doc}`/tutorials/notebooks/scrna/harmonization`
+- {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
 ```
 
 ## Preliminaries
@@ -73,6 +73,7 @@ scANVI graphical model for the ZINB likelihood model. Note that this graphical m
 In addition to the table in {doc}`/user_guide/models/scvi`,
 we have the following in scANVI.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -91,6 +92,7 @@ we have the following in scANVI.
      - Latent cell-type specific state
      - ``z_2``
 ```
+<!-- panache-ignore-format-end -->
 
 ## Inference
 
@@ -114,7 +116,7 @@ First, each of those variational distributions will be parameterized by neural n
 Second, while $q_\eta(z_n, x_n)$ and $q_\eta(u_n \mid c_n, z_n)$ are assumed Gaussian, $q_\eta(c_n \mid z_n)$ corresponds to a Categorical distribution over cell types.
 In particular, the variational distribution $q_\eta(c_n \mid z_n)$ can predict cell types for any cell.
 
-Behind the scenes, scANVI's classifier uses the mean of a cell's variational distribution $q_\eta(z_n \mid x_n)$
+Behind the scenes, scANVI’s classifier uses the mean of a cell’s variational distribution $q_\eta(z_n \mid x_n)$
 for classification.
 
 ### Training details
@@ -295,17 +297,14 @@ For prediction, scANVI returns $q_\eta(c_n \mid z_n)$ in the following function:
 >>> adata.obs["scanvi_prediction"] = model.predict()
 ```
 
-[^refts]:
-Tabula Sapiens Consortium (2021),
-_The Tabula Sapiens: a single cell transcriptomic atlas of multiple organs from individual human donors_,
-[BioRxiv](https://www.biorxiv.org/content/10.1101/2021.07.19.452956v1.full.pdf).
+[^refts]: Tabula Sapiens Consortium (2021),
+    *The Tabula Sapiens: a single cell transcriptomic atlas of multiple organs from individual human donors*,
+    [BioRxiv](https://www.biorxiv.org/content/10.1101/2021.07.19.452956v1.full.pdf).
 
-[^ref2]:
-Diederik P. Kingma, Shakir Mohamed, Danilo Jimenez Rezende, and Max Welling (2014),
-_Semi-supervised learning with deep generative models_,
-[Advances in neural information processing systems](https://proceedings.neurips.cc/paper/2014/file/d523773c6b194f37b938d340d5d02232-Paper.pdf).
+[^ref2]: Diederik P. Kingma, Shakir Mohamed, Danilo Jimenez Rezende, and Max Welling (2014),
+    *Semi-supervised learning with deep generative models*,
+    [Advances in neural information processing systems](https://proceedings.neurips.cc/paper/2014/file/d523773c6b194f37b938d340d5d02232-Paper.pdf).
 
-[^ref3]:
-Diederik P. Kingma, Max Welling (2013) (2014),
-_Auto-Encoding Variational Bayes_,
-[Arxiv](https://arxiv.org/abs/1312.6114).
+[^ref3]: Diederik P. Kingma, Max Welling (2013) (2014),
+    *Auto-Encoding Variational Bayes*,
+    [Arxiv](https://arxiv.org/abs/1312.6114).

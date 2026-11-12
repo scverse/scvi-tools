@@ -5,14 +5,14 @@ transcriptomics that can subsequently be used for many common downstream tasks.
 
 The advantages of resolVI are:
 
--   Addresses noise and bias in ST data due to wrong segmentation, unspecific background and limited spatial resolution
--   Scalable to very large datasets (>1 million cells).
+- Addresses noise and bias in ST data due to wrong segmentation, unspecific background and limited spatial resolution
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of resolVI include:
 
--   Effectively requires a GPU for fast inference.
--   Latent space is not interpretable, unlike that of a linear method.
--   Assumes single cells are observed and do not work with low-resolution ST like Visium or Slide-Seq.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
+- Assumes single cells are observed and do not work with low-resolution ST like Visium or Slide-Seq.
 
 :::{note}
 Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
@@ -20,7 +20,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorials:
 
--   [resolVI: Correcting Noise and Bias in Spatial Transcriptomics](https://scviva-tools.readthedocs.io/en/latest/tutorials/resolVI_tutorial.html)
+- [resolVI: Correcting Noise and Bias in Spatial Transcriptomics](https://scviva-tools.readthedocs.io/en/latest/tutorials/resolVI_tutorial.html)
 ```
 
 ## Preliminaries
@@ -35,7 +35,7 @@ as well as the distance between these cells. Additionally, a vector of categoric
 batch, donor, etc., is an optional input to the model. ResolVI provides a semi-supervised mode, adjusting the prior in
 the latent space for different cell types and training a classifier to predict cell types from latent embeddings.
 
-Spatial neighbor graph construction, used internally to determine each cell's neighbors, automatically uses a
+Spatial neighbor graph construction, used internally to determine each cell’s neighbors, automatically uses a
 GPU-accelerated [rapids-singlecell](https://rapids-singlecell.readthedocs.io/) backend when it is installed, falling back to a CPU-based implementation
 otherwise.
 
@@ -90,6 +90,7 @@ which estimates the normalized gene expression of cell $n$. We use the observed 
 
 The latent variables, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15 45
@@ -128,7 +129,7 @@ The latent variables, along with their description, are summarized in the follow
      - ``px_rate and px_rate_n``
      - None
 ```
-
+<!-- panache-ignore-format-end -->
 
 ## Inference
 
@@ -181,7 +182,7 @@ In {meth}`~scvi.external.RESOLVI.get_normalized_expression` ResolVI returns the 
 
 Differential expression analysis is achieved with {meth}`~scvi.external.RESOLVI.differential_expression`.
 ResolVI tests differences in expression levels $\rho_{n} = f_{\theta}\left(z_n, s_n\right)$.
-We allow for importance-based sampling using pyro's built-in function.
+We allow for importance-based sampling using pyro’s built-in function.
 
 ### Cell-type prediction
 

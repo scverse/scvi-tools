@@ -10,18 +10,20 @@ It can capture nonlinear and cell-type-specific variation of sample-level covari
 
 ```{topic} Tutorials:
 
--    {doc}`/tutorials/notebooks/scrna/MrVI_tutorial`
+- {doc}`/tutorials/notebooks/scrna/MrVI_tutorial`
 ```
 
 ## Preliminaries
 
 MrVI takes as input a scRNA-seq gene expression matrix $X$ with $N$ cells and $G$ genes.
 Additionally, it requires specification, for each cell $n$:
+
 - a sample-level target covariate $s_n$, that typically corresponds to the sample ID,
   which defines which sample entities will be compared in exploratory and comparative analyses.
 - nuisance covariates $b_n$ (e.g. sequencing run, processing day).
 
 Optionally, MrVI can also take as input
+
 - Cell-type labels for guided integration across samples, via a mixture of Gaussians prior where each mixture component serves as the mode of a cell type.
 - Additional sample-level covariates of interest $c_s$ for each sample $s$ (e.g.,
   disease status, age, treatment) for comparative analysis.
@@ -57,6 +59,7 @@ MrVI graphical model. Shaded nodes represent observed data, unshaded nodes repre
 
 The latent variables, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -90,6 +93,7 @@ The latent variables, along with their description, are summarized in the follow
      - Mixture of Gaussians weights for prior on $u_n$.
      - ``u_prior_logits``
 ```
+<!-- panache-ignore-format-end -->
 
 ## Inference
 

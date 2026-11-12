@@ -2,20 +2,20 @@
 
 **gimVI** {cite:p}`Lopez19` (Generative Imputation Model with Variational Inference; Python class {class}`~scvi.external.GIMVI`) is a deep generative model for the joint analysis of an scRNA-seq dataset and a spatial transcriptomics dataset that measures only a subset of the genes. gimVI learns a single shared latent space for the two modalities and uses it to **impute the genes that are missing from the spatial assay** by transferring information from the (genome-wide) sequencing reference.
 
-The two datasets are modeled by a single joint variational autoencoder ({class}`~scvi.external.gimvi.JVAE`) with modality-specific encoder and decoder heads but a shared latent representation. Because the spatial panel is a subset of the genes captured by scRNA-seq, the decoder reconstructs into the full sequencing gene space, and each modality's reconstruction loss is masked to only the genes it actually observes. Alignment of the two modalities in the shared latent space is encouraged by an adversarial classifier that is trained to predict the modality of origin from a cell's latent code, while the generative model is trained to fool it.
+The two datasets are modeled by a single joint variational autoencoder ({class}`~scvi.external.gimvi.JVAE`) with modality-specific encoder and decoder heads but a shared latent representation. Because the spatial panel is a subset of the genes captured by scRNA-seq, the decoder reconstructs into the full sequencing gene space, and each modality’s reconstruction loss is masked to only the genes it actually observes. Alignment of the two modalities in the shared latent space is encouraged by an adversarial classifier that is trained to predict the modality of origin from a cell’s latent code, while the generative model is trained to fool it.
 
 The advantages of gimVI are:
 
--   Imputation of genes that are not measured in the spatial assay, using a paired (genome-wide) scRNA-seq reference.
--   A shared latent space that integrates spatial and sequencing cells for joint visualization and clustering.
--   Flexible, per-modality generative distributions (e.g. `zinb` for the sequencing data and `nb` for the spatial data) and per-modality choice of whether to model library size.
--   Handles the two assays measuring different gene sets and different numbers of cells.
+- Imputation of genes that are not measured in the spatial assay, using a paired (genome-wide) scRNA-seq reference.
+- A shared latent space that integrates spatial and sequencing cells for joint visualization and clustering.
+- Flexible, per-modality generative distributions (e.g. `zinb` for the sequencing data and `nb` for the spatial data) and per-modality choice of whether to model library size.
+- Handles the two assays measuring different gene sets and different numbers of cells.
 
 The limitations of gimVI include:
 
--   Supports exactly two datasets (one sequencing, one spatial).
--   The spatial genes must be a subset of the sequencing genes.
--   Imputation quality depends on how well the scRNA-seq reference matches the spatial tissue.
+- Supports exactly two datasets (one sequencing, one spatial).
+- The spatial genes must be a subset of the sequencing genes.
+- Imputation quality depends on how well the scRNA-seq reference matches the spatial tissue.
 
 :::{note}
 Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
@@ -23,22 +23,21 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorials:
 
--   [gimVI: Imputing Missing Spatial Genes](https://scviva-tools.readthedocs.io/en/latest/tutorials/gimvi_tutorial.html)
+- [gimVI: Imputing Missing Spatial Genes](https://scviva-tools.readthedocs.io/en/latest/tutorials/gimvi_tutorial.html)
 ```
 
 :::{note}
 gimVI is a spatial transcriptomics model that will be moved to the scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and will no longer be supported in scvi-tools; it is scheduled for deprecation in v1.6.
 :::
 
-
 ## Preliminaries
 
 gimVI takes as input two raw-count gene expression matrices:
 
--   a sequencing matrix $X^{(0)} \in \mathbb{N}^{N_0 \times G_0}$ with $N_0$ cells and $G_0$ genes (the full gene set), and
--   a spatial matrix $X^{(1)} \in \mathbb{N}^{N_1 \times G_1}$ with $N_1$ cells and $G_1$ genes,
+- a sequencing matrix $X^{(0)} \in \mathbb{N}^{N_0 \times G_0}$ with $N_0$ cells and $G_0$ genes (the full gene set), and
+- a spatial matrix $X^{(1)} \in \mathbb{N}^{N_1 \times G_1}$ with $N_1$ cells and $G_1$ genes,
 
-where the spatial genes are a subset of the sequencing genes ($\mathcal{G}_1 \subseteq \mathcal{G}_0$). Internally the decoder operates on the full sequencing gene space of size $G = G_0$, and a per-modality index mapping $\mathcal{M}_m$ records where each modality's observed genes live in that space. The spatial reconstruction is therefore evaluated only on the columns corresponding to $\mathcal{G}_1$.
+where the spatial genes are a subset of the sequencing genes ($\mathcal{G}_1 \subseteq \mathcal{G}_0$). Internally the decoder operates on the full sequencing gene space of size $G = G_0$, and a per-modality index mapping $\mathcal{M}_m$ records where each modality’s observed genes live in that space. The spatial reconstruction is therefore evaluated only on the columns corresponding to $\mathcal{G}_1$.
 
 Each dataset can additionally carry a categorical batch covariate $s$ and, optionally, categorical cell-type labels $c$. Both datasets are registered independently with two separate calls to {meth}`~scvi.external.GIMVI.setup_anndata` before the joint model is constructed:
 
@@ -63,12 +62,11 @@ For each modality, an optional, separate library-size encoder produces a latent 
 
 #### Joint decoder
 
-A single, shared multi-decoder ({class}`~scvi.nn.MultiDecoder`) maps the shared latent code back into the full sequencing gene space of size $G$, conditioned on the batch covariate (the decoder weights are **not** modality-specific). Because the decoder reconstructs all $G$ genes for both modalities, the latent representation of a spatial cell can be decoded into genes that were never measured spatially — this is exactly the imputation mechanism (see [Imputation of missing spatial genes](#imputation-of-missing-spatial-genes)). The modality index only selects which gene-index mapping is used to renormalize the decoded expression over each modality's observed genes; it does not route through different decoder networks.
+A single, shared multi-decoder ({class}`~scvi.nn.MultiDecoder`) maps the shared latent code back into the full sequencing gene space of size $G$, conditioned on the batch covariate (the decoder weights are **not** modality-specific). Because the decoder reconstructs all $G$ genes for both modalities, the latent representation of a spatial cell can be decoded into genes that were never measured spatially — this is exactly the imputation mechanism (see [Imputation of missing spatial genes](#imputation-of-missing-spatial-genes)). The modality index only selects which gene-index mapping is used to renormalize the decoded expression over each modality’s observed genes; it does not route through different decoder networks.
 
 #### Adversarial modality classifier
 
-A small classifier ({class}`~scvi.module.Classifier`, 3 layers, 2 output classes) is trained to predict, from a latent code $\mathbf{z}$, which modality it came from. The generative model is trained adversarially to _fool_ this classifier, which pushes the sequencing and spatial latent distributions to overlap and yields an integrated, modality-mixed latent space. This is implemented in {class}`~scvi.external.gimvi._task.GIMVITrainingPlan` (a subclass of {class}`~scvi.train.AdversarialTrainingPlan`), and the strength of the adversarial term is set by the `kappa` argument of {meth}`~scvi.external.GIMVI.train`.
-
+A small classifier ({class}`~scvi.module.Classifier`, 3 layers, 2 output classes) is trained to predict, from a latent code $\mathbf{z}$, which modality it came from. The generative model is trained adversarially to *fool* this classifier, which pushes the sequencing and spatial latent distributions to overlap and yields an integrated, modality-mixed latent space. This is implemented in {class}`~scvi.external.gimvi._task.GIMVITrainingPlan` (a subclass of {class}`~scvi.train.AdversarialTrainingPlan`), and the strength of the adversarial term is set by the `kappa` argument of {meth}`~scvi.external.GIMVI.train`.
 
 ## Generative process
 
@@ -93,14 +91,15 @@ The latent code $\mathbf{z}_n$ is **shared across modalities** — the same prio
 
 The observation model is chosen per modality via `generative_distributions` (default `["zinb", "nb"]`). gimVI supports:
 
--   `zinb` — Zero-Inflated Negative Binomial (default for the sequencing data),
--   `nb` — Negative Binomial (default for the spatial data),
--   `poisson` — Poisson.
+- `zinb` — Zero-Inflated Negative Binomial (default for the sequencing data),
+- `nb` — Negative Binomial (default for the spatial data),
+- `poisson` — Poisson.
 
 The inverse dispersion $\theta$ is by default gene- and batch-specific (`dispersion="gene-batch"`); `gene` and `gene-label` parameterizations are also available.
 
 The latent variables are summarized below:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 25 60 15
@@ -125,7 +124,7 @@ The latent variables are summarized below:
      - Inverse dispersion of the (zero-inflated) negative binomial, by default gene- and batch-specific.
      - ``px_r``
 ```
-
+<!-- panache-ignore-format-end -->
 
 ## Inference
 
@@ -139,17 +138,16 @@ gimVI uses variational inference (auto-encoding variational Bayes; see {doc}`/us
 \end{align}
 ```
 
-The latent posterior $q_\eta(\mathbf{z}_n \mid x_n)$ is produced by the shared multi-head encoder (using the input head for the cell's modality), and $q_\eta(\ell_n \mid x_n)$ by the modality's optional library encoder. Inputs are log-transformed (`log(1 + x)`) before encoding for numerical stability.
-
+The latent posterior $q_\eta(\mathbf{z}_n \mid x_n)$ is produced by the shared multi-head encoder (using the input head for the cell’s modality), and $q_\eta(\ell_n \mid x_n)$ by the modality’s optional library encoder. Inputs are log-transformed (`log(1 + x)`) before encoding for numerical stability.
 
 ## Training objective
 
 gimVI minimizes a per-modality evidence lower bound — a reconstruction term plus KL terms on the latent variables — summed across both modalities, with an adversarial term added on top:
 
--   **Reconstruction**: the negative log-likelihood of the observed counts under the chosen observation model, **masked to the genes observed in each modality** (the spatial term ignores genes outside the spatial panel).
--   **KL divergence on $\mathbf{z}$**: regularizes the shared latent variable toward the standard normal prior.
--   **KL divergence on $\ell$**: applied only for modalities that model library size as a latent variable, with a batch-specific log-normal prior.
--   **Adversarial loss**: the modality classifier is trained to predict modality from $\mathbf{z}$, while the generative model is trained to fool it. The relative weight is controlled by `kappa` (the `scale_adversarial_loss` of the training plan); when set to `"auto"` it follows `1 - kl_weight` over the warmup schedule.
+- **Reconstruction**: the negative log-likelihood of the observed counts under the chosen observation model, **masked to the genes observed in each modality** (the spatial term ignores genes outside the spatial panel).
+- **KL divergence on $\mathbf{z}$**: regularizes the shared latent variable toward the standard normal prior.
+- **KL divergence on $\ell$**: applied only for modalities that model library size as a latent variable, with a batch-specific log-normal prior.
+- **Adversarial loss**: the modality classifier is trained to predict modality from $\mathbf{z}$, while the generative model is trained to fool it. The relative weight is controlled by `kappa` (the `scale_adversarial_loss` of the training plan); when set to `"auto"` it follows `1 - kl_weight` over the warmup schedule.
 
 The two objectives (model vs. classifier) are optimized in alternating steps with manual optimization, as in {class}`~scvi.train.AdversarialTrainingPlan`.
 
@@ -158,7 +156,6 @@ The two objectives (model vs. classifier) are optimized in alternating steps wit
 The two datasets generally have different numbers of cells, so a custom data loader, {class}`~scvi.external.gimvi._task.CyclicMultiDataLoader`, combines their per-modality dataloaders: it iterates the longest loader once per epoch and **cycles the shorter loader(s)** so that every training step yields one minibatch from each modality. It accepts either a sequence (yielding a tuple of minibatches) or a mapping of modality name → loader (yielding a dict, preserving modality names).
 
 This loader is shared infrastructure: {class}`~scvi.external.DIAGVI` imports it (`from scvi.external.gimvi._task import CyclicMultiDataLoader as TrainDL`) and uses the mapping form to drive its own multi-modality training, so the same cycling logic backs both gimVI and DiagVI.
-
 
 ## Tasks
 
@@ -194,8 +191,8 @@ The central task of gimVI is to impute, for the spatial cells, the genes that we
 >>> # including those absent from the original spatial panel.
 ```
 
--   `normalized=True` (default) returns the normalized expression frequencies $\rho_n$ (decoder `sample_scale`); `normalized=False` returns the unnormalized mean rate $\mu_n = \ell_n \rho_n$ (decoder `sample_rate`).
--   `decode_mode` selects which dataset's decoding is applied. The cell is always encoded with its own modality's encoder; gimVI then uses a **single shared decoder**, and `decode_mode` only changes which modality's gene-index mapping is used to renormalize the decoded expression over the probability simplex (`indices_mappings[decode_mode]`). It does not switch to a separate per-modality decoder network.
+- `normalized=True` (default) returns the normalized expression frequencies $\rho_n$ (decoder `sample_scale`); `normalized=False` returns the unnormalized mean rate $\mu_n = \ell_n \rho_n$ (decoder `sample_rate`).
+- `decode_mode` selects which dataset's decoding is applied. The cell is always encoded with its own modality's encoder; gimVI then uses a **single shared decoder**, and `decode_mode` only changes which modality's gene-index mapping is used to renormalize the decoded expression over the probability simplex (`indices_mappings[decode_mode]`). It does not switch to a separate per-modality decoder network.
 
 A common evaluation (used in the tutorial) holds out a fraction of genes from the spatial panel, imputes them with gimVI, and measures the per-gene Spearman correlation between the held-out true spatial expression and the imputed values.
 

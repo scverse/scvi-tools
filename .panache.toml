@@ -1,0 +1,15 @@
+#:schema https://panache.bz/panache.schema.json
+flavor = "myst"
+extend-exclude = ["docs/developer/code.md", ".github/pull_request_template.md"]
+
+[format]
+wrap = "preserve"
+smart-punctuation = "unicode"
+tab-stops = "preserve"
+
+# MyST syntax extensions from `scverse_doc.config.MYST_ENABLE_EXTENSIONS`
+[extensions]
+myst-colon-fence = true  # colon_fence
+definition-lists = true  # deflist
+tex-math-dollars = true  # dollarmath, amsmath
+raw-html = true          # html_image, html_admonition

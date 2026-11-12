@@ -6,10 +6,12 @@ Import scvi-tools as:
 import scvi
 ```
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. currentmodule:: scvi
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Built in data
 

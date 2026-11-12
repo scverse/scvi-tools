@@ -12,7 +12,7 @@ Using **CUDA** with **DDP** for multi-GPU training can significantly boost the p
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/use_cases/multiGPU`
+- {doc}`/tutorials/notebooks/use_cases/multiGPU`
 ```
 
 ## Some of the benefits of using MultiGPU training
@@ -24,7 +24,7 @@ Using **CUDA** with **DDP** for multi-GPU training can significantly boost the p
 - **Larger Models and Datasets:** With multiple GPUs, you can train models that are too large to fit into a single GPU’s memory. You can also work with larger datasets more efficiently.
 
 See the following figure which shows the training time (y-axis) of a PBMC data, SCVI model with and without the use of multiGPU vs. different sizes of cells in different adata (x-axis), going from smallest to largest:
-We can see the advantage with larger data, while for the small data, there's no much advantage due to multiGPU overhead needed.
+We can see the advantage with larger data, while for the small data, there’s no much advantage due to multiGPU overhead needed.
 
 :::{figure} /\_static/multigpu.png
 :align: center
