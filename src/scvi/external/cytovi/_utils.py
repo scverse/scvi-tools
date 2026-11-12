@@ -81,24 +81,54 @@ def validate_layer_key(adata: AnnData, layer_key: str):
             raise ValueError(f"Layer key {layer_key} not found in adata.layers.")
 
 
-def apply_scaling(data, method, feature_range, quantile=0.9999):
+
+def apply_scaling(data, method, feature_range, quantile=0.9999, clip_quantile=False):
     if method == "minmax":
         scaler = MinMaxScaler(feature_range=feature_range)
     elif method == "standard":
         scaler = StandardScaler()
 
-    elif method == "quantile":
-        if not 0 < quantile <= 1:
+    elif method == "quantile" or method == "quantile_minmax":
+        if method == "quantile" and not 0 < quantile <= 1:
             raise ValueError("quantile must be in (0, 1].")
 
-        q = np.quantile(data, quantile, axis=0)
-        zero_features = np.where(q == 0)[0]
+        if method == "quantile_minmax" and not 0.5 < quantile <= 1:
+            raise ValueError("quantile must be in (0.5, 1].")
 
-        if len(zero_features) > 0:
-            print(f"Warning: Quantile is zero for features {zero_features} and is left unscaled.")
-            q[zero_features] = 1.0        
+        q_upper = np.quantile(data, quantile, axis=0)
 
-        return data / q, None
+        if method == "quantile":
+            neg_features = np.where(q_upper <= 0)[0]
+
+            if len(neg_features) > 0:
+                print(f"Warning: Non-positive quantile for features {neg_features}. Left unscaled.")
+                q_upper[neg_features] = 1.0        
+
+            return data / q_upper, None
+
+        elif method == "quantile_minmax":
+            q_lower = np.quantile(data, 1 - quantile, axis=0)
+            q_range = q_upper - q_lower
+
+            zero_features = np.where(q_range == 0)[0]
+            if len(zero_features) > 0:
+                print(f"Warning: Quantile range is zero for features {zero_features} and is left unscaled.")
+            
+            result = np.asarray(data, dtype=float).copy()
+            valid = q_range != 0 
+
+            if clip_quantile:
+                result[:, valid] = np.clip(
+                    (result[:, valid] - q_lower[valid]) / q_range[valid],
+                    0,
+                    1
+                )
+            else:
+                result[:, valid] = (
+                    (result[:, valid] - q_lower[valid]) / q_range[valid]
+                )
+
+            return result, None
     
     return scaler.fit_transform(data), scaler
 
