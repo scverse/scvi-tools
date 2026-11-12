@@ -1,6 +1,5 @@
 # Model hub
 
-<!-- panache-ignore-format-start -->
 ```{toctree}
 :maxdepth: 1
 
@@ -9,9 +8,7 @@ notebooks/hub/scvi_hub_upload_and_large_files
 notebooks/hub/cellxgene_census_model
 notebooks/hub/query_hlca_knn
 notebooks/hub/Tahoe100
-
 ```
-<!-- panache-ignore-format-end -->
 
 ```{customcard}
 :path: notebooks/hub/scvi_hub_intro_and_download
