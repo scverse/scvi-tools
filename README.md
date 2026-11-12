@@ -3,7 +3,7 @@
     src="https://github.com/scverse/scvi-tools/blob/main/docs/_static/scvi-tools-horizontal.svg?raw=true"
     width="400"
     alt="scvi-tools"
-  >
+>
 </a>
 
 [![Stars][gh-stars-badge]][gh-stars-link]
@@ -83,7 +83,7 @@ If you use `scvi-tools` in your work, please cite
 > Carlos Talavera-López, Lior Pachter, Fabian J. Theis, Aaron Streets, Michael I. Jordan,
 > Jeffrey Regier & Nir Yosef
 >
-> _Nature Biotechnology_ 2022 Feb 07. doi: [10.1038/s41587-021-01206-w](https://doi.org/10.1038/s41587-021-01206-w).
+> *Nature Biotechnology* 2022 Feb 07. doi: [10.1038/s41587-021-01206-w](https://doi.org/10.1038/s41587-021-01206-w).
 
 along with the publication describing the model used.
 
@@ -96,7 +96,7 @@ You can cite the scverse publication as follows:
 > Sarah A. Teichmann, Francesca Finotello, F. Alexander Wolf, Nir Yosef, Oliver Stegle &
 > Fabian J. Theis
 >
-> _Nature Biotechnology_ 2023 Apr 10. doi: [10.1038/s41587-023-01733-8](https://doi.org/10.1038/s41587-023-01733-8).
+> *Nature Biotechnology* 2023 Apr 10. doi: [10.1038/s41587-023-01733-8](https://doi.org/10.1038/s41587-023-01733-8).
 
 scvi-tools is part of the scverse® project ([website](https://scverse.org),
 [governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS](https://numfocus.org/).
@@ -110,7 +110,7 @@ professional services, travel, workshops, and a variety of other needs.
   <img
     src="https://raw.githubusercontent.com/numfocus/templates/master/images/numfocus-logo.png"
     width="200"
-  >
+>
 </a>
 </div>
 

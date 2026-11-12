@@ -6,17 +6,17 @@ and also for imputation of a missing modality.
 
 The advantages of multiVI are:
 
--   Comprehensive in capabilities. Able to perform DE gene, DA region analysis.
--   Scalable to very large datasets (>1 million cells).
--   Once trained with sufficient multimodal data, able to accurately input missing modalities.
+- Comprehensive in capabilities. Able to perform DE gene, DA region analysis.
+- Scalable to very large datasets (>1 million cells).
+- Once trained with sufficient multimodal data, able to accurately input missing modalities.
 
 The limitations of MultiVI include:
 
--   Effectively requires a GPU for fast inference.
+- Effectively requires a GPU for fast inference.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/multimodal/MultiVI_tutorial`
+- {doc}`/tutorials/notebooks/multimodal/MultiVI_tutorial`
 ```
 
 ## Preliminaries
@@ -79,6 +79,7 @@ estimates the probability of accessibility.
 
 The latent variables, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -109,6 +110,7 @@ The latent variables, along with their description, are summarized in the follow
      - Region-wise scaling factor
      - ``f``
 ```
+<!-- panache-ignore-format-end -->
 
 ## Inference
 

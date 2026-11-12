@@ -6,21 +6,20 @@ to jointly model gene expression and protein abundance, predict labels for unann
 
 The advantages of TotalANVI are:
 
--   Unified multimodal (RNA + protein) semi-supervised framework.
--   Supports training from scratch or fine-tuning a pretrained TotalVI model.
--   Handles cells with missing protein panels.
--   Scalable to very large datasets (>1 million cells).
+- Unified multimodal (RNA + protein) semi-supervised framework.
+- Supports training from scratch or fine-tuning a pretrained TotalVI model.
+- Handles cells with missing protein panels.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of TotalANVI include:
 
--   Effectively requires a GPU for fast inference.
--   Requires at least a subset of cells to have cell type annotations.
--   May not scale to a very large number of cell types.
+- Effectively requires a GPU for fast inference.
+- Requires at least a subset of cells to have cell type annotations.
+- May not scale to a very large number of cell types.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/multimodal/totalanvi`
-
+- {doc}`/tutorials/notebooks/multimodal/totalanvi`
 ```
 
 ## Preliminaries
@@ -29,7 +28,7 @@ Let $X \in \mathbb{N}^{N \times G}$ be the RNA count matrix for $N$ cells and $G
 
 ## Generative process
 
-TotalANVI combines TotalVI's protein–RNA generative model with scANVI's cell-type-conditioned hierarchical latent space.
+TotalANVI combines TotalVI’s protein–RNA generative model with scANVI’s cell-type-conditioned hierarchical latent space.
 
 For each cell $n$, the generative process is:
 
@@ -72,13 +71,13 @@ where $\pi$ is a learned (or uniform) prior over cell types, $u_n$ is a cell-typ
 
 The latent variables are summarized below.
 
-| Latent variable | Code variable     | Description                     |
-| :-------------- | :---------------- | :------------------------------ |
-| $c$             | `predicted_label` | Cell type label                 |
-| $z_1$ (= $z$)   | `z`               | Observation-level cell state    |
-| $u$ (= $z_2$)   | `untran_z`        | Cell-type-specific latent state |
-| $\ell$          | `library`         | RNA library size                |
-| $\beta$         | `back_rate`       | Protein background rate         |
+  | Latent variable | Code variable     | Description                     |
+  | :-------------- | :---------------- | :------------------------------ |
+  | $c$             | `predicted_label` | Cell type label                 |
+  | $z_1$ (= $z$)   | `z`               | Observation-level cell state    |
+  | $u$ (= $z_2$)   | `untran_z`        | Cell-type-specific latent state |
+  | $\ell$          | `library`         | RNA library size                |
+  | $\beta$         | `back_rate`       | Protein background rate         |
 
 ## Inference
 

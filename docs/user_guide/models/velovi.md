@@ -7,31 +7,31 @@ fits, and velocity uncertainty.
 
 The advantages of VeloVI are:
 
--   It provides a probabilistic RNA velocity model with posterior sampling.
--   It returns velocity estimates, latent time, state assignments, fitted expression, and
-    learned kinetic rates through the scvi-tools API.
--   It includes utilities for intrinsic directional uncertainty and permutation scores.
+- It provides a probabilistic RNA velocity model with posterior sampling.
+- It returns velocity estimates, latent time, state assignments, fitted expression, and
+  learned kinetic rates through the scvi-tools API.
+- It includes utilities for intrinsic directional uncertainty and permutation scores.
 
 The limitations of VeloVI include:
 
--   It requires preprocessed spliced and unspliced layers, usually from an RNA velocity
-    workflow such as scVelo preprocessing.
--   The kinetic interpretation depends on the adequacy of the assumed induction and
-    repression dynamics for the selected genes.
--   It is not a count-based scRNA-seq expression model and is not a replacement for
-    general-purpose models such as scVI.
+- It requires preprocessed spliced and unspliced layers, usually from an RNA velocity
+  workflow such as scVelo preprocessing.
+- The kinetic interpretation depends on the adequacy of the assumed induction and
+  repression dynamics for the selected genes.
+- It is not a count-based scRNA-seq expression model and is not a replacement for
+  general-purpose models such as scVI.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/velovi`
+- {doc}`/tutorials/notebooks/scrna/velovi`
 ```
 
 ## Preliminaries
 
 VeloVI takes as input an AnnData object with two registered layers:
 
--   a spliced abundance layer, passed as `spliced_layer`, and
--   an unspliced abundance layer, passed as `unspliced_layer`.
+- a spliced abundance layer, passed as `spliced_layer`, and
+- an unspliced abundance layer, passed as `unspliced_layer`.
 
 These layers are registered with {meth}`~scvi.external.VELOVI.setup_anndata` and are
 treated as continuous preprocessed values rather than raw count data:
@@ -68,10 +68,10 @@ rate, $\beta$ is the splicing rate, and $\gamma$ is the degradation rate.
 
 The decoder outputs mixture weights over four kinetic states:
 
--   induction,
--   induction steady state,
--   repression, and
--   repression steady state.
+- induction,
+- induction steady state,
+- repression, and
+- repression steady state.
 
 It also outputs time parameters that are used with gene-specific switch times and kinetic
 rates to compute the expected spliced and unspliced abundances.

@@ -6,7 +6,7 @@ This model was ported from another [GitHub](https://github.com/Novartis/scar).
 
 ```{topic} Tutorials:
 
--   Work in progress.
+- Work in progress.
 ```
 
 ## Ambient RNA removal

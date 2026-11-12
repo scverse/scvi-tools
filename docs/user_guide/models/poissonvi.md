@@ -7,26 +7,26 @@ fragment counts rather than binarized accessibility.
 
 The advantages of PoissonVI are:
 
--   It models quantitative fragment-count information, which can retain signal that is
-    discarded when scATAC-seq matrices are binarized.
--   It exposes familiar peakVI-style tasks, including latent representation learning,
-    normalized accessibility, region factors, and differential accessibility.
--   It supports registered batch and covariate annotations through
-    {meth}`~scvi.external.POISSONVI.setup_anndata`.
+- It models quantitative fragment-count information, which can retain signal that is
+  discarded when scATAC-seq matrices are binarized.
+- It exposes familiar peakVI-style tasks, including latent representation learning,
+  normalized accessibility, region factors, and differential accessibility.
+- It supports registered batch and covariate annotations through
+  {meth}`~scvi.external.POISSONVI.setup_anndata`.
 
 The limitations of PoissonVI include:
 
--   It expects fragment-count-like input. Read-count matrices with strong even-count
-    artifacts should be converted to fragment counts before training.
--   It is designed for chromatin accessibility regions, so
-    {meth}`~scvi.external.POISSONVI.differential_expression` is not implemented; use
-    {meth}`~scvi.external.POISSONVI.differential_accessibility` instead.
--   The nonlinear latent space is useful for integration and clustering, but individual
-    latent dimensions are not directly interpretable.
+- It expects fragment-count-like input. Read-count matrices with strong even-count
+  artifacts should be converted to fragment counts before training.
+- It is designed for chromatin accessibility regions, so
+  {meth}`~scvi.external.POISSONVI.differential_expression` is not implemented; use
+  {meth}`~scvi.external.POISSONVI.differential_accessibility` instead.
+- The nonlinear latent space is useful for integration and clustering, but individual
+  latent dimensions are not directly interpretable.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/atac/PoissonVI`
+- {doc}`/tutorials/notebooks/atac/PoissonVI`
 ```
 
 ## Preliminaries

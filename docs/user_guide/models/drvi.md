@@ -14,12 +14,10 @@ The advantages of DRVI are:
   (`batch_representation="embedding"`), size factors, minified mode, scArches transfer learning,
   out-of-core training via a datamodule, and the standard likelihoods (plus DRVI's log-space `pnb`).
 
-
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/DRVI_pipeline`
+- {doc}`/tutorials/notebooks/scrna/DRVI_pipeline`
 ```
-
 
 ## Method background
 
@@ -30,7 +28,7 @@ than through the prior.
 
 ### Disentanglement via an additive split decoder
 
-The latent vector of dimension `K` is mapped into `n_split_latent` independent groups ("splits").
+The latent vector of dimension `K` is mapped into `n_split_latent` independent groups (“splits”).
 Each split is decoded **independently** and the per-split outputs are aggregated to form the final
 reconstruction parameters. Because every split can only influence the output through this shared
 aggregation, the model is encouraged to allocate independent factors of variation to different
@@ -46,14 +44,13 @@ Two latent-to-split mappings are available (`n_latent` should be divisible by `n
 - `split_map` (default): the latent is reshaped into `n_split_latent` chunks and each chunk is passed through a learned per-split linear projection.
 - `split_mask`: latent is split into chunks and padded with zeros so, each split `i` keeps only its own chunk.
 
-
 ### Likelihoods modeled in log space
 
 DRVI models the generative parameters in **log space**, which is what makes the `logsumexp`
 aggregation a genuine additive decoder (summing the per-split contributions of the rate). In
-addition to scvi's `nb`, `zinb` and `poisson`, DRVI adds:
+addition to scvi’s `nb`, `zinb` and `poisson`, DRVI adds:
 
-- `pnb` — _parametrized negative binomial_: the same mean as `nb` (`library * softmax`) but
+- `pnb` — *parametrized negative binomial*: the same mean as `nb` (`library * softmax`) but
   parametrized and evaluated in log space via {class}`~scvi.external.drvi.LogNegativeBinomial`,
   which is numerically stable and composes the per-split log contributions directly.
 - `normal` / `normal_unit_var` — a Gaussian whose mean is modeled **directly** (no library/softmax),

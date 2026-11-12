@@ -17,6 +17,7 @@ The limitations of CytoVI include:
 - Assumes measurements have been corrected for fluorescent spillover and preprocessed according to standard practice.
 
 ```{topic} Tutorials:
+
 - {doc}`/tutorials/notebooks/cytometry/CytoVI_batch_correction_tutorial`
 - {doc}`/tutorials/notebooks/cytometry/CytoVI_advanced_tutorial`
 ```
@@ -26,22 +27,21 @@ The limitations of CytoVI include:
 ## Preliminaries
 
 CytoVI can process protein expression matrices from the following technologies:
+
 - Flow cytometry (traditional PMT-based cytometers or full spectrum analyzers)
 - Mass cytometry
 - CITE-seq (providing RNA and protein expression for the same cells)
 - Any other antibody-based single cell measurement of protein expression
 
-
 For each of these technologies CytoVI expects as input:
+
 - A transformed (and optionally scaled) protein expression matrix $X \in \mathbb{R}^{N \times P}$, where each row is a single cell among $N$ total cells and each column is a protein marker among $P$ total proteins.
 - Optionally, experimental covariates that the user wishes to control for such as batch annotations, different technologies, or confounding variables such as donor sex. For simplicity, we will describe the case of a one-hot encoded batch identifier $s_n \in \{1,...,S\}$.
 - Optionally, cell label annotations can be used to weakly inform the prior of the latent space. We assume a one-hot encoded label identifier $y_n \in\{1,...,Y\}$.
 - Optionally, sample annotations (e.g., indicating which cells were measured from which patient) to inform differential abundance and expression analyses.
 
-
 Preprocessing expected:
 CytoVI expects the input matrix $x_{np}$ to be processed using common preprocessing options for cytometry data in the field. These include, for instance, arcsinh, log1p, biexponential or logicle transformations and are optionally followed by feature-wise scaling (e.g., z-score, min-max or rank-scaled).
-
 
 ## Descriptive model
 
@@ -56,7 +56,6 @@ z_n \sim
 \sum_{k=1}^K \pi_k \, \mathcal{N}(\mu_k, \sigma_k^2), & \text{if mixture of Gaussians prior}
 \end{cases}
 $$
-
 
 <!-- ```{math}
 :nowrap: true
@@ -78,7 +77,6 @@ $$
 $$
 
 where $\lambda$ is a tunable weight (default $\lambda=10$).
-
 
 ## Generative process
 
@@ -110,6 +108,7 @@ neural network params, params for the protein observation model, etc.) and an ap
 To integrate datasets with different protein panels, CytoVI employs a masking strategy inspired by {class}`~scvi.model.TOTALVI` {cite:p}`GayosoSteier21`.
 
 Let $x_n^{(s)} \in \mathbb{R}^{P_s}$ be the observed input vector for cell $n$ in batch $s$. Denote:
+
 - $\mathcal{T}_s$ = set of proteins measured in batch $s$
 - $\mathcal{I} = \bigcap_s \mathcal{T}_s$ = shared proteins across batches
 - $\mathcal{U} = \bigcup_s \mathcal{T}_s$ = union of all proteins
@@ -123,7 +122,7 @@ M_{np}^{(s)} =
 \end{cases}
 $$
 
-This binary mask is generated automatically when using CytoVI's 'merge_batches' function:
+This binary mask is generated automatically when using CytoVI’s ‘merge_batches’ function:
 
 ```
 >>> adata_list = [adata_batch1, adata_batch2]
@@ -179,6 +178,7 @@ See the {doc}`/user_guide/background/transfer_learning` guide for more informati
 CytoVI supports label-free differential abundance estimation via {func}`~scvi.external.CYTOVI.differential_abundance` to detect shifts in cellular composition across sample-level covariates (e.g., disease vs. control), as described in {cite:p}`Boyeau24`.
 
 This method:
+
 - Aggregates the approximate posterior distributions $q(z \mid x_n)$ across all cells within each sample to obtain a sample-level latent density.
 - Compares the average latent densities across sample groups $A$ and $B$ (e.g., condition vs. control) to compute a log-ratio score $r_{A,B}(z)$.
 - Identifies enriched or depleted regions of latent space without requiring clustering.
@@ -222,6 +222,7 @@ distributions of the latent variables, retrieving the likelihood parameters (of 
 CytoVI enables cross-modal imputation by leveraging a shared latent space between datasets with overlapping protein features via {func}`~scvi.external.CYTOVI.impute_rna_from_reference`. For example, transcriptomic profiles from a CITE-seq reference can be imputed into a flow cytometry dataset.
 
 To do this:
+
 - A joint CytoVI model is trained on both datasets, aligning them in a shared latent space.
 - For each query cell (e.g., flow cytometry), its k-nearest neighbors (default: k = 20) are identified in the latent space from the reference (e.g., CITE-seq).
 - The imputed RNA expression is obtained by averaging the RNA profiles of those neighbors.

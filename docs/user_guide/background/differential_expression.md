@@ -43,7 +43,7 @@ to better capture shared correlations between features.
 Consequently, deep generative models have appealing properties for differential expression in large-scale data.
 
 This guide has two aims.
-First, it aims to provide insight as to how scVI-tools' differential expression module works for transcript expression (`scVI`), surface protein expression (`TOTALVI`), or chromatin accessibility (`PeakVI`).
+First, it aims to provide insight as to how scVI-tools’ differential expression module works for transcript expression (`scVI`), surface protein expression (`TOTALVI`), or chromatin accessibility (`PeakVI`).
 More precisely, we explain how it can:
 
 - approximate population-specific normalized expression levels
@@ -52,6 +52,7 @@ More precisely, we explain how it can:
 
 More importantly, this guide explains the function of the hyperparameters of the `differential_expression` method.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 50 15 15 15
@@ -88,21 +89,22 @@ More importantly, this guide explains the function of the hyperparameters of the
      -
      -
 ```
+<!-- panache-ignore-format-end -->
 
 ## Notations and model assumptions
 
 While considering different modalities, scVI, TOTALVI, and PeakVI share similar properties, allowing us to perform differential expression of transcripts, surface proteins, or chromatin accessibility, similarly.
 We first introduce some notations that will be useful in the remainder of this guide.
-In particular, we consider a deep generative model where a latent variable with prior $z_n \sim \mathcal{N}_d(0, I_d)$ represents cell $n$'s identity.
+In particular, we consider a deep generative model where a latent variable with prior $z_n \sim \mathcal{N}_d(0, I_d)$ represents cell $n$’s identity.
 In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized, expression levels.
 
 ## Approximating population-specific normalized expression levels
 
 A first step to characterize differences in expression consists in estimating state-specific expression levels.
 For several reasons, most `scVI-tools` models do not explicitly model discrete cell types.
-A given cell's state often is unknown in the first place, and inferred with `scvi-tools`.
+A given cell’s state often is unknown in the first place, and inferred with `scvi-tools`.
 In some cases, states may also have an intricate structure that would be challenging to model.
-The class of models we consider here assumes that a latent variable $z$ characterizes cells' biological identity.
+The class of models we consider here assumes that a latent variable $z$ characterizes cells’ biological identity.
 A key component of our differential expression module is to aggregate the information carried by individual cells to estimate population-wide expression levels.
 The strategy to do so is as follows.
 First, we estimate latent representations of the two compared states $A$ and $B$, using aggregate variational posteriors.

@@ -19,6 +19,7 @@ import scvi
 AnnDataFields delineate how scvi-tools refers to fields in AnnData objects. The AnnDataManager provides an interface
 for operating over a collection of AnnDataFields and an AnnData object.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
@@ -56,6 +57,7 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.AnnTorchDataset
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Data Loaders
 
@@ -65,6 +67,7 @@ for operating over a collection of AnnDataFields and an AnnData object.
 
 DataLoaders for loading tensors from AnnData objects. DataSplitters for splitting data into train/test/val.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
@@ -83,6 +86,7 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.TileDBDataModule
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Distributions
 
@@ -92,6 +96,7 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
 
 Parameterizable probability distributions.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
@@ -109,6 +114,7 @@ Parameterizable probability distributions.
    distributions.ZeroInflatedGamma
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Model (Base)
 
@@ -120,22 +126,22 @@ These classes should be used to construct user-facing model classes.
 
 ```{eval-rst}
 .. autosummary::
-    :toctree: reference/
-    :nosignatures:
+   :toctree: reference/
+   :nosignatures:
 
-    model.base.BaseModelClass
-    model.base.BaseMinifiedModeModelClass
-    model.base.VAEMixin
-    model.base.RNASeqMixin
-    model.base.ArchesMixin
-    model.base.UnsupervisedTrainingMixin
-    model.base.SemisupervisedTrainingMixin
-    model.base.PyroSviTrainMixin
-    model.base.PyroSampleMixin
-    model.base.PyroJitGuideWarmup
-    model.base.PyroModelGuideWarmup
-    model.base.DifferentialComputation
-    model.base.EmbeddingMixin
+   model.base.BaseModelClass
+   model.base.BaseMinifiedModeModelClass
+   model.base.VAEMixin
+   model.base.RNASeqMixin
+   model.base.ArchesMixin
+   model.base.UnsupervisedTrainingMixin
+   model.base.SemisupervisedTrainingMixin
+   model.base.PyroSviTrainMixin
+   model.base.PyroSampleMixin
+   model.base.PyroJitGuideWarmup
+   model.base.PyroModelGuideWarmup
+   model.base.DifferentialComputation
+   model.base.EmbeddingMixin
 ```
 
 ## Module
@@ -247,6 +253,7 @@ These classes should be used to construct module classes that define generative 
 
 Basic neural network building blocks.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
@@ -266,16 +273,20 @@ Basic neural network building blocks.
    nn.EncoderTOTALVI
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Train
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. currentmodule:: scvi
 
 ```
+<!-- panache-ignore-format-end -->
 
 TrainingPlans define train/test/val optimization steps for modules.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
@@ -298,6 +309,7 @@ TrainingPlans define train/test/val optimization steps for modules.
    train._metrics.ElboMetric
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Utilities
 

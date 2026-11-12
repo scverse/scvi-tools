@@ -5,16 +5,16 @@ be used for many common downstream tasks.
 
 The advantages of Solo are:
 
--   Can perform doublet detection on pre-trained {class}`~scvi.model.SCVI` models
--   Scalable to very large datasets (>1 million cells).
+- Can perform doublet detection on pre-trained {class}`~scvi.model.SCVI` models
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of Solo include:
 
--   For an analysis seeking to only do doublet detection, Solo will be slower than other methods.
+- For an analysis seeking to only do doublet detection, Solo will be slower than other methods.
 
 ```{topic} Tutorials:
 
--   Work in progress.
+- Work in progress.
 ```
 
 ## Overview

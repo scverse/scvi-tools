@@ -1,6 +1,6 @@
 # Frequently asked questions
 
-This section contains answers to frequently asked questions. Don't see what you're looking for
+This section contains answers to frequently asked questions. Don’t see what you’re looking for
 here? Feel free to check out our [Discourse](https://discourse.scverse.org/c/help/scvi-tools/)
 or chat with us directly on [Zulip](https://scverse.zulipchat.com/#narrow/stream/324229-scvi-tools).
 
@@ -41,9 +41,9 @@ They also share some features:
 There is no straightforward solution since these are usually caused by numerical instabilities, but
 here are several factors to consider:
 
-- **Data quality**: Ensure that the data is appropriately preprocessed (_e.g._ removing cells/spots
+- **Data quality**: Ensure that the data is appropriately preprocessed (*e.g.* removing cells/spots
   with low counts).
-- **Data distribution**: Ensure that, if the model expects raw counts (_e.g._ scVI), the data is
+- **Data distribution**: Ensure that, if the model expects raw counts (*e.g.* scVI), the data is
   not normalized or transformed in any way. This often means passing in the correct `layer`
   argument to the `setup_anndata` method.
 - **Training parameters**: You may need to adjust parameters such as the learning rate or batch
@@ -51,6 +51,6 @@ here are several factors to consider:
 - **Model activations**: Some models contain exponential activations due to reproducibility
   reasons, which may sometimes be numerically unstable. Consider using another activation such as
   the softplus for more stability.
-- **Adversarial training**: For models with adversarial training (_e.g._ totalVI), consider turning
+- **Adversarial training**: For models with adversarial training (*e.g.* totalVI), consider turning
   off the component to see if the issue is resolved.
 - **Using SaveCheckpoint Callback**: Starting v1.3.0, we added the on_exception option to the callback, that in case of model error exception during training, will save the best model up to this point. The user will be able to load it back and continue the analysis. Failing for the first few epochs probably means basic issues with the model.

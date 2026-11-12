@@ -8,26 +8,26 @@ provides utilities for imputed expression and trajectory-associated gene pattern
 
 The advantages of Decipher are:
 
--   It learns an interpretable latent space `v`, which is two-dimensional by default and
-    can be visualized directly.
--   It also learns an intermediate latent space `z`, which can capture more detailed
-    cell-state structure than the visualization space.
--   It includes helper methods for imputed gene expression, Decipher time, and gene
-    expression patterns along a trajectory.
+- It learns an interpretable latent space `v`, which is two-dimensional by default and
+  can be visualized directly.
+- It also learns an intermediate latent space `z`, which can capture more detailed
+  cell-state structure than the visualization space.
+- It includes helper methods for imputed gene expression, Decipher time, and gene
+  expression patterns along a trajectory.
 
 The limitations of Decipher include:
 
--   The current scvi-tools implementation registers only the count matrix, with an
-    optional raw-count layer, and does not yet expose condition covariates through
-    {meth}`~scvi.external.Decipher.setup_anndata`.
--   The tutorial currently demonstrates the basic Decipher model; a fuller implementation
-    aligned with the original method is still under development.
--   As with other latent-variable models, trajectory interpretation depends on the quality
-    of the learned latent representation and the user-specified trajectory.
+- The current scvi-tools implementation registers only the count matrix, with an
+  optional raw-count layer, and does not yet expose condition covariates through
+  {meth}`~scvi.external.Decipher.setup_anndata`.
+- The tutorial currently demonstrates the basic Decipher model; a fuller implementation
+  aligned with the original method is still under development.
+- As with other latent-variable models, trajectory interpretation depends on the quality
+  of the learned latent representation and the user-specified trajectory.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/decipher_tutorial`
+- {doc}`/tutorials/notebooks/scrna/decipher_tutorial`
 ```
 
 ## Preliminaries
@@ -51,8 +51,8 @@ usual scvi-tools pattern:
 
 Decipher uses two latent representations:
 
--   $v_i$, a low-dimensional interpretable representation of cell $i$.
--   $z_i$, an intermediate latent representation that links $v_i$ to gene expression.
+- $v_i$, a low-dimensional interpretable representation of cell $i$.
+- $z_i$, an intermediate latent representation that links $v_i$ to gene expression.
 
 The generative model starts from a standard normal prior on $v_i$. A decoder maps
 $v_i$ to the parameters of a normal distribution over $z_i$, and a second decoder maps
@@ -97,7 +97,7 @@ The intermediate representation $z_i$ can be returned with `give_z=True`:
 ### Imputed Expression
 
 {meth}`~scvi.external.Decipher.compute_imputed_gene_expression` decodes cells through the
-model and returns imputed gene expression on the scale of each cell's observed library
+model and returns imputed gene expression on the scale of each cell’s observed library
 size. When `compute_covariances=True`, the method also returns covariances between the
 imputed expression and the stored Decipher `v` and `z` representations.
 

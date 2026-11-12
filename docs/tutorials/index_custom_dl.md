@@ -16,19 +16,23 @@ notebooks/custom_dl/api_overview_annbatch
 Learn a scalable approach using TileDBDataModule dataloader to training an scVI model on Census data.
 ```
 
+<!-- panache-ignore-format-start -->
 ```{customcard}
 :path: notebooks/custom_dl/lamin
 :tags: Analysis, Custom-Dataloaders, Integration, Dev, Semi-supervised, Cell-type-annotation
 
 Use the Lamin MappedCollectionDataModule for a scalable approach to training an scVI model on multiple adata's.
 ```
+<!-- panache-ignore-format-end -->
 
+<!-- panache-ignore-format-start -->
 ```{customcard}
 :path: notebooks/custom_dl/ann_collection
 :tags: Analysis, Custom-Dataloaders, Integration, Dev, Semi-supervised, Cell-type-annotation
 
 Use the AnnCollection dataloader for a scalable approach to training an scVI model on multiple adata's.
 ```
+<!-- panache-ignore-format-end -->
 
 ```{customcard}
 :path: notebooks/custom_dl/api_overview_annbatch
