@@ -1,3 +1,2 @@
 ```{include} ../CHANGELOG.md
-
 ```

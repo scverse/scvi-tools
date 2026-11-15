@@ -20,14 +20,14 @@ Learn a scalable approach using TileDBDataModule dataloader to training an scVI 
 :path: notebooks/custom_dl/lamin
 :tags: Analysis, Custom-Dataloaders, Integration, Dev, Semi-supervised, Cell-type-annotation
 
-Use the Lamin MappedCollectionDataModule for a scalable approach to training an scVI model on multiple adata's.
+Use the Lamin MappedCollectionDataModule for a scalable approach to training an scVI model on multiple adata’s.
 ```
 
 ```{customcard}
 :path: notebooks/custom_dl/ann_collection
 :tags: Analysis, Custom-Dataloaders, Integration, Dev, Semi-supervised, Cell-type-annotation
 
-Use the AnnCollection dataloader for a scalable approach to training an scVI model on multiple adata's.
+Use the AnnCollection dataloader for a scalable approach to training an scVI model on multiple adata’s.
 ```
 
 ```{customcard}

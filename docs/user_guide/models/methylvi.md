@@ -5,17 +5,17 @@ be used for many common downstream tasks.
 
 The advantages of methylVI are:
 
--   Comprehensive in capabilities.
--   Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of methylVI include:
 
--   Effectively requires a GPU for fast inference.
--   Latent space is not interpretable, unlike that of a linear method.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scbs/MethylVI_batch`
+- {doc}`/tutorials/notebooks/scbs/MethylVI_batch`
 ```
 
 ## Preliminaries
@@ -26,8 +26,8 @@ such measurements may be separated based on methylation context (e.g., CpG methy
 
 For each context, methylVI accepts two count matrices as input $Y^{C}_{mc}$ and $Y^{C}_{cov}$. Here $C$ refers to
 an arbitrary methylation context, and each of these matrices has data from $N$ cells and $M$ genomic regions.
-Each entry in $Y_{cov}$ represents the _total_ number of cytosines profiled at a given region in a cell, while the
-entries in $Y_{mc}$ denote the number of _methylated_ cytosines in a region for a cell. Additionally, a vector of
+Each entry in $Y_{cov}$ represents the *total* number of cytosines profiled at a given region in a cell, while the
+entries in $Y_{mc}$ denote the number of *methylated* cytosines in a region for a cell. Additionally, a vector of
 categorical covariates $S$, representing batch, donor, etc., is an optional input to the model.
 
 ## Generative process
@@ -76,10 +76,11 @@ For each methylation context $C$, the MethylVI generative process uses a single 
 \end{align}
 ```
 
-which estimates regions' the methylation levels.
+which estimates regions’ the methylation levels.
 
 The latent variables, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -98,6 +99,7 @@ The latent variables, along with their description, are summarized in the follow
      - Region-wise dispersion factor
      - ``d``
 ```
+<!-- panache-ignore-format-end -->
 
 ## Inference
 

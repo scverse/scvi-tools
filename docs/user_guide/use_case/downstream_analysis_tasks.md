@@ -6,11 +6,14 @@ scanpy is a required dependency of scvi-tools, so a plain `pip install scvi-tool
 
 SCVI provides useful tools for exploring and understanding the learned latent representations, as well as for interpreting various aspects of your single-cell dataset.
 
-1.  Latent Space Exploration
-    Visualization: You can visualize the learned latent representation of cells to observe patterns, clusters, and structure in the data.
-    We usually apply [scanpy's UMAP](https://scanpy.readthedocs.io/en/1.10.x/tutorials/plotting/core.html); These dimensionality reduction techniques can be applied to the model’s latent space to visualize how cells are grouped in 2D or 3D.
+1. Latent Space Exploration
+   Visualization: You can visualize the learned latent representation of cells to observe patterns, clusters, and structure in the data.
+   We usually apply [scanpy's UMAP](https://scanpy.readthedocs.io/en/1.10.x/tutorials/plotting/core.html); These dimensionality reduction techniques can be applied to the model’s latent space to visualize how cells are grouped in 2D or 3D.
 
-        Clustering: After visualizing the latent space, you can perform clustering (e.g., leiden, k-means, hierarchical clustering) to identify distinct groups of cells with similar gene expression profiles.
+   ```
+   Clustering: After visualizing the latent space, you can perform clustering (e.g., leiden, k-means, hierarchical clustering) to identify distinct groups of cells with similar gene expression profiles.
+   ```
+
 For example:
 
 :::{figure} /\_static/img/umap.png

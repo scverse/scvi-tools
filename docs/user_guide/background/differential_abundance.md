@@ -11,13 +11,13 @@ In the differential abundance procedure used in scvi-tools, we estimate the post
 \begin{align}
    r_{AB}(u) := \log{\frac{q_A(u)}{q_B(u)}}
 \end{align}
-
 ```
 
 ## Motivation
 
 More importantly, this guide explains the function of the parameters of the `differential_abundance` method.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 30 70
@@ -32,14 +32,15 @@ More importantly, this guide explains the function of the parameters of the `dif
    * - dof
      - Degrees of freedom for the Student's t-distribution components of the aggregated posterior for each sample. If ``None``, components are Normal. Using a Student's t-distribution instead of a Normal distribution for the posteriors can improve later analysis by improving stability and creating a smoother distribution for samples containing few cells (with few cells there are fewer components in aggregated posterior, so the heavier tails of a Student's t-distribution smoothes the space between those fewer components).
 ```
+<!-- panache-ignore-format-end -->
 
 ## Notations and model assumptions
 
-While different `scvi-tools` models may consider different modalities (gene expression, protein expression, multimodal, etc.), they share similar properties, namely some low-dimensional representation of each cell. In particular, we consider a deep generative model where a latent variable with prior $z_n$ represents cell $n$'s identity. In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized expression levels.
+While different `scvi-tools` models may consider different modalities (gene expression, protein expression, multimodal, etc.), they share similar properties, namely some low-dimensional representation of each cell. In particular, we consider a deep generative model where a latent variable with prior $z_n$ represents cell $n$’s identity. In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized expression levels.
 
 ## Quantifying the density of each sample
 
-The first step to identifying abundant cell states in a given group of samples consists of, for each cell $n$ in a given sample $s$, using the model's variational approximation to the posterior distribution for $n$ over the $z$ space, $q(z|x_n)$. Aggregating these posteriors over all cells in $s$ results in the following aggregated posterior distribution:
+The first step to identifying abundant cell states in a given group of samples consists of, for each cell $n$ in a given sample $s$, using the model’s variational approximation to the posterior distribution for $n$ over the $z$ space, $q(z|x_n)$. Aggregating these posteriors over all cells in $s$ results in the following aggregated posterior distribution:
 
 ```{math}
 :nowrap: true
@@ -47,7 +48,6 @@ The first step to identifying abundant cell states in a given group of samples c
 \begin{align}
    q_s(z) := \frac{1}{n_s}\sum_{n:s_n = s}q(z|x_n)
 \end{align}
-
 ```
 where $n_s$ is the number of cells in $s$. By evaluating this function at the $z$ space representation of cell $n$, $q_s(z_n)$, we obtain the density of sample $s$ at the location of cell $n$ in the latent space. In `scvi-tools`, the differential abundance method results in a $log$ densities matrix containing the $log$ of these point density values between each cell and each sample.
 
