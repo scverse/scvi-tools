@@ -11,6 +11,10 @@ repos:
     hooks:
       - id: biome-format
         exclude: ^\.cruft\.json$ # inconsistent indentation with cruft - file never to be modified manually.
+  - repo: https://github.com/jolars/panache-pre-commit
+    rev: v3.18.0
+    hooks:
+      - id: panache-format
   - repo: https://github.com/tox-dev/pyproject-fmt
     rev: v2.30.6
     hooks:
