@@ -20,6 +20,9 @@ permissions:
 env:
   HATCH_ENV: test-dataloaders
   HATCH_PYTHON: "3.13"
+  # Install CPU-only torch wheels; the default CUDA build pulls several GB of nvidia-* wheels
+  # that exhaust the runner's disk ("Disk quota exceeded" / "No space left on device").
+  UV_TORCH_BACKEND: cpu
 
 jobs:
   test:
