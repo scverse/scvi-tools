@@ -52,28 +52,28 @@ scVI-X posits a conditional VAE generative model. For each cell $n$:
 
 1. A latent cell-state vector $z_n$ is drawn from the prior:
 
-    $z_n \sim p(z)$
+   $z_n \sim p(z)$
 
-    where $p(z)$ is one of: a standard Gaussian, a mixture of Gaussians
-    (MOG), a variational amortized mixture of posteriors (VampPrior).
+   where $p(z)$ is one of: a standard Gaussian, a mixture of Gaussians
+   (MOG), a variational amortized mixture of posteriors (VampPrior).
 
 2. The normalised expression scale $h_n$ is decoded from $z_n$ conditioned
    on the batch $b_n$ and assay $a_n$:
 
-    $h_n = \mathrm{softmax}\!\left(f_\theta(z_n,\, b_n) + \delta_{a_n}\right)$
+   $h_n = \mathrm{softmax}\!\left(f_\theta(z_n,\, b_n) + \delta_{a_n}\right)$
 
-    where $f_\theta$ is a fully-connected decoder network, and
-    $\delta_{a_n} \in \mathbb{R}^G$ is a learned, assay-specific output bias
-    vector that captures gene-level differences in transcript-detection
-    efficiency across sequencing platforms.
+   where $f_\theta$ is a fully-connected decoder network, and
+   $\delta_{a_n} \in \mathbb{R}^G$ is a learned, assay-specific output bias
+   vector that captures gene-level differences in transcript-detection
+   efficiency across sequencing platforms.
 
 3. Observed counts are generated from a negative binomial (or ZINB / Poisson)
    likelihood:
 
-    $x_{ng} \mid h_{ng} \sim \mathrm{NegativeBinomial}(l_n\, h_{ng},\; r_{ng})$
+   $x_{ng} \mid h_{ng} \sim \mathrm{NegativeBinomial}(l_n\, h_{ng},\; r_{ng})$
 
-    where $l_n$ is the observed library size and $r_{ng}$ is the
-    gene-specific (or cell-specific) inverse dispersion.
+   where $l_n$ is the observed library size and $r_{ng}$ is the
+   gene-specific (or cell-specific) inverse dispersion.
 
 The latent variables are summarised below:
 
@@ -82,24 +82,24 @@ The latent variables are summarised below:
    :widths: 20 80 15
    :header-rows: 1
 
-   * - Variable
-     - Description
-     - Code name
-   * - :math:`z_n \in \mathbb{R}^L`
-     - Technology-invariant cell-state embedding.
-     - ``z``
-   * - :math:`h_n \in \mathbb{R}^G`
-     - Normalised gene expression scale.
-     - ``px_scale``
-   * - :math:`l_n \in \mathbb{R}^+`
-     - Observed library size (log-transformed).
-     - ``library``
-   * - :math:`r_{ng} \in \mathbb{R}^+`
-     - Gene- (and optionally cell-) specific inverse dispersion.
-     - ``px_r``
-   * - :math:`\delta_{a_n} \in \mathbb{R}^G`
-     - Assay-specific gene-level output bias.
-     - output layer weights conditioned on ``assay_index``
+* - Variable
+  - Description
+  - Code name
+* - :math:`z_n \in \mathbb{R}^L`
+  - Technology-invariant cell-state embedding.
+  - ``z``
+* - :math:`h_n \in \mathbb{R}^G`
+  - Normalised gene expression scale.
+  - ``px_scale``
+* - :math:`l_n \in \mathbb{R}^+`
+  - Observed library size (log-transformed).
+  - ``library``
+* - :math:`r_{ng} \in \mathbb{R}^+`
+  - Gene- (and optionally cell-) specific inverse dispersion.
+  - ``px_r``
+* - :math:`\delta_{a_n} \in \mathbb{R}^G`
+  - Assay-specific gene-level output bias.
+  - output layer weights conditioned on ``assay_index``
 ```
 
 ### Variational batch embeddings (optional)
@@ -244,22 +244,20 @@ batch_emb = model.get_batch_representation()  # shape: (n_cells, embedding_dim)
    :widths: 25 75
    :header-rows: 1
 
-   * - Argument
-     - Description
-   * - ``batch_key``
-     - Column in ``adata.obs`` for experimental batch (donor, run, etc.).
-   * - ``assay_key``
-     - Column in ``adata.obs`` for sequencing technology / suspension type.
-       Drives conditional layer normalisation and assay-output biases.
+* - Argument
+  - Description
+* - ``batch_key``
+  - Column in ``adata.obs`` for experimental batch (donor, run, etc.).
+* - ``assay_key``
+  - Column in ``adata.obs`` for sequencing technology / suspension type.
+    Drives conditional layer normalisation and assay-output biases.
 ```
 
-[^ref1]:
-    Can Ergen, Ori Kronfeld, Martin Kim, Shiyi Yang, Florian Ingelfinger,
+[^ref1]: Can Ergen, Ori Kronfeld, Martin Kim, Shiyi Yang, Florian Ingelfinger,
     Nir Yosef (in preparation),
-    _scvi-X: Learning technology-invariant cell states_.
+    *scvi-X: Learning technology-invariant cell states*.
 
-[^ref2]:
-    Romain Lopez, Jeffrey Regier, Michael B Cole, Michael I Jordan, Nir Yosef
+[^ref2]: Romain Lopez, Jeffrey Regier, Michael B Cole, Michael I Jordan, Nir Yosef
     (2018),
-    _Deep generative modeling for single-cell transcriptomics_,
+    *Deep generative modeling for single-cell transcriptomics*,
     [Nature Methods](https://doi.org/10.1038/s41592-018-0229-2).
