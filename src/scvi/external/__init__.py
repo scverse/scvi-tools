@@ -20,6 +20,7 @@ from .sysvi import SysVI
 from .tangram import Tangram
 from .totalanvi import TOTALANVI
 from .velovi import VELOVI
+from .vivs import VIVS
 
 __all__ = [
     "SCVIX",
@@ -47,4 +48,5 @@ __all__ = [
     "CYTOVI",
     "DIAGVI",
     "DRVI",
+    "VIVS",
 ]

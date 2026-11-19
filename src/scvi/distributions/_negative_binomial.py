@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -16,6 +17,10 @@ from torch.distributions.utils import (
 from scvi import settings
 
 from ._constraints import optional_constraint
+from ._utils import _mps_supports_lgamma_on_noncontiguous, _needs_cpu_detour
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
@@ -31,6 +36,32 @@ def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
     lgamma tensor that performs on a copied version of the tensor
     """
     return torch.lgamma(x.contiguous())
+
+
+def _lgamma_fn(on_mps: bool) -> Callable[[torch.Tensor], torch.Tensor]:
+    """Pick the lgamma implementation, using the contiguous-copy detour only if still needed."""
+    if on_mps and not _mps_supports_lgamma_on_noncontiguous():
+        return torch_lgamma_mps
+    return torch.lgamma
+
+
+def _log_nb_rates(
+    mu: torch.Tensor,
+    theta: torch.Tensor,
+    eps: float = 1e-8,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return the NB rate terms ``log(theta / (theta + mu))`` and ``log(mu / (theta + mu))``.
+
+    Both are taken from ``-log1p`` of a single ratio. Forming them as
+    ``log(mu + eps) - log(theta + mu + eps)`` instead subtracts two nearly equal logs whenever
+    ``mu >> theta``; in float32 that makes the gradient with respect to ``mu`` lose most of its
+    digits, or vanish, once ``x / theta`` exceeds ~1e5 (:issue:`4086`). Each ratio carries only
+    its own ``eps``, so the values match the eps-stabilised expressions even when ``theta`` or
+    ``mu`` is below ``eps``.
+    """
+    log_theta_rate = -torch.log1p(mu / (theta + eps))
+    log_mu_rate = -torch.log1p(theta / (mu + eps))
+    return log_theta_rate, log_mu_rate
 
 
 def log_zinb_positive(
@@ -65,7 +96,6 @@ def log_zinb_positive(
     -----
     We parametrize the bernoulli using the logits, hence the softplus functions appearing.
     """
-    log = log_fn
     lgamma = lgamma_fn
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless
     # of batch or labels)
@@ -74,9 +104,8 @@ def log_zinb_positive(
 
     # Uses log(sigmoid(x)) = -softplus(-x)
     softplus_pi = F.softplus(-pi)
-    log_theta_eps = log(theta + eps)
-    log_theta_mu_eps = log(theta + mu + eps)
-    pi_theta_log = -pi + theta * (log_theta_eps - log_theta_mu_eps)
+    log_theta_rate, log_mu_rate = _log_nb_rates(mu, theta, eps)
+    pi_theta_log = -pi + theta * log_theta_rate
 
     case_zero = F.softplus(pi_theta_log) - softplus_pi
     mul_case_zero = torch.mul((x < eps).type(torch.float32), case_zero)
@@ -84,7 +113,7 @@ def log_zinb_positive(
     case_non_zero = (
         -softplus_pi
         + pi_theta_log
-        + x * (log(mu + eps) - log_theta_mu_eps)
+        + x * log_mu_rate
         + lgamma(x + theta)
         - lgamma(theta)
         - lgamma(x + 1)
@@ -121,12 +150,11 @@ def log_nb_positive(
     lgamma_fn
         log gamma function
     """
-    log = log_fn
     lgamma = lgamma_fn
-    log_theta_mu_eps = log(theta + mu + eps)
+    log_theta_rate, log_mu_rate = _log_nb_rates(mu, theta, eps)
     res = (
-        theta * (log(theta + eps) - log_theta_mu_eps)
-        + x * (log(mu + eps) - log_theta_mu_eps)
+        theta * log_theta_rate
+        + x * log_mu_rate
         + lgamma(x + theta)
         - lgamma(theta)
         - lgamma(x + 1)
@@ -179,36 +207,30 @@ def log_mixture_nb(
     log = log_fn
     lgamma = lgamma_fn
     if theta_2 is not None:
-        log_nb_1 = log_nb_positive(x, mu_1, theta_1)
-        log_nb_2 = log_nb_positive(x, mu_2, theta_2)
+        log_nb_1 = log_nb_positive(x, mu_1, theta_1, eps=eps, log_fn=log, lgamma_fn=lgamma)
+        log_nb_2 = log_nb_positive(x, mu_2, theta_2, eps=eps, log_fn=log, lgamma_fn=lgamma)
+        logsumexp = torch.logsumexp(torch.stack((log_nb_1, log_nb_2 - pi_logits)), dim=0)
     # this is intended to reduce repeated computations
     else:
         theta = theta_1
         if theta.ndimension() == 1:
             theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
 
-        log_theta_mu_1_eps = log(theta + mu_1 + eps)
-        log_theta_mu_2_eps = log(theta + mu_2 + eps)
-        lgamma_x_theta = lgamma(x + theta)
-        lgamma_theta = lgamma(theta)
-        lgamma_x_plus_1 = lgamma(x + 1)
-
-        log_nb_1 = (
-            theta * (log(theta + eps) - log_theta_mu_1_eps)
-            + x * (log(mu_1 + eps) - log_theta_mu_1_eps)
-            + lgamma_x_theta
-            - lgamma_theta
-            - lgamma_x_plus_1
-        )
-        log_nb_2 = (
-            theta * (log(theta + eps) - log_theta_mu_2_eps)
-            + x * (log(mu_2 + eps) - log_theta_mu_2_eps)
-            + lgamma_x_theta
-            - lgamma_theta
-            - lgamma_x_plus_1
+        log_theta_rate_1, log_mu_rate_1 = _log_nb_rates(mu_1, theta, eps)
+        log_theta_rate_2, log_mu_rate_2 = _log_nb_rates(mu_2, theta, eps)
+        log_unnormalized_1 = theta * log_theta_rate_1 + x * log_mu_rate_1
+        log_unnormalized_2 = theta * log_theta_rate_2 + x * log_mu_rate_2
+        # The lgamma normalizer is shared by both components, so it is added after the
+        # logsumexp. Adding it first rounds both components to the same float32 value for
+        # large counts, which corrupts the mixture weights and hence the gradient (#4086).
+        log_normalizer = lgamma(x + theta) - lgamma(theta) - lgamma(x + 1)
+        logsumexp = (
+            torch.logsumexp(
+                torch.stack((log_unnormalized_1, log_unnormalized_2 - pi_logits)), dim=0
+            )
+            + log_normalizer
         )
 
-    logsumexp = torch.logsumexp(torch.stack((log_nb_1, log_nb_2 - pi_logits)), dim=0)
     softplus_pi = F.softplus(-pi_logits)
 
     log_mixture_nb_res = logsumexp - softplus_pi
@@ -273,13 +295,10 @@ def _convert_counts_logits_to_mean_disp(
 def _gamma(theta: torch.Tensor, mu: torch.Tensor, on_mps: bool = False) -> Gamma:
     concentration = theta
     rate = theta / mu
+    if _needs_cpu_detour(on_mps, torch._standard_gamma):
+        concentration, rate = concentration.to("cpu"), rate.to("cpu")
     # Important remark: Gamma is parametrized by the rate = 1/scale!
-    gamma_d = (
-        Gamma(concentration=concentration.to("cpu"), rate=rate.to("cpu"))
-        if on_mps  # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
-        else Gamma(concentration=concentration, rate=rate)
-    )
-    return gamma_d
+    return Gamma(concentration=concentration, rate=rate)
 
 
 class Poisson(PoissonTorch):
@@ -378,9 +397,8 @@ class NegativeBinomial(Distribution):
         scale: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
-        self.on_mps = (
-            mu.device.type == "mps" if total_count is None else total_count.device.type == "mps"
-        )  # TODO: This is used until torch will solve the MPS issues
+        self._device = mu.device if total_count is None else total_count.device
+        self.on_mps = self._device.type == "mps"
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
             raise ValueError(
@@ -429,18 +447,16 @@ class NegativeBinomial(Distribution):
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
-        gamma_d = self._gamma()  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
+        gamma_d = self._gamma()
         p_means = gamma_d.sample(sample_shape)
 
         # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
-        counts = (
-            PoissonTorch(l_train).sample().to("mps")
-            if self.on_mps  # TODO: NEED TORCH MPS FIX for 'aten::poisson'
-            else PoissonTorch(l_train).sample()
-        )  # Shape : (n_samples, n_cells_batch, n_vars)
-        return counts
+        if _needs_cpu_detour(self.on_mps, torch.poisson):
+            l_train = l_train.to("cpu")
+        counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+        return counts.to(self._device)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         if self._validate_args:
@@ -453,7 +469,7 @@ class NegativeBinomial(Distribution):
                     stacklevel=settings.warnings_stacklevel,
                 )
 
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_nb_positive(
             value, mu=self.mu, theta=self.theta, eps=self._eps, lgamma_fn=lgamma_fn
         )
@@ -580,7 +596,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_zinb_positive(
             value, self.mu, self.theta, self.zi_logits, eps=1e-08, lgamma_fn=lgamma_fn
         )
@@ -603,7 +619,7 @@ class NegativeBinomialMixture(Distribution):
     mixture_logits
         Logits scale probability of belonging to component 1.
     theta2
-        Inverse dispersion for component 1. If `None`, assumed to be equal to `theta1`.
+        Inverse dispersion for component 2. If `None`, assumed to be equal to `theta1`.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
@@ -632,13 +648,12 @@ class NegativeBinomialMixture(Distribution):
             self.mu2,
             self.mixture_logits,
         ) = broadcast_all(mu1, theta1, mu2, mixture_logits)
-        self.on_mps = (
-            mu1.device.type == "mps"
-        )  # TODO: This is used until torch will solve the MPS issues
+        self._device = mu1.device
+        self.on_mps = self._device.type == "mps"
         super().__init__(validate_args=validate_args)
 
         if theta2 is not None:
-            self.theta2 = broadcast_all(mu1, theta2)
+            self.theta2 = broadcast_all(self.mu1, theta2)[1]
         else:
             self.theta2 = None
 
@@ -667,20 +682,22 @@ class NegativeBinomialMixture(Distribution):
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
         pi = self.mixture_probs
-        mixing_sample = torch.distributions.Bernoulli(pi).sample()
+        mixing_sample = torch.distributions.Bernoulli(pi).sample(sample_shape)
         mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
         if self.theta2 is None:
             theta = self.theta1
         else:
             theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-        gamma_d = _gamma(theta, mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
-        p_means = gamma_d.sample(sample_shape)
+        gamma_d = _gamma(theta, mu, self.on_mps)
+        p_means = gamma_d.sample()
 
         # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
+        if _needs_cpu_detour(self.on_mps, torch.poisson):
+            l_train = l_train.to("cpu")
         counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_features)
-        return counts
+        return counts.to(self._device)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         """Log probability."""
@@ -692,7 +709,7 @@ class NegativeBinomialMixture(Distribution):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
+        lgamma_fn = _lgamma_fn(self.on_mps)
         return log_mixture_nb(
             value,
             self.mu1,

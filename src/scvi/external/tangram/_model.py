@@ -69,7 +69,7 @@ class Tangram(BaseModelClass):
     Notes
     -----
     See further usage examples in the following tutorials:
-    1. :doc:`/tutorials/notebooks/spatial/tangram_scvi_tools`
+    1. `Tangram: Mapping Single Cells onto Spatial Data <https://scviva-tools.readthedocs.io/en/latest/tutorials/tangram_scvi_tools.html>`__
     2. The JAX version is deprecated starting v1.5 and replaced by torch backend.
     """
 

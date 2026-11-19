@@ -1,5 +1,13 @@
 # User guide
 
+```{toctree}
+:maxdepth: 2
+:hidden:
+
+background/index
+use_case/index
+```
+
 scvi-tools is composed of models that can perform one or many analysis tasks. In the user guide, we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
 
 :::{figure} /\_static/tasks.png
@@ -10,6 +18,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ## scRNA-seq analysis
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 15 100 25
@@ -67,9 +76,11 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Prediction of single-cell perturbation responses via latent space vector arithmetic
      - :cite:p:`Lotfollahi19`
 ```
+<!-- panache-ignore-format-end -->
 
 ## ATAC-seq analysis
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 15 100 25
@@ -88,9 +99,11 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Analyzing scATAC-seq data using quantitative fragment counts
      - :cite:p:`Martens2023`
 ```
+<!-- panache-ignore-format-end -->
 
 ## BS-seq analysis
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 15 100 25
@@ -106,9 +119,11 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - MethylVI tasks along with cell type label transfer from reference, seed labeling
      - :cite:p:`Weinberger26`
 ```
+<!-- panache-ignore-format-end -->
 
 ## Cytometry analysis
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 15 100 25
@@ -121,11 +136,13 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Correct batch effects, perform integration and downstream analysis in cytometry data
      - :cite:p:`Ingelfinger25`
 ```
+<!-- panache-ignore-format-end -->
 
 ## Multimodal analysis
 
 ### CITE-seq
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 15 100 25
@@ -141,9 +158,11 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - A probabilistic generative model for single-cell RNA and CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer both protein expression and cell states
      - :cite:p:`Mark26`
 ```
+<!-- panache-ignore-format-end -->
 
 ### Multiome
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 15 100 25
@@ -160,9 +179,11 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      -
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Spatial transcriptomics analysis
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 15 100 25
@@ -190,9 +211,11 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Representation of cells and their environments in spatial transcriptomics
      - :cite:p:`Levy25`
 ```
+<!-- panache-ignore-format-end -->
 
 ## General purpose analysis
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 15 100 25
@@ -209,22 +232,20 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`Ergen25-2`
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Glossary
 
 ::::{tab-set}
-
 :::{tab-item} Model
-
 A Model class inherits {class}`~scvi.model.base.BaseModelClass` and is the user-facing object for interacting with a module.
 The model has a `train` method that learns the parameters of the module, and also contains methods
 for users to retrieve information from the module, like the latent representation of cells in a VAE.
 Conventionally, the post-inference model methods should not store data into the AnnData object, but
-instead return "standard" Python objects, like numpy arrays or pandas dataframes.
+instead return “standard” Python objects, like numpy arrays or pandas dataframes.
 :::
 
 :::{tab-item} Module
-
 A module is the lower-level object that defines a generative model and inference scheme. A module will
 either inherit {class}`~scvi.module.base.BaseModuleClass` or {class}`~scvi.module.base.PyroBaseModuleClass`.
 Consequently, a module can either be implemented with PyTorch alone, or Pyro. In the PyTorch only case, the
@@ -234,9 +255,7 @@ while the `loss` method computes the loss, e.g, ELBO in the case of variational 
 ::::
 
 ::::{tab-set}
-
 :::{tab-item} TrainingPlan
-
 The training plan is a PyTorch Lightning Module that is initialized with a scvi-tools module object.
 It configures the optimizers, defines the training step and validation step, and computes metrics to be
 recorded during training. The training step and validation step are functions that take data, run it through
@@ -245,20 +264,9 @@ Overall, custom training plans can be used to develop complex inference schemes 
 :::
 
 :::{tab-item} Trainer
-
 The {class}`~scvi.train.Trainer` is a lightweight wrapper of the PyTorch Lightning Trainer. It takes as input
 the training plan, a training data loader, and a validation dataloader. It performs the actual training loop, in
 which parameters are optimized, as well as the validation loop to monitor metrics. It automatically handles moving
 data to the correct device (CPU/GPU).
 :::
 ::::
-
-
-```{toctree}
-:maxdepth: 2
-:hidden:
-
-background/index
-use_case/index
-models/index
-```

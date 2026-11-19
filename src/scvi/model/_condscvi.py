@@ -70,7 +70,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     -----
     See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
+    1. `DestVI: Multi-Resolution Deconvolution of Spatial Transcriptomics <https://scviva-tools.readthedocs.io/en/latest/tutorials/DestVI_tutorial.html>`__
     """
 
     _module_cls = VAEC

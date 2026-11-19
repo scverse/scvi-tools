@@ -5,18 +5,18 @@ be used for many common downstream tasks.
 
 The advantages of peakVI are:
 
--   Comprehensive in capabilities.
--   Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of peakVI include:
 
--   Effectively requires a GPU for fast inference.
--   Latent space is not interpretable, unlike that of a linear method.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/atac/PeakVI`
--   {doc}`/tutorials/notebooks/r/peakvi_in_R`
+- {doc}`/tutorials/notebooks/atac/PeakVI`
+- {doc}`/tutorials/notebooks/r/peakvi_in_R`
 ```
 
 ## Preliminaries
@@ -61,6 +61,7 @@ which estimates the probability of accessibility.
 
 The latent variables, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -82,6 +83,7 @@ The latent variables, along with their description, are summarized in the follow
      - Region-wise scaling factor
      - ``f``
 ```
+<!-- panache-ignore-format-end -->
 
 ## Inference
 

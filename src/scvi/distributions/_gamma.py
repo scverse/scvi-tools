@@ -15,6 +15,7 @@ from torch.distributions.utils import (
 from scvi import settings
 
 from ._constraints import optional_constraint
+from ._utils import _needs_cpu_detour
 
 
 class ZeroInflatedGamma(Gamma):
@@ -126,7 +127,16 @@ class ZeroInflatedGamma(Gamma):
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
-        samp = super().sample(sample_shape=sample_shape)
+        device = self.concentration.device
+        on_mps = device.type == "mps"
+        if _needs_cpu_detour(on_mps, torch._standard_gamma):
+            samp = (
+                Gamma(self.concentration.to("cpu"), self.rate.to("cpu"))
+                .sample(sample_shape)
+                .to(device)
+            )
+        else:
+            samp = super().sample(sample_shape=sample_shape)
         is_zero = torch.rand_like(samp) <= self.zi_probs
         samp_ = torch.where(is_zero, torch.zeros_like(samp), samp)
         return samp_

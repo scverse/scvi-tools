@@ -57,7 +57,7 @@ class DRVI(SCVI, GenerativeMixin, InterpretabilityMixin):
         Additional keyword args for :class:`~scvi.model.SCVI` /
         :class:`~scvi.external.drvi.DRVIModule`
         (e.g. ``n_hidden``, ``n_layers``, ``n_split_output``, ``dispersion``,
-        ``batch_representation``, ``activation_fn``, ``use_observed_lib_size``).
+        ``batch_representation``, ``activation_fn``, ``residual``, ``use_observed_lib_size``).
 
     Examples
     --------

@@ -4,7 +4,10 @@ from math import ceil, floor
 
 import numpy as np
 import pytest
+import torch
 
+import scvi.dataloaders._data_splitting as data_splitting_module
+from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from tests.data.utils import generic_setup_adata_manager
@@ -228,3 +231,42 @@ def test_datasplitter_load_sparse_tensor(
         expected_sparse_layout=sparse_format.split("_")[0],
         external_indexing=[np.array(train_ind), np.array(valid_ind)],
     )
+
+
+def test_mps_supports_sparse_compressed_tensor_probe_answers_without_a_device():
+    result = data_splitting_module._mps_supports_sparse_compressed_tensor()
+    assert isinstance(result, bool)
+    if not torch.backends.mps.is_available():
+        assert result is False
+
+
+@pytest.mark.parametrize(
+    ("device_str", "supports_sparse", "expect_dense"),
+    [("cpu", False, False), ("cpu", True, False), ("mps", True, False), ("mps", False, True)],
+)
+def test_transfer_batch_to_device_densifies_only_for_mps_without_sparse_support(
+    monkeypatch, device_str, supports_sparse, expect_dense
+):
+    monkeypatch.setattr(
+        data_splitting_module, "_mps_supports_sparse_compressed_tensor", lambda: supports_sparse
+    )
+    # Bypass the real device transfer (this test must run on any machine); only the
+    # densify-before-transfer logic is under test here.
+    monkeypatch.setattr(
+        data_splitting_module.pl.LightningDataModule,
+        "transfer_batch_to_device",
+        lambda self, batch, device, dataloader_idx: batch,
+    )
+
+    adata = synthetic_iid()
+    manager = generic_setup_adata_manager(adata)
+    splitter = DataSplitter(manager, load_sparse_tensor=True)
+
+    x_sparse = torch.eye(3).to_sparse_csr()
+    batch = {REGISTRY_KEYS.X_KEY: x_sparse}
+    out = splitter.transfer_batch_to_device(batch, torch.device(device_str), 0)
+
+    if expect_dense:
+        assert out[REGISTRY_KEYS.X_KEY].layout == torch.strided
+    else:
+        assert out[REGISTRY_KEYS.X_KEY].layout == torch.sparse_csr

@@ -75,7 +75,6 @@ def test_scviva_train(adata: AnnData):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
 
     assert nichevae.is_trained
@@ -107,7 +106,6 @@ def test_scviva_save_load(adata):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
     hist_elbo = nichevae.history["elbo_train"]
     latent = nichevae.get_latent_representation()
@@ -156,7 +154,6 @@ def test_scviva_differential(adata):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
 
     nichevae.differential_expression(
@@ -271,7 +268,6 @@ def test_scviva_scarches_less_features(split_ref_query_adata):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
 
     assert nichevae.is_trained
@@ -300,7 +296,6 @@ def test_scviva_scarches_less_features(split_ref_query_adata):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
 
     predicted_alpha = query_nichevae.predict_neighborhood(query_adata)
@@ -373,7 +368,6 @@ def test_scviva_scarches_same_features(split_ref_query_adata):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
 
     assert nichevae.is_trained
@@ -399,7 +393,6 @@ def test_scviva_scarches_same_features(split_ref_query_adata):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
 
     predicted_alpha = query_nichevae.predict_neighborhood(query_adata)
@@ -442,7 +435,6 @@ def test_scviva_scarches_batch_embedding(split_ref_query_adata):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
 
     nichevae.preprocessing_query_anndata(
@@ -459,7 +451,6 @@ def test_scviva_scarches_batch_embedding(split_ref_query_adata):
         validation_size=0.2,
         early_stopping=True,
         check_val_every_n_epoch=1,
-        accelerator="cpu",
     )
 
     assert query_nichevae.get_latent_representation(query_adata).shape[0] == query_adata.n_obs

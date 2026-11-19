@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "scvi-tools"
-version = "1.5.0.post1"
+version = "1.5.2"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -26,6 +26,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
@@ -40,7 +41,7 @@ dependencies = [
   "pandas",
   "pyro-ppl",
   "rich",
-  "scanpy[skmisc]>=1.10",
+  "scanpy[skmisc]>=1.11",
   "scikit-learn",
   "scipy",
   "sparse>=0.14",
@@ -73,7 +74,7 @@ optional-dependencies.cuda13 = [
 ]
 # for custom dataloaders
 optional-dependencies.dataloaders = [
-  "annbatch[zarrs]>=0.2",
+  "annbatch[zarrs]>=0.3",
   "cellxgene-census",
   "lamindb>=1.12.1",
   "tiledbsoma",
@@ -92,8 +93,10 @@ optional-dependencies.metal = [ "mlx", "mlx-metal", "torchaudio", "torchvision" 
 # for mlflow
 optional-dependencies.mlflow = [ "gputil", "mlflow>=3.9", "nvidia-ml-py", "psutil" ]
 optional-dependencies.optional = [
+  "fastcluster",
   "igraph",
   "leidenalg",
+  "plotnine",
   "pynndescent",
   "scvi-tools[autotune,diagvi,file-sharing,hub,interpretability,mlflow,parallel,regseq]",
 ]
@@ -121,7 +124,6 @@ optional-dependencies.tutorials = [
   "cell2location",
   "jupyter",
   "matplotlib",
-  "plotnine",
   "scrublet",
   "scvi-tools[dataloaders,optional]",
   "seaborn",
@@ -149,17 +151,11 @@ doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
   "ipykernel",
   "ipython",
-  "myst-nb>=1.1",
-  "myst-parser",
   "pandas",
-  "sphinx>=8.1,<9",
+  "scverse-doc[full]>=0.4",
+  "sphinx>=9.1",
   "sphinx-autodoc-typehints",
-  "sphinx-book-theme>=1",
-  "sphinx-copybutton",
-  "sphinx-design",
-  "sphinx-hoverxref",
   "sphinxcontrib-bibtex>=1",
-  "sphinxext-opengraph",
 ]
 
 [tool.hatch]

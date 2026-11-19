@@ -6,17 +6,21 @@ Import scvi-tools as:
 import scvi
 ```
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. currentmodule:: scvi
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Model
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. currentmodule:: scvi
 
 ```
+<!-- panache-ignore-format-end -->
 
 ```{eval-rst}
 .. autosummary::
@@ -70,12 +74,14 @@ import scvi
    external.DRVI
    external.JointEmbeddingSCVI
    external.Tangram
+   external.VIVS
 ```
 
 ## Data loading
 
-`scvi-tools` relies entirely on the [AnnData] format. For convenience, we have included data loaders from the [AnnData] API. [Scanpy] also has [utilities] to load data that are outputted by 10x's Cell Ranger software.
+`scvi-tools` relies entirely on the [AnnData] format. For convenience, we have included data loaders from the [AnnData] API. [Scanpy] also has [utilities] to load data that are outputted by 10x’s Cell Ranger software.
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
@@ -89,6 +95,7 @@ import scvi
    data.read_10x_multiome
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Basic preprocessing
 

@@ -8,7 +8,9 @@ from anndata import AnnData
 from torch import nn
 
 import scvi
+import scvi.external.drvi._distributions as drvi_distributions_module
 from scvi.external.drvi import DRVI, DRVIModule
+from scvi.external.drvi._distributions import LogNegativeBinomial
 
 
 def mock_adata(n_genes: int = 50, n_batches: int = 2, n_labels: int = 3) -> AnnData:
@@ -179,6 +181,37 @@ def test_drvi_mean_activation(save_path):
     model.save(dir_path, overwrite=True)
     loaded = DRVI.load(dir_path, adata=adata)
     np.testing.assert_allclose(z_mean, loaded.get_latent_representation(give_mean=True), atol=1e-5)
+
+
+def test_drvi_residual(save_path):
+    """residual=True adds skip connections on the encoder and decoder bodies (off by default), the
+    latent stays finite, and the flag round-trips through save/load."""
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+
+    default = DRVI(adata, n_latent=8, n_layers=2)
+    assert default.module.residual is False
+    assert default.module.z_encoder.encoder.residual is False
+    assert default.module.decoder.px_decoder.residual is False
+
+    model = DRVI(adata, n_latent=8, n_layers=2, residual=True)
+    assert model.module.residual is True
+    assert model.module.z_encoder.encoder.residual is True
+    assert model.module.decoder.px_decoder.residual is True
+
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+    z = model.get_latent_representation()
+    assert z.shape == (adata.n_obs, 8)
+    assert np.isfinite(z).all()
+
+    # the residual flag round-trips through save/load and the latent is reproduced
+    dir_path = os.path.join(save_path, "drvi_residual_model/")
+    model.save(dir_path, overwrite=True)
+    loaded = DRVI.load(dir_path, adata=adata)
+    assert loaded.module.residual is True
+    assert loaded.module.z_encoder.encoder.residual is True
+    assert loaded.module.decoder.px_decoder.residual is True
+    np.testing.assert_allclose(z, loaded.get_latent_representation(), atol=1e-5)
 
 
 def test_drvi_batch_embedding():
@@ -611,3 +644,29 @@ def test_drvi_rnaseq_mixin(gene_likelihood):
     de = model.differential_expression(groupby="labels", mode="change", silent=True)
     assert de.shape[0] > 0
     assert "proba_de" in de.columns
+
+
+def test_log_negative_binomial_sample_poisson_cpu_detour_forced(monkeypatch):
+    """Forces the CPU detour the way a torch without an MPS 'aten::poisson' kernel would."""
+    monkeypatch.setattr(drvi_distributions_module, "_needs_cpu_detour", lambda on_mps, op: True)
+
+    log_m = torch.randn(64, 8)
+    log_r = torch.randn(64, 8)
+    dist = LogNegativeBinomial(log_m=log_m, log_r=log_r)
+
+    samples = dist.sample((16,))
+    assert samples.shape == (16, 64, 8)
+    assert (samples >= 0).all()
+    assert samples.device == log_m.device
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_log_negative_binomial_sample_poisson_stays_on_mps():
+    log_m = torch.randn(64, 8, device="mps")
+    log_r = torch.randn(64, 8, device="mps")
+    dist = LogNegativeBinomial(log_m=log_m, log_r=log_r)
+
+    samples = dist.sample((16,))
+    assert samples.device.type == "mps"
+    assert samples.shape == (16, 64, 8)
+    assert (samples >= 0).all()

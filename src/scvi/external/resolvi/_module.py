@@ -172,8 +172,8 @@ class RESOLVAEModel(PyroModule):
             )
         self.register_buffer("px_r", init_px_r)
 
-        self.register_buffer("median_distance", torch.tensor(median_distance))
-        self.register_buffer("sparsity_diffusion", torch.tensor(sparsity_diffusion))
+        self.register_buffer("median_distance", torch.tensor(float(median_distance)))
+        self.register_buffer("sparsity_diffusion", torch.tensor(float(sparsity_diffusion)))
         self.register_buffer("gene_dummy", torch.ones([n_batch, n_input]))
 
         if self.semisupervised:
@@ -192,9 +192,9 @@ class RESOLVAEModel(PyroModule):
             "prior_proportions",
             torch.tensor(
                 [
-                    prior_true_amount,
-                    prior_diffusion_amount,
-                    10 * background_ratio * prior_true_amount + 1e-3,
+                    float(prior_true_amount),
+                    float(prior_diffusion_amount),
+                    float(10 * background_ratio * prior_true_amount + 1e-3),
                 ]
             ),
         )
@@ -848,9 +848,14 @@ class RESOLVAEGuide(PyroModule):
         self.n_input = n_input
         self.n_obs = n_obs
         self.n_neighbors = n_neighbors
-        self.median_distance = median_distance
-        self.downsample_counts_mean = downsample_counts_mean
-        self.downsample_counts_std = downsample_counts_std
+        # median_distance/downsample_counts_* are auto-computed from data via np.median/np.std
+        # (numpy.float64, not a plain float); casting here keeps arithmetic with float32 tensors
+        # from silently upcasting to float64, which torch's mps backend cannot move to device.
+        self.median_distance = float(median_distance)
+        self.downsample_counts_mean = (
+            None if downsample_counts_mean is None else float(downsample_counts_mean)
+        )
+        self.downsample_counts_std = float(downsample_counts_std)
 
         if self.dispersion == "gene":
             init_px_r = torch.full([n_input], 0.01)

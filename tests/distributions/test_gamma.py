@@ -1,5 +1,7 @@
+import pytest
 import torch
 
+import scvi.distributions._gamma as gamma_module
 from scvi.distributions import ZeroInflatedGamma
 
 
@@ -122,3 +124,31 @@ def test_zi_gamma_low_zero_inflation():
     zero_proportion = (samples == 0).float().mean()
     expected_zi_prob = torch.sigmoid(zi_logits).item()
     assert (zero_proportion - expected_zi_prob).abs() <= 0.05
+
+
+def test_sample_gamma_cpu_detour_forced(monkeypatch):
+    """Forces the CPU detour the way a torch without an MPS '_standard_gamma' kernel would."""
+    monkeypatch.setattr(gamma_module, "_needs_cpu_detour", lambda on_mps, op: True)
+
+    concentration = torch.rand(64, 8) + 0.5
+    rate = torch.rand(64, 8) + 0.5
+    zi_logits = torch.randn(64, 8)
+    dist = ZeroInflatedGamma(concentration=concentration, rate=rate, zi_logits=zi_logits)
+
+    samples = dist.sample((16,))
+    assert samples.shape == (16, 64, 8)
+    assert (samples >= 0).all()
+    assert samples.device == concentration.device
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires an MPS device")
+def test_sample_gamma_stays_on_mps():
+    concentration = torch.rand(64, 8, device="mps") + 0.5
+    rate = torch.rand(64, 8, device="mps") + 0.5
+    zi_logits = torch.randn(64, 8, device="mps")
+    dist = ZeroInflatedGamma(concentration=concentration, rate=rate, zi_logits=zi_logits)
+
+    samples = dist.sample((16,))
+    assert samples.device.type == "mps"
+    assert samples.shape == (16, 64, 8)
+    assert (samples >= 0).all()

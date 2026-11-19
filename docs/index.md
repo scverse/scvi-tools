@@ -1,16 +1,16 @@
-# Documentation
+# scvi-tools
 
 `scvi-tools` (single-cell variational inference tools) is a package for end-to-end analysis of
 single-cell omics data primarily developed and maintained by the
 [Yosef Lab](https://www.weizmann.ac.il/immunology/yosef/) at the Weizmann Institute of Science.
 `scvi-tools` has two components:
 
--   Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
--   Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
+- Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
+- Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
 
 If you find a model useful for your research, please consider citing the [scvi-tools manuscript](http://dx.doi.org/10.1038/s41587-021-01206-w) as well as the publication describing the model, which can be found in the corresponding documentation.
 
-[//]: # (numfocus-fiscal-sponsor-attribution)
+[//]: # "numfocus-fiscal-sponsor-attribution"
 
 scvi-tools is part of the scverse® project ([website](https://scverse.org), [governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS](https://numfocus.org/).
 If you like scverse® and want to support our mission, please consider making a tax-deductible [donation](https://numfocus.org/donate-to-scverse) to help the project pay for developer time, professional services, travel, workshops, and a variety of other needs.
@@ -20,7 +20,7 @@ If you like scverse® and want to support our mission, please consider making a 
   <img
     src="https://raw.githubusercontent.com/numfocus/templates/master/images/numfocus-logo.png"
     width="200"
-  >
+>
 </a>
 </div>
 
@@ -31,7 +31,7 @@ If you like scverse® and want to support our mission, please consider making a 
 :link: installation
 :link-type: doc
 
-New to _scvi-tools_? Check out the installation guide.
+New to *scvi-tools*? Check out the installation guide.
 :::
 
 :::{grid-item-card} User guide {octicon}`info;1em;`
@@ -73,19 +73,45 @@ Find a bug? Interested in improving scvi-tools? Check out our GitHub for the lat
 ::::
 
 ```{toctree}
+:caption: Getting started
+:hidden: true
+:maxdepth: 1
+
+installation
+Quickstart <tutorials/notebooks/quick_start/api_overview>
+```
+
+```{toctree}
+:caption: Guides
 :hidden: true
 :maxdepth: 2
 :titlesonly: true
 
-installation
 tutorials/index
 user_guide/index
-api/index
 developer/index
 faq
+```
+
+```{toctree}
+:caption: Reference
+:hidden: true
+:maxdepth: 2
+:titlesonly: true
+
+api/index
+user_guide/models/index
+```
+
+```{toctree}
+:caption: Project
+:hidden: true
+:maxdepth: 1
+
 changelog.md
+citation
 references
-Discussion <https://discourse.scverse.org/>
 GitHub <https://github.com/scverse/scvi-tools>
+Discourse <https://discourse.scverse.org/c/help/scvi-tools/7>
 Model hub <https://huggingface.co/scvi-tools>
 ```
