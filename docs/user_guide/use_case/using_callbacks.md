@@ -3,10 +3,12 @@
 In PyTorch Lightning, callbacks are special functions that let you execute custom actions during the training process, like saving checkpoints, adjusting learning rates, or early stopping based on performance. To use callbacks, you first create a callback class that defines what should happen at specific points in training (e.g., at the end of an epoch or batch). Then, when setting up your Trainer, you pass a list of these callbacks. For example, if you want to save the best model during training, you can use ModelCheckpoint to automatically store the model when it achieves the best validation score.
 
 In scvi-tools we provide two custom callbacks based on that:
+
 1. Early Stopping callback: {class}`scvi.train._callbacks.LoudEarlyStopping`
 
 With this callback, training will stop when its monitored metric is reaching an optimal point for and did not improve for several epochs.
 There are several common parameters that can be controlled when running this callback:
+
 - early_stopping: A boolean on whether to activate the early stopping callback.
 - monitor: There are several metric keys we automatically record while training:
   "elbo_validation",
@@ -30,6 +32,7 @@ There are several common parameters that can be controlled when running this cal
   monitored has stopped increasing.
 
 Example of usage:
+
 ```python
 early_stopping_kwargs = {
     "early_stopping": True,
@@ -63,9 +66,10 @@ Several models will be trained with early stopping by default, e.g. {class}`~scv
 2. Model Checkpoint Callback: {class}`scvi.train._callbacks.SaveCheckpoint`
 
 Saves model checkpoints based on a monitored metric. The best model saved and best model score based on `monitor` can be accessed post-training
-with the `best_model_path` and `best_model_score` attributes, respectively. Starting in scvi-tools 1.3.0, we added the on_exception option to this callback, which in case of model error exceptions during training, resulting from Nan's in loss or gradients, will save the best model ("best" in terms of what is the monitored metric). It does not gracefully shutdown, but it is the user's responsibility to load this model and continue the analysis, e.g., the user can take the optimal model that was saved, or continue training it with perhaps different training parameters, to prevent the model from failing to train. Note this option will add some overhead to the training time.
+with the `best_model_path` and `best_model_score` attributes, respectively. Starting in scvi-tools 1.3.0, we added the on_exception option to this callback, which in case of model error exceptions during training, resulting from Nan’s in loss or gradients, will save the best model (“best” in terms of what is the monitored metric). It does not gracefully shutdown, but it is the user’s responsibility to load this model and continue the analysis, e.g., the user can take the optimal model that was saved, or continue training it with perhaps different training parameters, to prevent the model from failing to train. Note this option will add some overhead to the training time.
 
 It can be used by adding the following parameter to the train function:
+
 ```python
 model.train(
     ...,
@@ -77,4 +81,4 @@ model.train(
 )
 ```
 
-or just by adding "enable_checkpointing"= True to the model training command
+or just by adding “enable_checkpointing”= True to the model training command

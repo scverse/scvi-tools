@@ -2,36 +2,36 @@
 
 **contrastiveVI** {cite:p}`Weinberger23` (contrastive variational inference; Python class
 {class}`~scvi.external.ContrastiveVI`) is a generative model for the contrastive analysis
-of scRNA-seq count data. It is designed for experiments with a _background_ population,
-such as control cells, and a _target_ population, such as perturbed or diseased cells.
+of scRNA-seq count data. It is designed for experiments with a *background* population,
+such as control cells, and a *target* population, such as perturbed or diseased cells.
 After training, contrastiveVI can be used to extract target-specific latent structure,
 estimate normalized expression, and perform differential expression.
 
-Contrastive analysis requires a _target_ (e.g., treated cells) and a _background_
+Contrastive analysis requires a *target* (e.g., treated cells) and a *background*
 (e.g., control cells) dataset, and contrastiveVI is designed to isolate the variations
 enriched in target cells from variations shared with background cells.
 
 The advantages of contrastiveVI are:
 
--   It explicitly separates variation shared by target and background cells from variation
-    enriched in the target cells.
--   It provides both background and salient latent representations, which can be used for
-    visualization, clustering, and perturbation-specific downstream analyses.
--   It uses a count likelihood and supports many of the same data registration options as
-    other scRNA-seq models in scvi-tools, including batches and observed covariates.
+- It explicitly separates variation shared by target and background cells from variation
+  enriched in the target cells.
+- It provides both background and salient latent representations, which can be used for
+  visualization, clustering, and perturbation-specific downstream analyses.
+- It uses a count likelihood and supports many of the same data registration options as
+  other scRNA-seq models in scvi-tools, including batches and observed covariates.
 
 The limitations of contrastiveVI include:
 
--   It requires the user to define suitable background and target cell sets before training.
--   The salient latent space is interpretable relative to the supplied background population;
-    if important target variation is also present in the background, contrastiveVI may not
-    separate it as salient.
--   Like other nonlinear variational models, the individual latent dimensions are not
-    guaranteed to be independently interpretable.
+- It requires the user to define suitable background and target cell sets before training.
+- The salient latent space is interpretable relative to the supplied background population;
+  if important target variation is also present in the background, contrastiveVI may not
+  separate it as salient.
+- Like other nonlinear variational models, the individual latent dimensions are not
+  guaranteed to be independently interpretable.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/contrastiveVI_tutorial`
+- {doc}`/tutorials/notebooks/scrna/contrastiveVI_tutorial`
 ```
 
 ## Preliminaries
@@ -43,10 +43,10 @@ covariate annotations may also be registered.
 
 Training also requires two sets of cell indices:
 
--   `background_indices`, containing the background cells whose variation defines the
-    shared baseline.
--   `target_indices`, containing the target cells in which salient variation should be
-    isolated.
+- `background_indices`, containing the background cells whose variation defines the
+  shared baseline.
+- `target_indices`, containing the target cells in which salient variation should be
+  isolated.
 
 The training data splitter keeps separate background and target train, validation, and
 test splits. Each contrastive minibatch contains one background batch and one target
@@ -57,9 +57,9 @@ optimization step.
 
 contrastiveVI uses two latent spaces:
 
--   $z_i$, the background latent variable, captures variation shared by background and
-    target cells.
--   $s_i$, the salient latent variable, captures variation enriched in target cells.
+- $z_i$, the background latent variable, captures variation shared by background and
+  target cells.
+- $s_i$, the salient latent variable, captures variation enriched in target cells.
 
 The key modeling constraint is that background cells are decoded with $s_i = 0$, while
 target cells are decoded with both $z_i$ and $s_i$. Both populations share the same
@@ -79,12 +79,12 @@ contrastiveVI uses amortized variational inference. Neural encoders approximate 
 posterior distributions of the background latent variable $z_i$, salient latent variable
 $s_i$, and, when needed, the library size. The training objective combines:
 
--   reconstruction terms for both background and target cells,
--   KL penalties for the background latent variables in both populations,
--   a KL penalty for the salient latent variables in target cells,
--   a library-size KL penalty when the library size is inferred, and
--   an optional Wasserstein penalty that discourages background-cell variation from
-    leaking into the salient latent space.
+- reconstruction terms for both background and target cells,
+- KL penalties for the background latent variables in both populations,
+- a KL penalty for the salient latent variables in target cells,
+- a library-size KL penalty when the library size is inferred, and
+- an optional Wasserstein penalty that discourages background-cell variation from
+  leaking into the salient latent space.
 
 In the implementation, the salient latent variables for background cells are explicitly
 set to zero during inference before decoding.

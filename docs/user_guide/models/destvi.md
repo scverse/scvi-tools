@@ -6,12 +6,12 @@ can be used to explore the spatial organization of a tissue and understanding ge
 
 The advantages of DestVI are:
 
--   Can stratify cells into discrete cell types and model continuous sub-cell-type variation.
--   Scalable to very large datasets (>1 million cells).
+- Can stratify cells into discrete cell types and model continuous sub-cell-type variation.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of DestVI include:
 
--   Effectively requires a GPU for fast inference.
+- Effectively requires a GPU for fast inference.
 
 :::{note}
 Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
@@ -19,7 +19,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorial:
 
--   [DestVI: Multi-Resolution Deconvolution of Spatial Transcriptomics](https://scviva-tools.readthedocs.io/en/latest/tutorials/DestVI_tutorial.html)
+- [DestVI: Multi-Resolution Deconvolution of Spatial Transcriptomics](https://scviva-tools.readthedocs.io/en/latest/tutorials/DestVI_tutorial.html)
 ```
 
 ## Preliminaries
@@ -73,6 +73,7 @@ scLVM graphical model.
 
 The latent variables for the scLVM, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -88,6 +89,7 @@ The latent variables for the scLVM, along with their description, are summarized
      - Rate parameter for the negative binomial distribution.
      - ``px_r``
 ```
+<!-- panache-ignore-format-end -->
 
 ### stLVM
 
@@ -117,11 +119,11 @@ Above, $\{u_{kc}\}_{k=1}^K$ designates the set of cell-type-specific subclusters
 $q_\Phi$ designates the empirical normal distribution from the computed cluster mean and variance.
 The loss is weighted by the probability of a random cell from this cell type to be in the respective cluster in the
 scRNA-seq dataset (mixture probability, $m_{kc}$).
-In literature, the prior is referred to as a VampPrior ("variational aggregated mixture of posteriors" prior) [^ref2].
+In literature, the prior is referred to as a VampPrior (“variational aggregated mixture of posteriors” prior) [^ref2].
 More can be read on this prior in the DestVI paper.
 
 Lastly, an additional latent variable, $\eta_g$, is incorporated into the aggregated cell expression profile
-as a dummy cell type to represent gene-specific noise. The dummy cell type's expression profile is distributed
+as a dummy cell type to represent gene-specific noise. The dummy cell type’s expression profile is distributed
 as $\epsilon_g := \mathrm{Softplus}(\eta_g)$ where $\eta_g \sim \mathrm{Normal}(0, 1)$.
 Like the other cell types, there is an associated cell type abundance parameter $\beta_{sc}$ associated with $\eta$.
 We suspect each spot to only contain a fraction of the different cell types. To increase the sparsity of the cell type
@@ -140,6 +142,7 @@ stLVM graphical model.
 
 The latent variables for the stLVM, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -165,6 +168,7 @@ The latent variables for the stLVM, along with their description, are summarized
      - ``px_o``
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Inference
 
@@ -254,5 +258,6 @@ for automatic thresholding of cell type proportions, a spatial PCA analysis to f
 in spatial gene expression and the described frequentist test for differential expression. Further information
 can be found on [destvi_utils](https://destvi-utils.readthedocs.io/en/latest/installation.html)
 
-[^ref2]: Jakub Tomczak, Max Welling (2018),_VAE with a VampPrior_, [Proceedings of Machine Learning Research](https://proceedings.mlr.press/v84/tomczak18a.html)
-[^ref3]: Davide Risso, Fanny Perraudeau, Svetlana Gribkova, Sandrine Dudoit, Jean-Philippe Vert (2018). _A general and flexible method for signal extraction from single-cell RNA-seq data_, [Nature Communications] (https://www.nature.com/articles/s41467-017-02554-5)
+[^ref2]: Jakub Tomczak, Max Welling (2018),*VAE with a VampPrior*, [Proceedings of Machine Learning Research](https://proceedings.mlr.press/v84/tomczak18a.html)
+
+[^ref3]: Davide Risso, Fanny Perraudeau, Svetlana Gribkova, Sandrine Dudoit, Jean-Philippe Vert (2018). *A general and flexible method for signal extraction from single-cell RNA-seq data*, [Nature Communications] (https://www.nature.com/articles/s41467-017-02554-5)
