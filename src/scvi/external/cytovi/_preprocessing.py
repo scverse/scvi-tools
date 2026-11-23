@@ -151,7 +151,11 @@ def scale(
         for batch in batches:
             adata_batch = adata[adata.obs[batch_key] == batch].copy()
             scaled_data, _ = apply_scaling(
-                adata_batch.layers[transformed_layer_key].copy(), method, feature_range, quantile, clip_quantile
+                adata_batch.layers[transformed_layer_key].copy(),
+                method,
+                feature_range,
+                quantile,
+                clip_quantile,
             )
             adata_batch.layers[scaled_layer_key] = scaled_data
             adata_list.append(adata_batch)
@@ -161,7 +165,11 @@ def scale(
         adata.layers[scaled_layer_key] = scaled_data
     else:
         scaled_data, scaler = apply_scaling(
-            adata.layers[transformed_layer_key].copy(), method, feature_range, quantile, clip_quantile
+            adata.layers[transformed_layer_key].copy(),
+            method,
+            feature_range,
+            quantile,
+            clip_quantile,
         )
         adata.layers[scaled_layer_key] = scaled_data
 

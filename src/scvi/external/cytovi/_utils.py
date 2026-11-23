@@ -104,15 +104,9 @@ def apply_scaling(data, method, feature_range, quantile=0.999, clip_quantile=Fal
         valid = q_range != 0
 
         if clip_quantile:
-            result[:, valid] = np.clip(
-                (result[:, valid] - q_lower[valid]) / q_range[valid],
-                0,
-                1
-            )
+            result[:, valid] = np.clip((result[:, valid] - q_lower[valid]) / q_range[valid], 0, 1)
         else:
-            result[:, valid] = (
-                (result[:, valid] - q_lower[valid]) / q_range[valid]
-            )
+            result[:, valid] = (result[:, valid] - q_lower[valid]) / q_range[valid]
         return result, None
 
     return scaler.fit_transform(data), scaler
