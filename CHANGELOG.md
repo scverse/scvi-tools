@@ -36,6 +36,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
   shared `theta`, `log_mixture_nb` now also adds the `lgamma` normalizer after the `logsumexp`, so
   the mixture weights no longer collapse for large counts. `log_mixture_nb` also now forwards `eps`,
   `log_fn` and `lgamma_fn` when `theta_2` is given, {issue}`4086`.
+- Add `include_protein_efficiency` to {meth}`scvi.model.TOTALVI.get_normalized_expression` to
+  optionally include it in the normalized protein expression (default unchanged), {issue}`4022`.
 
 ### 1.5.2 (2026-10-28)
 
