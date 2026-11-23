@@ -7,6 +7,12 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ### 1.5.3 (unreleased)
 
+#### Added
+
+- Add `method="quantile_minmax"` to {func}`scvi.external.cytovi.scale`, an outlier-robust
+  alternative to min–max scaling that maps each feature's `1 - quantile` and `quantile` quantiles
+  to 0 and 1, with optional clipping to `[0, 1]` via `clip_quantile`, {pr}`4115`.
+
 #### Changed
 
 - The documentation is built with `scverse-doc` on Sphinx 9 and uses its sidebar layout:
