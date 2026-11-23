@@ -92,7 +92,7 @@ def transform_arcsinh(
 
 def scale(
     adata: AnnData,
-    method: Literal["minmax", "standard", "quantile"] = "minmax",
+    method: Literal["minmax", "standard", "quantile", "quantile_minmax"] = "minmax",
     feature_range: tuple[float, float] = (0.0, 1.0),
     quantile: float = 0.9999,
     clip_quantile: bool = False,

@@ -81,7 +81,6 @@ def validate_layer_key(adata: AnnData, layer_key: str):
             raise ValueError(f"Layer key {layer_key} not found in adata.layers.")
 
 
-
 def apply_scaling(data, method, feature_range, quantile=0.9999, clip_quantile=False):
     if method == "minmax":
         scaler = MinMaxScaler(feature_range=feature_range)
@@ -95,27 +94,28 @@ def apply_scaling(data, method, feature_range, quantile=0.9999, clip_quantile=Fa
         if method == "quantile_minmax" and not 0.5 < quantile <= 1:
             raise ValueError("quantile must be in (0.5, 1].")
 
-        q_upper = np.quantile(data, quantile, axis=0)
+        q_upper = np.nanquantile(data, quantile, axis=0)
 
         if method == "quantile":
             neg_features = np.where(q_upper <= 0)[0]
 
             if len(neg_features) > 0:
-                print(f"Warning: Non-positive quantile for features {neg_features}. Left unscaled.")
-                q_upper[neg_features] = 1.0        
-
+                msg = f"Non-positive quantile for features {neg_features} and is left unscaled."
+                warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
+                q_upper[neg_features] = 1.0
             return data / q_upper, None
 
         elif method == "quantile_minmax":
-            q_lower = np.quantile(data, 1 - quantile, axis=0)
+            q_lower = np.nanquantile(data, 1 - quantile, axis=0)
             q_range = q_upper - q_lower
 
             zero_features = np.where(q_range == 0)[0]
             if len(zero_features) > 0:
-                print(f"Warning: Quantile range is zero for features {zero_features} and is left unscaled.")
-            
+                msg = f"Quantile range is zero for features {zero_features} and is left unscaled."
+                warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
+
             result = np.asarray(data, dtype=float).copy()
-            valid = q_range != 0 
+            valid = q_range != 0
 
             if clip_quantile:
                 result[:, valid] = np.clip(
@@ -129,7 +129,7 @@ def apply_scaling(data, method, feature_range, quantile=0.9999, clip_quantile=Fa
                 )
 
             return result, None
-    
+
     return scaler.fit_transform(data), scaler
 
 
