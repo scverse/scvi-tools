@@ -5,7 +5,7 @@ This page is under construction.
 :::
 
 :::{note}
- to run scvi-tools with custom dataloaders support, use: pip install scvi-tools[dataloaders]
+to run scvi-tools with custom dataloaders support, use: pip install scvi-tools[dataloaders]
 :::
 
 In SCVI, custom dataloaders allow you to create a tailored data pipeline that can handle unique formats or complex datasets not covered by the default loaders. A custom dataloader can be useful when you have a specific structure for your data or need to preprocess it in a particular way before feeding it into the model to gain some advantage.
@@ -15,14 +15,14 @@ Without dataloader large data can be on disk but inefficient. We increase effici
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/custom_dl/tiledb`
--   {doc}`/tutorials/notebooks/custom_dl/lamin`
--   {doc}`/tutorials/notebooks/custom_dl/ann_collection`
--   {doc}`/tutorials/notebooks/custom_dl/api_overview_annbatch`
-
+- {doc}`/tutorials/notebooks/custom_dl/tiledb`
+- {doc}`/tutorials/notebooks/custom_dl/lamin`
+- {doc}`/tutorials/notebooks/custom_dl/ann_collection`
+- {doc}`/tutorials/notebooks/custom_dl/api_overview_annbatch`
 ```
 
 In SCVI, we work with several collaborators to construct efficient custom dataloaders:
+
 1. [lamin.ai](https://lamin.ai/) custom dataloader is based on {class}`scvi.dataloaders.MappedCollectionDataModule` and can run a collection of adata based on lamindb backend.
 
 LamindDB is a key-value store designed specifically for machine learning, particularly focusing on making it easier to manage large-scale training datasets. It is optimized for storing and querying tabular data, providing fast read and write access. LamindDB’s design allows for efficient handling of large datasets with a focus on machine learning workflows, such as those used in SCVI.
@@ -68,7 +68,7 @@ TileDB is a general-purpose, multidimensional array storage engine designed for 
 Pros:
 
 - Efficient Data Access: With TileDB, you can query and access specific subsets of your data without needing to load the entire dataset into memory, improving performance.
-Scalability: Handles large datasets that exceed your system's memory capacity, making it ideal for single-cell RNA-seq datasets with millions of cells.
+  Scalability: Handles large datasets that exceed your system's memory capacity, making it ideal for single-cell RNA-seq datasets with millions of cells.
 - Flexibility: Supports multidimensional data storage, which can be useful for storing gene expression data across multiple conditions or time points.
 
 Note that using categorical covariates with TileDB requires them to be non-integer (even when saved as string in the adata).
@@ -137,18 +137,19 @@ model.train(
 ```
 
 3. In addition to those, we also added a {class}`scvi.dataloaders.CollectionAdapter` dataloader which is a scvi-tools wrapper for AnnData's AnnCollection.
-This API is intended for training models on a set of AnnData files. AnnCollection creates a layer concatenation of disk-backed files. The dataloader jointly subsets these datasets along the observation axis.
-This wrapper mimics the standard API; so in practice, users wrap their collection objects then proceed with the scvi-tools workflow as normal and not using the custom dataloader workflow.
-Note that to use it, count data should be in sparse form (sparse.csr_matrix).
+   This API is intended for training models on a set of AnnData files. AnnCollection creates a layer concatenation of disk-backed files. The dataloader jointly subsets these datasets along the observation axis.
+   This wrapper mimics the standard API; so in practice, users wrap their collection objects then proceed with the scvi-tools workflow as normal and not using the custom dataloader workflow.
+   Note that to use it, count data should be in sparse form (sparse.csr_matrix).
 
 4. [annbatch](https://github.com/scverse/annbatch) is a custom dataloader backend for streaming AnnData-like datasets at very large scale {cite:p}`Gold2026b`.
-It builds a zarr-backed `DatasetCollection` from one or more AnnData files and exposes an `annbatch.Loader` that can feed scvi-tools models without materializing the full dataset in memory.
-In scvi-tools, model classes expose this path through `setup_annbatch`, which returns an `AnnbatchDataModule` and a registry that can be passed directly to model constructors.
+   It builds a zarr-backed `DatasetCollection` from one or more AnnData files and exposes an `annbatch.Loader` that can feed scvi-tools models without materializing the full dataset in memory.
+   In scvi-tools, model classes expose this path through `setup_annbatch`, which returns an `AnnbatchDataModule` and a registry that can be passed directly to model constructors.
 
 annbatch is most useful when the input data already lives in AnnData files and the target workflow needs disk-backed or terabyte-scale training while preserving the familiar scvi-tools training API.
 For a full worked example, see {doc}`/tutorials/notebooks/custom_dl/api_overview_annbatch`.
 
 Key differences between custom dataloader options:
+
 1. Data Format:
 
 - TileDB is more flexible for handling complex, multidimensional datasets (like sparse matrices with many dimensions), making it ideal for large-scale genomics data that don’t fit neatly into a simple table format.
@@ -166,6 +167,7 @@ Key differences between custom dataloader options:
 - LamindDB offers a simpler integration for custom dataloaders when dealing with tabular data and might be more intuitive for machine learning tasks.
 
 When to Use Each:
+
 - TileDB is ideal when your data is large, multidimensional, and potentially sparse, requiring advanced indexing and querying capabilities.
 - LamindDB is a better choice when you're working with large, structured tabular data and need fast, efficient access to machine learning models like SCVI.
 - annbatch is a good fit when you have one or many AnnData files and want a direct scvi-tools setup path for large disk-backed training.

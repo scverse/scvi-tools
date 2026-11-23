@@ -1,6 +1,7 @@
 import shutil
 
 import pytest
+import torch
 
 import scvi
 from tests.data.utils import generic_setup_adata_manager
@@ -116,7 +117,11 @@ def save_path(tmp_path_factory):
 @pytest.fixture(scope="session")
 def accelerator(request):
     """Docstring for accelerator."""
-    return request.config.getoption("--accelerator")
+    accelerator = request.config.getoption("--accelerator")
+    if accelerator == "mps" and not torch.backends.mps.is_available():
+        # e.g. GitHub's macOS runners expose a paravirtual GPU without Metal 2.0 support
+        pytest.skip("--accelerator mps was requested but MPS is not available on this machine")
+    return accelerator
 
 
 @pytest.fixture(scope="session")

@@ -74,7 +74,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
+    1. `DestVI: Multi-Resolution Deconvolution of Spatial Transcriptomics <https://scviva-tools.readthedocs.io/en/latest/tutorials/DestVI_tutorial.html>`__
     2. :doc:`/tutorials/notebooks/r/DestVI_in_R`
     """
 

@@ -5,14 +5,14 @@ is a model for assessing gene-specific levels of zero-inflation in scRNA-seq dat
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/AutoZI_tutorial`
+- {doc}`/tutorials/notebooks/scrna/AutoZI_tutorial`
 ```
 
 ## Generative process
 
 AUTOZI is very similar to scVI but employs a spike-and-slab prior to the zero-inflation mixture assignment for each gene.
 Whether the zero-inflation rate ($\pi_{ng}$ in the original scVI model) is sampled from a set of
-non-negligible values (the "slab" component) or the set of negligible values (the "spike" component) is defined by
+non-negligible values (the “slab” component) or the set of negligible values (the “spike” component) is defined by
 $m_g \sim Bernoulli(\delta_g)$ where $\delta_g \sim Beta(\alpha, \beta)$.
 Thus, for each gene $g$, the zero-inflation rate is defined,
 $\pi_{ng} = (1-m_g)\pi_{ng}^{slab} + m_g \pi_{ng}^{spike}$.

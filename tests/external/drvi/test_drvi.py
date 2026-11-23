@@ -183,6 +183,37 @@ def test_drvi_mean_activation(save_path):
     np.testing.assert_allclose(z_mean, loaded.get_latent_representation(give_mean=True), atol=1e-5)
 
 
+def test_drvi_residual(save_path):
+    """residual=True adds skip connections on the encoder and decoder bodies (off by default), the
+    latent stays finite, and the flag round-trips through save/load."""
+    adata = mock_adata()
+    DRVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+
+    default = DRVI(adata, n_latent=8, n_layers=2)
+    assert default.module.residual is False
+    assert default.module.z_encoder.encoder.residual is False
+    assert default.module.decoder.px_decoder.residual is False
+
+    model = DRVI(adata, n_latent=8, n_layers=2, residual=True)
+    assert model.module.residual is True
+    assert model.module.z_encoder.encoder.residual is True
+    assert model.module.decoder.px_decoder.residual is True
+
+    model.train(max_epochs=2, batch_size=adata.n_obs)
+    z = model.get_latent_representation()
+    assert z.shape == (adata.n_obs, 8)
+    assert np.isfinite(z).all()
+
+    # the residual flag round-trips through save/load and the latent is reproduced
+    dir_path = os.path.join(save_path, "drvi_residual_model/")
+    model.save(dir_path, overwrite=True)
+    loaded = DRVI.load(dir_path, adata=adata)
+    assert loaded.module.residual is True
+    assert loaded.module.z_encoder.encoder.residual is True
+    assert loaded.module.decoder.px_decoder.residual is True
+    np.testing.assert_allclose(z, loaded.get_latent_representation(), atol=1e-5)
+
+
 def test_drvi_batch_embedding():
     """Batch embedding (EmbeddingMixin) is supported: the embedded batch is injected into each
     split, and get_batch_representation works."""

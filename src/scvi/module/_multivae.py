@@ -91,6 +91,7 @@ class DecoderADT(torch.nn.Module):
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            inject_covariates=deep_inject_covariates,
         )
         self.py_fore_scale_decoder = FCLayers(
             n_in=n_hidden + n_input,
@@ -121,6 +122,7 @@ class DecoderADT(torch.nn.Module):
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            inject_covariates=deep_inject_covariates,
         )
 
         # background mean parameters second decoder
@@ -147,6 +149,7 @@ class DecoderADT(torch.nn.Module):
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            inject_covariates=deep_inject_covariates,
         )
 
     def forward(self, z: torch.Tensor, *cat_list: int):

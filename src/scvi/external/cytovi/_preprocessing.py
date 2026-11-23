@@ -92,8 +92,10 @@ def transform_arcsinh(
 
 def scale(
     adata: AnnData,
-    method: Literal["minmax", "standard"] = "minmax",
+    method: Literal["minmax", "standard", "quantile_minmax"] = "minmax",
     feature_range: tuple[float, float] = (0.0, 1.0),
+    quantile: float = 0.999,
+    clip_quantile: bool = False,
     transformed_layer_key: str = "transformed",
     scaled_layer_key: str = "scaled",
     batch_key: str = None,
@@ -108,9 +110,15 @@ def scale(
     adata
         The AnnData object to scale.
     method
-        Scaling method: ``'minmax'`` or ``'standard'``.
+        Scaling method: ``'minmax'``, ``'standard'``, or ``'quantile_minmax'``.
     feature_range
         Desired range for min–max scaling as ``(low, high)``.
+    quantile
+        Quantile ``q`` for ``'quantile_minmax'``: each feature's ``1 - q`` quantile is
+        mapped to 0 and its ``q`` quantile to 1. ``q`` must be in ``(0.5, 1]``.
+    clip_quantile
+        If ``True``, values outside the quantile range are clipped to ``[0, 1]`` after
+        scaling (``'quantile_minmax'`` only).
     transformed_layer_key
         Key of the source (transformed) layer in ``adata.layers``.
     scaled_layer_key
@@ -143,7 +151,11 @@ def scale(
         for batch in batches:
             adata_batch = adata[adata.obs[batch_key] == batch].copy()
             scaled_data, _ = apply_scaling(
-                adata_batch.layers[transformed_layer_key].copy(), method, feature_range
+                adata_batch.layers[transformed_layer_key].copy(),
+                method,
+                feature_range,
+                quantile,
+                clip_quantile,
             )
             adata_batch.layers[scaled_layer_key] = scaled_data
             adata_list.append(adata_batch)
@@ -153,7 +165,11 @@ def scale(
         adata.layers[scaled_layer_key] = scaled_data
     else:
         scaled_data, scaler = apply_scaling(
-            adata.layers[transformed_layer_key].copy(), method, feature_range
+            adata.layers[transformed_layer_key].copy(),
+            method,
+            feature_range,
+            quantile,
+            clip_quantile,
         )
         adata.layers[scaled_layer_key] = scaled_data
 
