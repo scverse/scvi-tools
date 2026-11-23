@@ -6,32 +6,32 @@ sequence of each accessible region to learn region embeddings and jointly learns
 embeddings that reconstruct a binary accessibility matrix.
 
 :::{warning}
-SCBASSET's development is still in progress. The current scvi-tools implementation may
-not fully reproduce the original implementation's results.
+SCBASSET’s development is still in progress. The current scvi-tools implementation may
+not fully reproduce the original implementation’s results.
 :::
 
 The advantages of scBasset are:
 
--   Sequence representations allow for TF motif discovery and other sequence-based analyses.
--   The learned cell embeddings can be used for visualization, clustering, and batch
-    integration of scATAC-seq data.
--   The model can score transcription factor activity with a motif injection procedure.
+- Sequence representations allow for TF motif discovery and other sequence-based analyses.
+- The learned cell embeddings can be used for visualization, clustering, and batch
+  integration of scATAC-seq data.
+- The model can score transcription factor activity with a motif injection procedure.
 
 The limitations of scBasset include:
 
--   It expects binary accessibility data and DNA sequence encodings for the genomic
-    regions.
--   The current implementation assumes fixed-length sequence inputs, following the
-    original 1344 bp scBasset setting.
--   scBasset cannot currently leverage unobserved data and thus cannot currently be used
-    for transfer learning tasks.
--   The built-in motif library download currently supports the human motif library used
-    by the scBasset paper.
+- It expects binary accessibility data and DNA sequence encodings for the genomic
+  regions.
+- The current implementation assumes fixed-length sequence inputs, following the
+  original 1344 bp scBasset setting.
+- scBasset cannot currently leverage unobserved data and thus cannot currently be used
+  for transfer learning tasks.
+- The built-in motif library download currently supports the human motif library used
+  by the scBasset paper.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/atac/scbasset`
--   {doc}`/tutorials/notebooks/atac/scbasset_batch`
+- {doc}`/tutorials/notebooks/atac/scbasset`
+- {doc}`/tutorials/notebooks/atac/scbasset_batch`
 ```
 
 ## Preliminaries
@@ -66,9 +66,9 @@ layer. The output is a low-dimensional embedding for each genomic region.
 
 The model also learns:
 
--   a cell embedding matrix,
--   a cell-specific bias term, and
--   when a batch key is registered, a batch embedding for each cell's batch.
+- a cell embedding matrix,
+- a cell-specific bias term, and
+- when a batch key is registered, a batch embedding for each cell's batch.
 
 The accessibility logits are computed as the matrix product between region embeddings
 and cell embeddings, plus the cell bias. When batches are registered, the batch embedding

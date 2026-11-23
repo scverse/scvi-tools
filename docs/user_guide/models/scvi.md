@@ -5,20 +5,20 @@ be used for many common downstream tasks.
 
 The advantages of scVI are:
 
--   Comprehensive in capabilities.
--   Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of scVI include:
 
--   Effectively requires a GPU for fast inference.
--   Latent space is not interpretable, unlike that of a linear method.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/quick_start/api_overview`
--   {doc}`/tutorials/notebooks/scrna/harmonization`
--   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
--   {doc}`/tutorials/notebooks/r/scvi_in_R`
+- {doc}`/tutorials/notebooks/quick_start/api_overview`
+- {doc}`/tutorials/notebooks/scrna/harmonization`
+- {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
+- {doc}`/tutorials/notebooks/r/scvi_in_R`
 ```
 
 ## Preliminaries
@@ -76,6 +76,7 @@ scVI graphical model for the ZINB likelihood model. Note that this graphical mod
 
 The latent variables, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -97,6 +98,7 @@ The latent variables, along with their description, are summarized in the follow
      - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model initialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
      - ``px_r``
 ```
+<!-- panache-ignore-format-end -->
 
 ## Inference
 

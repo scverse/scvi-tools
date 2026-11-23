@@ -5,7 +5,16 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.5
 
-### 1.5.3  (unreleased)
+### 1.5.3 (unreleased)
+
+#### Changed
+
+- The documentation is built with `scverse-doc` on Sphinx 9 and uses its sidebar layout:
+  Getting started, Guides (tutorials, user guide, developer documentation, FAQ),
+  Reference (API, models) and Project, with a new citation page.
+  `sphinx-hoverxref`, which does not support Sphinx 9, and its tooltips are gone.
+  The Colab launch button on tutorial pages, the download and full screen buttons,
+  and the tutorial filters are kept {pr}`4091`.
 
 #### Fixed
 
@@ -22,7 +31,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
   the mixture weights no longer collapse for large counts. `log_mixture_nb` also now forwards `eps`,
   `log_fn` and `lgamma_fn` when `theta_2` is given, {issue}`4086`.
 
-### 1.5.2  (2026-10-28)
+### 1.5.2 (2026-10-28)
 
 #### Added
 
@@ -126,7 +135,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix {class}`scvi.external.CYTOVI` producing a `nan` ELBO with `protein_likelihood="beta"`when overlapping antibody panels are merged with `merge_batches()`. Masked entries are now substituted with a likelihood-safe value before scoring, see {pr}`4007`.
 - Fix `cytovi.subsample()`'s `groupby` argument crashing on `pandas>=3.0`, Per-group sampling no
   longer depends on that internal index shape, {pr}`4012`.
-
 
 #### Changed
 
@@ -432,7 +440,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Set `mode="change"` as default DE method. Compute positive and negative LFC separately
   by default (`test_mode="three"`). Corrected computation of pseudocounts and make if
   default to add a pseudocounts for genes not expressed (`pseudocount=None`). According to
-  Eq. Ten of Boyeau _et al._, _PNAS_ 2023 {pr}`2826`
+  Eq. Ten of Boyeau *et al.*, *PNAS* 2023 {pr}`2826`
 
 #### Removed
 
@@ -578,7 +586,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - The `data_module` argument in {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` has been
   renamed to `datamodule` for consistency {pr}`2749`.
 - Change the default saving method of variable names for {class}`mudata.MuData` based models
-  (_e.g._ {class}`scvi.model.TOTALVI`) to a dictionary of per-mod variable names instead of a
+  (*e.g.* {class}`scvi.model.TOTALVI`) to a dictionary of per-mod variable names instead of a
   concatenated array of all variable names. Users may replicate the previous behavior by
   passing in `legacy_mudata_format=True` to {meth}`scvi.model.base.BaseModelClass.save`
   {pr}`2769`.
@@ -2055,14 +2063,14 @@ will be compatible with this and future versions. Also, we dropped support for P
 ##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method <!-- markdownlint-disable -->
 
 It is now possible to iteratively update these models with new samples without altering the model
-for the "reference" population. Here we use the
+for the “reference” population. Here we use the
 [scArches method](https://github.com/theislab/scarches). For usage, please see the tutorial in the
 user guide.
 
 To enable scArches in our models, we added a few new options. The first is `encode_covariates`,
 which is an `SCVI` option to encode the one-hotted batch covariate. We also allow users to exchange
 batch norm in the encoder and decoder with layer norm, which can be though of as batch norm but per
-cell. As the layer norm we use has no parameters, it's a bit faster than models with batch norm. We
+cell. As the layer norm we use has no parameters, it’s a bit faster than models with batch norm. We
 find few differences between using batch norm or layer norm in our models, though we have
 kept defaults the same in this case. To run scArches effectively, batch norm should be exchanged
 with layer norm.

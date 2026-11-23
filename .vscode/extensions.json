@@ -14,5 +14,6 @@
         "editorconfig.editorconfig",
         "charliermarsh.ruff",
         "biomejs.biome",
+        "jolars.panache",
     ],
 }

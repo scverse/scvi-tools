@@ -4,6 +4,7 @@
     // Markdown formatting (biome >= 2.6) mangles MyST math, e.g. `_` -> `*` inside `$...$`.
     "files": { "includes": ["**", "!**/*.md"] },
     "formatter": { "useEditorconfig": true },
+    "markdown": { "formatter": { "enabled": false } }, // handled by panache
     "overrides": [
         {
             "includes": ["./.vscode/*.json", "**/*.jsonc"],

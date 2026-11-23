@@ -5,12 +5,12 @@ method for the deconvoluton of cell type profiles using a single-cell RNA sequen
 
 The advantages of Stereoscope are:
 
--   Can stratify cells into discrete cell types.
--   Scalable to very large datasets (>1 million cells).
+- Can stratify cells into discrete cell types.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of Stereoscope include:
 
--   Effectively requires a GPU for fast inference.
+- Effectively requires a GPU for fast inference.
 
 :::{note}
 Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being maintained here.
@@ -18,7 +18,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorial:
 
--   [Stereoscope: Deconvolving Spatial Heart Data](https://scviva-tools.readthedocs.io/en/latest/tutorials/stereoscope_heart_LV_tutorial.html)
+- [Stereoscope: Deconvolving Spatial Heart Data](https://scviva-tools.readthedocs.io/en/latest/tutorials/stereoscope_heart_LV_tutorial.html)
 ```
 
 ## Preliminaries
@@ -70,6 +70,7 @@ single-cell reference LVM graphical model.
 
 The latent variables for the single-cell reference LVM, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -85,6 +86,7 @@ The latent variables for the single-cell reference LVM, along with their descrip
      - Shape parameter for the negative binomial distribution.
      - ``px_o`` :math:`:= \log \left( \frac{p_g}{1 - p_g} \right)`
 ```
+<!-- panache-ignore-format-end -->
 
 ### Spatial transcriptomics LVM
 
@@ -105,7 +107,7 @@ where $\beta_g$ is a gene-specific correction term for technical differences.
 The parameters $r_{gz}$ and $p_g$ are the learned parameters from the first LVM.
 
 An additional latent variable, $\eta_g$, is incorporated into the aggregated cell expression profile
-as a dummy cell type to represent gene-specific noise. The dummy cell type's expression profile is distributed
+as a dummy cell type to represent gene-specific noise. The dummy cell type’s expression profile is distributed
 as $\varepsilon_g := \mathrm{Softplus}(\eta_g)$ where $\eta_g \sim \mathrm{Normal}(0, 1)$ to avoid the model
 from incorrectly assigning explanatory power to this term.
 Like the other cell types, there is an associated cell type abundance parameter $\gamma_s$ associated with $\varepsilon$.
@@ -122,6 +124,7 @@ spatial transcriptomics LVM graphical model.
 
 The latent variables for the spatial transcriptomics LVM, along with their description, are summarized in the following table:
 
+<!-- panache-ignore-format-start -->
 ```{eval-rst}
 .. list-table::
    :widths: 20 90 15
@@ -148,6 +151,7 @@ The latent variables for the spatial transcriptomics LVM, along with their descr
      - ``px_o`` :math:`:= \log \left( \frac{p_g}{1 - p_g} \right)`
 
 ```
+<!-- panache-ignore-format-end -->
 
 ## Inference
 

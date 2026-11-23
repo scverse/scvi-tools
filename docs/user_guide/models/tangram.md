@@ -10,24 +10,24 @@ This is a reimplementation of Tangram, which can originally be found [here](http
 
 The advantages of Tangram are:
 
--   It maps single-cell transcriptomes onto spatial observations with a directly
-    interpretable mapping matrix.
--   It can project cell annotations, such as cell types, from single-cell data to spatial
-    data.
--   It can project gene expression from the single-cell reference into spatial
-    coordinates.
--   The scvi-tools implementation supports Tangram's `"cells"` and `"constrained"`
-    modes.
+- It maps single-cell transcriptomes onto spatial observations with a directly
+  interpretable mapping matrix.
+- It can project cell annotations, such as cell types, from single-cell data to spatial
+  data.
+- It can project gene expression from the single-cell reference into spatial
+  coordinates.
+- The scvi-tools implementation supports Tangram's `"cells"` and `"constrained"`
+  modes.
 
 The limitations of Tangram include:
 
--   The scvi-tools model page is deprecated starting v1.5.
--   It requires matched genes between the single-cell and spatial modalities used for
-    training.
--   Training is not mini-batched in the current implementation, so memory use depends on
-    the number of single-cell observations and spatial observations.
--   Tangram is an optimization-based mapping model, not a generative model with posterior
-    sampling.
+- The scvi-tools model page is deprecated starting v1.5.
+- It requires matched genes between the single-cell and spatial modalities used for
+  training.
+- Training is not mini-batched in the current implementation, so memory use depends on
+  the number of single-cell observations and spatial observations.
+- Tangram is an optimization-based mapping model, not a generative model with posterior
+  sampling.
 
 ## Overview
 
@@ -39,7 +39,7 @@ Starting scVI-Tools v1.5 this model is part of scVIVA-Tools, and no longer being
 
 ```{topic} Tutorials:
 
--   [Tangram: Mapping Single Cells onto Spatial Data](https://scviva-tools.readthedocs.io/en/latest/tutorials/tangram_scvi_tools.html)
+- [Tangram: Mapping Single Cells onto Spatial Data](https://scviva-tools.readthedocs.io/en/latest/tutorials/tangram_scvi_tools.html)
 ```
 
 ## Preliminaries
@@ -52,9 +52,9 @@ same order.
 The `modalities` argument tells Tangram which MuData modality contains each registered
 field. A typical setup registers:
 
--   `sc_layer`, the single-cell expression matrix used for mapping,
--   `sp_layer`, the spatial expression matrix used as the target, and
--   `density_prior_key`, an optional spatial observation column containing a density prior.
+- `sc_layer`, the single-cell expression matrix used for mapping,
+- `sp_layer`, the spatial expression matrix used as the target, and
+- `density_prior_key`, an optional spatial observation column containing a density prior.
 
 If a density prior is supplied, it must sum to 1. The tutorial computes a density prior
 from estimated cell counts in spatial observations.

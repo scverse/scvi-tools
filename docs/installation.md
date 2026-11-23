@@ -12,6 +12,7 @@ For the basic CPU version run:
 pip install -U scvi-tools
 ```
 or
+
 ```bash
 conda install scvi-tools -c conda-forge
 ```
@@ -23,16 +24,18 @@ To install scvi-tools with Nvidia GPU CUDA support, for Linux Systems
 pip install -U scvi-tools[cuda]
 ```
 And for Apple Silicon metal (MPS) support:
+
 ```bash
 pip install -U scvi-tools[metal]
 ```
 
 Note that for some OS you will have to use quotes in order to install with dependencies, e.g.:
+
 ```bash
 pip install -U "scvi-tools[cuda]"
 ```
 
-Don't know how to get started with virtual environments or `conda`/`pip`? Check out the
+Don’t know how to get started with virtual environments or `conda`/`pip`? Check out the
 [prerequisites](#prerequisites) section.
 
 ## Prerequisites
@@ -41,7 +44,6 @@ Don't know how to get started with virtual environments or `conda`/`pip`? Check 
 
 A virtual environment can be created with either `conda` or `venv`. We recommend using a fresh `conda` environment.
 We currently support Python 3.12 - 3.14.
-
 
 For `conda`, we recommend using the [Miniforge](https://github.com/conda-forge/miniforge) or
 [Mamba](https://mamba.readthedocs.io/en/latest/) distribution, which are generally lighter and
@@ -65,7 +67,7 @@ source .scvi-env/bin/activate  # for macOS and Linux
 
 ### GPU support with PyTorch
 
-scvi-tools depends on PyTorch for accelerated computing. If you don't plan
+scvi-tools depends on PyTorch for accelerated computing. If you don’t plan
 on using an accelerated device, we recommend installing scvi-tools directly and letting these
 dependencies be installed automatically by your package manager of choice.
 
@@ -73,7 +75,7 @@ If you plan on taking advantage of an accelerated device (e.g., Nvidia GPU or Ap
 which is likely, scvi-tools supports it, and you should install with the GPU support dependency of scvi-tools.
 
 However, there might be cases where the GPU hardware does not support the latest version of PyTorch.
-In this case we recommend installing PyTorch _before_ installing scvi-tools.
+In this case we recommend installing PyTorch *before* installing scvi-tools.
 Please follow the respective installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) compatible with your system and device type.
 
 Note: starting v1.5, Jax is no longer supported in scvi-tools.
@@ -83,25 +85,25 @@ Note: starting v1.5, Jax is no longer supported in scvi-tools.
 scvi-tools is installed in its lightest form by default.
 It has many optional dependencies which expand its capabilities:
 
-- _autotune_ - in order to run scvi.autotune
-- _hub_ - in order to use scvi.hub
-- _regseq_ - in order to run scvi.data.add_dna_sequence
-- _file-sharing_ - for convenient files sharing
-- _parallel_ - for parallelization engine
-- _interpretability_ - for supervised models interpretability
-- _dataloaders_ - for custom dataloaders use
-- _diagvi_ - for DiagVI model (requires torch_geometric and geomloss)
-- _mlflow_ - for MLflow support
-- _cuda_ - for Linux-based OS CUDA 12 GPU support
-- _cuda13_ - for Linux-based OS CUDA 13 GPU support
-- _tpu_ - for Google TPU support (via torch_xla)
-- _metal_ - for Apple Silicon metal (MPS) support
-- _rapids_ - for RAPIDS-accelerated single-cell analysis (GPU)
-- _rapids-cuda12_ - for RAPIDS with CUDA 12 (cuGraph, cuML, cupy-cuda12x)
-- _rapids-cuda13_ - for RAPIDS with CUDA 13 (cuGraph, cuML, cupy-cuda13x)
+- *autotune* - in order to run scvi.autotune
+- *hub* - in order to use scvi.hub
+- *regseq* - in order to run scvi.data.add_dna_sequence
+- *file-sharing* - for convenient files sharing
+- *parallel* - for parallelization engine
+- *interpretability* - for supervised models interpretability
+- *dataloaders* - for custom dataloaders use
+- *diagvi* - for DiagVI model (requires torch_geometric and geomloss)
+- *mlflow* - for MLflow support
+- *cuda* - for Linux-based OS CUDA 12 GPU support
+- *cuda13* - for Linux-based OS CUDA 13 GPU support
+- *tpu* - for Google TPU support (via torch_xla)
+- *metal* - for Apple Silicon metal (MPS) support
+- *rapids* - for RAPIDS-accelerated single-cell analysis (GPU)
+- *rapids-cuda12* - for RAPIDS with CUDA 12 (cuGraph, cuML, cupy-cuda12x)
+- *rapids-cuda13* - for RAPIDS with CUDA 13 (cuGraph, cuML, cupy-cuda13x)
 
 The easiest way to install this is with `pip`.
-To install capability X run: _pip install scvi-tools[X]_
+To install capability X run: *pip install scvi-tools[X]*
 
 To install all tutorial dependencies:
 
@@ -109,8 +111,7 @@ To install all tutorial dependencies:
 pip install -U scvi-tools[tutorials]
 ```
 
-To install all optional dependencies (_e.g._ custom dataloaders, autotune, model hub and so on):
-
+To install all optional dependencies (*e.g.* custom dataloaders, autotune, model hub and so on):
 
 ```bash
 pip install -U scvi-tools[optional]
@@ -153,6 +154,7 @@ The easiest way to install scvi-tools for R is via conda.
    ```R
    library(reticulate)
    ```
+
 See rest of R tutorials for further examples.
 
 [dependency-groups]: https://packaging.python.org/en/latest/specifications/dependency-groups/
