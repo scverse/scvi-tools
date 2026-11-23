@@ -92,9 +92,9 @@ def transform_arcsinh(
 
 def scale(
     adata: AnnData,
-    method: Literal["minmax", "standard", "quantile", "quantile_minmax"] = "minmax",
+    method: Literal["minmax", "standard", "quantile_minmax"] = "minmax",
     feature_range: tuple[float, float] = (0.0, 1.0),
-    quantile: float = 0.9999,
+    quantile: float = 0.999,
     clip_quantile: bool = False,
     transformed_layer_key: str = "transformed",
     scaled_layer_key: str = "scaled",
@@ -110,14 +110,15 @@ def scale(
     adata
         The AnnData object to scale.
     method
-        Scaling method: ``'minmax'``, ``'standard'``, ``'quantile'``, or ``'quantile_minmax'``.
+        Scaling method: ``'minmax'``, ``'standard'``, or ``'quantile_minmax'``.
     feature_range
         Desired range for min–max scaling as ``(low, high)``.
     quantile
-        Quantile used for quantile scaling (default: 0.9999).
-        Each feature is divided by its corresponding quantile.
+        Quantile ``q`` for ``'quantile_minmax'``: each feature's ``1 - q`` quantile is
+        mapped to 0 and its ``q`` quantile to 1. ``q`` must be in ``(0.5, 1]``.
     clip_quantile
-        If ``True``, values above the quantile are clipped to the quantile value before scaling.
+        If ``True``, values outside the quantile range are clipped to ``[0, 1]`` after
+        scaling (``'quantile_minmax'`` only).
     transformed_layer_key
         Key of the source (transformed) layer in ``adata.layers``.
     scaled_layer_key
