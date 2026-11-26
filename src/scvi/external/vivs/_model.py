@@ -17,7 +17,7 @@ from scvi.external.vivs._constants import VIVS_REGISTRY_KEYS
 from scvi.external.vivs._module import VIVSModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.module import VAE
-from scvi.utils import dependencies, setup_anndata_dsp, track
+from scvi.utils import setup_anndata_dsp, track
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -496,7 +496,6 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         corr = d @ cov @ d
         return corr.cpu().numpy()
 
-    @dependencies("fastcluster")
     def get_gene_groupings(
         self,
         adata: AnnData | None = None,
@@ -505,6 +504,10 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_clusters_list: list[int] | None = None,
     ):
         """Hierarchically cluster genes by their decoder-scale correlation.
+
+        The linkage is computed with ``fastcluster`` when it is installed and with
+        :func:`scipy.cluster.hierarchy.linkage` otherwise. Both give the same clustering, up to
+        the order in which tied distances are merged.
 
         Parameters
         ----------
@@ -515,7 +518,10 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_clusters_list
             Cluster-count resolutions to compute a partition for.
         """
-        import fastcluster
+        try:
+            from fastcluster import linkage
+        except ImportError:
+            from scipy.cluster.hierarchy import linkage
 
         assert n_clusters_list is not None
         adata = self._validate_anndata(adata)
@@ -526,7 +532,7 @@ class VIVS(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         pseudo_dist = pseudo_dist - np.diag(np.diag(pseudo_dist))
         dist_vec = squareform(pseudo_dist, checks=False)
 
-        Z = fastcluster.linkage(dist_vec, method=method)
+        Z = linkage(dist_vec, method=method)
         Z = hierarchy.optimal_leaf_ordering(Z, dist_vec)
         gene_order = hierarchy.leaves_list(Z)
         gene_order = adata.var_names[gene_order].values
