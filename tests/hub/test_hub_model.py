@@ -217,6 +217,23 @@ def test_hub_model_load_external_model(request, save_path):
     with pytest.raises(ValueError, match="NotAModel not found"):
         print(hmo.model)
 
+    # a custom parent module never falls back to a same-named built-in model class
+    hm_custom = HubMetadata(
+        scvi.__version__,
+        anndata.__version__,
+        "RNAStereoscope",
+        model_parent_module="not_a_real_package.models",
+    )
+    hmo = HubModel(test_save_path, metadata=hm_custom, model_card=hmch.model_card)
+    with pytest.raises(ModuleNotFoundError):
+        print(hmo.model)
+    hm_custom = HubMetadata(
+        scvi.__version__, anndata.__version__, "RNAStereoscope", model_parent_module="scvi.hub"
+    )
+    hmo = HubModel(test_save_path, metadata=hm_custom, model_card=hmch.model_card)
+    with pytest.raises(AttributeError):
+        print(hmo.model)
+
 
 @pytest.mark.parametrize("save_anndata", [True, False])
 def test_hub_model_save(save_anndata: bool, save_path: str):

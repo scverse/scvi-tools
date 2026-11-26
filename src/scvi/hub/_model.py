@@ -37,16 +37,17 @@ def _get_model_cls(model_parent_module: str, model_cls_name: str) -> type:
 
     Hub models uploaded before the parent module was inferred from the model class record the
     default ``scvi.model`` also for models that live in ``scvi.external`` (e.g.,
-    ``RNAStereoscope``). If the class is not in the recorded module, the other scvi-tools model
-    modules are searched.
+    ``RNAStereoscope``). Only for this legacy default, a class missing from ``scvi.model`` is
+    searched in the other scvi-tools model modules. Any other recorded parent module is used as
+    is, so that a custom model class is never silently replaced by a same-named built-in one.
     """
+    if model_parent_module != _SCVI_HUB.DEFAULT_PARENT_MODULE:
+        return getattr(importlib.import_module(model_parent_module), model_cls_name)
+
     candidates = [model_parent_module]
     candidates += [m for m in _SCVI_HUB.FALLBACK_PARENT_MODULES if m != model_parent_module]
     for module_name in candidates:
-        try:
-            python_module = importlib.import_module(module_name)
-        except ImportError:
-            continue
+        python_module = importlib.import_module(module_name)
         if hasattr(python_module, model_cls_name):
             if module_name != model_parent_module:
                 logger.info(
