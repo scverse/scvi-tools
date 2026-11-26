@@ -49,7 +49,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
   ``ModuleNotFoundError: Please install ['fastcluster'] to use this functionality`` unless
   `fastcluster`, which is only part of the `optional` extra, was installed. The linkage now falls
   back to {func}`scipy.cluster.hierarchy.linkage`, which gives the same clustering up to the order
-  of tied merges; `fastcluster` is still used when it is installed.
+  of tied merges; `fastcluster` is still used when it is installed. {pr}`4124`.
 
 ### 1.5.2 (2026-10-28)
 
