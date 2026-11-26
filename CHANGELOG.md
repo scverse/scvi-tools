@@ -35,9 +35,15 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
   previous values (including when `theta` or `mu` is below `eps`) without the cancellation. With a
   shared `theta`, `log_mixture_nb` now also adds the `lgamma` normalizer after the `logsumexp`, so
   the mixture weights no longer collapse for large counts. `log_mixture_nb` also now forwards `eps`,
-  `log_fn` and `lgamma_fn` when `theta_2` is given, {issue}`4086`.
+  `log_fn` and `lgamma_fn` when `theta_2` is given, {pr}`4087`.
 - Add `include_protein_efficiency` to {meth}`scvi.model.TOTALVI.get_normalized_expression` to
-  optionally include it in the normalized protein expression (default unchanged), {issue}`4022`.
+  optionally include it in the normalized protein expression (default unchanged), {pr}`4033`.
+- Fix {attr}`scvi.hub.HubModel.model` for models in `scvi.external`, such as the
+  {class}`scvi.external.RNAStereoscope` references on the scvi-tools Hugging Face Hub, which failed
+  with ``AttributeError: module 'scvi.model' has no attribute 'RNAStereoscope'``.
+  {meth}`scvi.hub.HubMetadata.from_dir` and {meth}`scvi.hub.HubModelCardHelper.from_dir` now infer
+  `model_parent_module` from the model class when it is not given, and loading falls back to
+  `scvi.external` for models already uploaded with `scvi.model` recorded as parent {pr}`4122`.
 
 ### 1.5.2 (2026-10-28)
 

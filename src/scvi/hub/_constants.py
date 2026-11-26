@@ -13,6 +13,8 @@ class _SCVI_HUB_NT(NamedTuple):
     DEFAULT_MISSING_FIELD: str = "To be added..."
     DEFAULT_NA_FIELD: str = "Not provided by uploader"
     DEFAULT_PARENT_MODULE: str = "scvi.model"
+    # modules searched, in order, for a model class that is not in its recorded parent module
+    FALLBACK_PARENT_MODULES: tuple[str, ...] = ("scvi.model", "scvi.external")
 
     # model card tags
     MODEL_CLS_NAME_TAG: str = "model_cls_name:{}"

@@ -26,6 +26,20 @@ if TYPE_CHECKING:
     from huggingface_hub import ModelCard
 
 
+def _infer_model_parent_module(model_cls_name: str) -> str:
+    """Return the scvi-tools module that exposes ``model_cls_name``.
+
+    Models in :mod:`scvi.external` (e.g., ``RNAStereoscope``) are not in the default parent
+    module, :mod:`scvi.model`. Falls back to the default if the class is found in neither.
+    """
+    import importlib
+
+    for module_name in _SCVI_HUB.FALLBACK_PARENT_MODULES:
+        if hasattr(importlib.import_module(module_name), model_cls_name):
+            return module_name
+    return _SCVI_HUB.DEFAULT_PARENT_MODULE
+
+
 @dataclass
 class HubMetadata:
     """Encapsulates the required metadata for `scvi-tools` hub models.
@@ -80,6 +94,7 @@ class HubMetadata:
         )
         scvi_version = attr_dict["registry_"]["scvi_version"]
         model_cls_name = attr_dict["registry_"]["model_name"]
+        kwargs.setdefault("model_parent_module", _infer_model_parent_module(model_cls_name))
 
         return cls(
             scvi_version,
@@ -231,6 +246,7 @@ class HubModelCardHelper:
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
         model_setup_anndata_args = registry["setup_args"]
+        kwargs.setdefault("model_parent_module", _infer_model_parent_module(model_cls_name))
         if metrics_report is None:
             if os.path.isfile(f"{local_dir}/metrics.json"):
                 with open(f"{local_dir}/metrics.json") as f:
