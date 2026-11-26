@@ -32,6 +32,34 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _get_model_cls(model_parent_module: str, model_cls_name: str) -> type:
+    """Return the model class ``model_cls_name``, looked up in ``model_parent_module``.
+
+    Hub models uploaded before the parent module was inferred from the model class record the
+    default ``scvi.model`` also for models that live in ``scvi.external`` (e.g.,
+    ``RNAStereoscope``). If the class is not in the recorded module, the other scvi-tools model
+    modules are searched.
+    """
+    candidates = [model_parent_module]
+    candidates += [m for m in _SCVI_HUB.FALLBACK_PARENT_MODULES if m != model_parent_module]
+    for module_name in candidates:
+        try:
+            python_module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        if hasattr(python_module, model_cls_name):
+            if module_name != model_parent_module:
+                logger.info(
+                    f"{model_cls_name} not found in {model_parent_module}, loading it from "
+                    f"{module_name}."
+                )
+            return getattr(python_module, model_cls_name)
+    raise ValueError(
+        f"Model class {model_cls_name} not found in {model_parent_module} "
+        f"(also searched: {', '.join(candidates[1:])})."
+    )
+
+
 class HubModel:
     """Wrapper for :class:`~scvi.model.base.BaseModelClass` backed by HuggingFace Hub.
 
@@ -508,8 +536,7 @@ class HubModel:
         logger.info("Loading model...")
         # get the class name for this model (e.g., TOTALVI)
         model_cls_name = self.metadata.model_cls_name
-        python_module = importlib.import_module(self.metadata.model_parent_module)
-        model_cls = getattr(python_module, model_cls_name)
+        model_cls = _get_model_cls(self.metadata.model_parent_module, model_cls_name)
         if (
             adata is not None
             or os.path.isfile(self._adata_path)

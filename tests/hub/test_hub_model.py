@@ -186,6 +186,38 @@ def test_hub_model_load(request, save_path):
         print(hmo.model)
 
 
+def test_hub_model_load_external_model(request, save_path):
+    """Models in scvi.external load, also when the metadata records scvi.model as parent."""
+    adata = synthetic_iid()
+    scvi.external.RNAStereoscope.setup_anndata(adata, labels_key="labels")
+    model = scvi.external.RNAStereoscope(adata)
+    model.train(1)
+    test_save_path = os.path.join(save_path, request.node.name)
+    model.save(test_save_path, overwrite=True, save_anndata=True)
+
+    # the parent module is inferred from the model class
+    hm = HubMetadata.from_dir(test_save_path, anndata_version=anndata.__version__)
+    assert hm.model_parent_module == "scvi.external"
+    hmch = HubModelCardHelper.from_dir(
+        test_save_path, license_info="cc-by-4.0", anndata_version=anndata.__version__
+    )
+    assert hmch.model_parent_module == "scvi.external"
+    hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
+    assert isinstance(hmo.model, scvi.external.RNAStereoscope)
+
+    # metadata of models uploaded before the parent module was inferred
+    hm_old = HubMetadata(scvi.__version__, anndata.__version__, "RNAStereoscope")
+    assert hm_old.model_parent_module == _SCVI_HUB.DEFAULT_PARENT_MODULE
+    hmo = HubModel(test_save_path, metadata=hm_old, model_card=hmch.model_card)
+    assert isinstance(hmo.model, scvi.external.RNAStereoscope)
+
+    # an unknown class raises a clear error
+    hm_bad = HubMetadata(scvi.__version__, anndata.__version__, "NotAModel")
+    hmo = HubModel(test_save_path, metadata=hm_bad, model_card=hmch.model_card)
+    with pytest.raises(ValueError, match="NotAModel not found"):
+        print(hmo.model)
+
+
 @pytest.mark.parametrize("save_anndata", [True, False])
 def test_hub_model_save(save_anndata: bool, save_path: str):
     model = prep_model()
