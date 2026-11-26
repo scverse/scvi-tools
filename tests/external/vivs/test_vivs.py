@@ -442,6 +442,43 @@ def test_vivs_get_hier_importance(vivs_adata):
     assert res.sizes["gene_name"] == vivs_adata.n_vars
 
 
+def test_vivs_get_hier_importance_without_fastcluster(vivs_adata, monkeypatch):
+    """`fastcluster` is optional: SciPy's linkage is used, with the same clustering, without it."""
+    import importlib.util
+    import sys
+
+    from scvi.external.vivs._model import VIVS
+
+    VIVS.setup_anndata(vivs_adata, y_obsm_key="protein_expression", batch_key="batch")
+    model = VIVS(vivs_adata, n_hidden=8, n_latent=4)
+    model.train(max_epochs=1)
+
+    # the correlations are estimated from sampled latents, so fix them to compare both backends
+    corr = model.get_gene_correlations()
+    monkeypatch.setattr(model, "get_gene_correlations", lambda adata=None: corr)
+
+    groupings_fastcluster = None
+    if importlib.util.find_spec("fastcluster") is not None:
+        groupings_fastcluster = model.get_gene_groupings(n_clusters_list=[5, 10])
+
+    # a ``None`` entry in ``sys.modules`` makes ``import fastcluster`` raise ImportError
+    monkeypatch.setitem(sys.modules, "fastcluster", None)
+    with pytest.raises(ImportError):
+        importlib.import_module("fastcluster")
+
+    groupings = model.get_gene_groupings(n_clusters_list=[5, 10])
+    assert len(groupings) == 2
+    assert len(np.unique(groupings[0])) <= 5
+    if groupings_fastcluster is not None:
+        for scipy_labels, fastcluster_labels in zip(groupings, groupings_fastcluster, strict=True):
+            np.testing.assert_array_equal(scipy_labels, fastcluster_labels)
+
+    res = model.get_hier_importance(n_clusters_list=[5, 10], batch_size=64, n_mc_samples=3)
+    assert "pval" in res.data_vars
+    assert res.sizes["resolution"] == 3
+    assert res.sizes["gene_name"] == vivs_adata.n_vars
+
+
 def test_plot_hier_importance_runs(vivs_adata):
     from scvi.external.vivs._model import VIVS
     from scvi.external.vivs._plotting import plot_hier_importance
