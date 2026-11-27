@@ -16,6 +16,11 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Install CPU-only torch wheels; the default CUDA build pulls several GB of nvidia-* wheels
+  # that exhaust the runner's disk ("Disk quota exceeded" / "No space left on device").
+  UV_TORCH_BACKEND: cpu
+
 jobs:
   # Get the test environment from hatch as defined in pyproject.toml.
   # This ensures that the pyproject.toml is the single point of truth for test definitions and the same tests are
