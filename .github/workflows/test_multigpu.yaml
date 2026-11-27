@@ -34,7 +34,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, CUDA]
 
     container:
-      image: ghcr.io/scverse/scvi-tools:py3.13-cu12-base
+      image: ghcr.io/scverse/scvi-tools:py3.14-cu13-base
       options: --user root --gpus all --pull always
 
     defaults:
